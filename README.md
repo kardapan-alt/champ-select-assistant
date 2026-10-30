@@ -60,5 +60,13 @@ set LCU_MOCK=http://127.0.0.1:2999 && set OPGG_ENDPOINT=http://127.0.0.1:3999/mc
 ```
 Kroki scenariusza w symulatorze: `http://127.0.0.1:2999/__step?n=0` … `n=3`.
 
+## Aktualizacje
+- Wersja z instalatorem (`ChampSelectAssistant-Setup-x.y.z.exe`) aktualizuje się sama: pobiera nową wersję w tle, a w górnym pasku pojawia się „Wersja x.y.z pobrana · Uruchom ponownie”. Bez kliknięcia zainstaluje się przy zamknięciu aplikacji.
+- Wersja przenośna (`ChampSelectAssistant-portable.exe`) nie może podmienić sama siebie, więc pokazuje „Dostępna wersja x.y.z · Pobierz” i otwiera stronę wydania.
+- Aplikacja sprawdza aktualizacje przy starcie i co 6 godzin, w [wydaniach na GitHubie](https://github.com/kardapan-alt/champ-select-assistant/releases).
+
+## Wydawanie nowej wersji
+Podnieś `version` w `package.json`, scal zmiany do `main` i wypchnij tag, np. `git tag v0.6.1 && git push origin v0.6.1`. GitHub Actions (`.github/workflows/release.yml`) uruchomi testy, zbuduje instalator i wersję portable na Windowsie i opublikuje wydanie.
+
 ## Budowanie exe
 `npm run dist` → folder `dist/`.

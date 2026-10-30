@@ -1,0 +1,22 @@
+# Wydanie: po wypchnięciu tagu v* (np. v0.6.1) buduje instalator i wersję portable na Windowsie
+# i publikuje je jako wydanie na GitHubie. Z tego wydania aplikacja pobiera aktualizacje.
+name: Wydanie
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
