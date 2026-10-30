@@ -8,6 +8,7 @@ const { OpggProvider, mergeStats } = require('./opgg');
 const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
 const { lanePlan } = require('./laneplan');
 const crypto = require('crypto');
+const { initUpdates } = require('./updater');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lcuasset', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
@@ -333,6 +334,18 @@ ipcMain.handle('import-runes', wrap(importRunes));
 ipcMain.handle('set-spells', wrap(setSpells));
 ipcMain.handle('export-item-set', wrap(exportItemSet));
 ipcMain.handle('get-state', () => lastState);
+
+// ---------- aktualizacje ----------
+
+let updates = null;
+let update = null;
+ipcMain.handle('get-update', () => update);
+ipcMain.handle('update-action', () => {
+  if (!updates || !update) return { ok: false };
+  if (update.state === 'ready') updates.install();
+  else updates.openPage();
+  return { ok: true };
+});
 ipcMain.handle('open-data-file', () => require('electron').shell.showItemInFolder(dataFile));
 ipcMain.handle('reload-data', wrap(async () => {
   ({ data: baseData, file: dataFile } = loadData());
@@ -381,6 +394,10 @@ app.whenReady().then(() => {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  updates = initUpdates((u) => {
+    update = u;
+    if (win && !win.isDestroyed()) win.webContents.send('update', u);
+  }, log);
   tick();
   setInterval(tick, 1000);
 });

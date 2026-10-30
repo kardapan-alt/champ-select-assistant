@@ -7,7 +7,8 @@
     "start": "electron .",
     "test": "node --test test/*.test.js",
     "mock": "node mock/mock-lcu.js",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
   },
   "keywords": [],
   "author": "",
@@ -26,13 +27,33 @@
     ],
     "win": {
       "target": [
-        "portable",
-        "zip"
+        "nsis",
+        "portable"
       ],
       "signAndEditExecutable": false
     },
     "portable": {
       "artifactName": "ChampSelectAssistant-portable.exe"
-    }
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "ChampSelectAssistant-Setup-${version}.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "kardapan-alt",
+        "repo": "champ-select-assistant",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kardapan-alt/champ-select-assistant.git"
   }
 }

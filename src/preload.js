@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('assist', {
   onState: (cb) => ipcRenderer.on('state', (_e, state) => cb(state)),
   getState: () => ipcRenderer.invoke('get-state'),
+  onUpdate: (cb) => ipcRenderer.on('update', (_e, update) => cb(update)),
+  getUpdate: () => ipcRenderer.invoke('get-update'),
+  updateAction: () => ipcRenderer.invoke('update-action'),
   importRunes: (alias) => ipcRenderer.invoke('import-runes', alias),
   setSpells: (alias) => ipcRenderer.invoke('set-spells', alias),
   exportItemSet: (alias) => ipcRenderer.invoke('export-item-set', alias),
