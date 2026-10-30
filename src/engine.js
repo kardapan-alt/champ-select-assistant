@@ -196,7 +196,7 @@ const ARCHETYPES = {
 };
 
 const ARCHETYPE_HINTS = {
-  dive: { needs: ['peel', 'antidive', 'disengage', 'cc'], text: 'przeciw dive: peel i disengage' },
+  dive: { needs: ['peel', 'antidive', 'disengage'], text: 'przeciw dive: peel i disengage' },
   engage: { needs: ['disengage', 'poke', 'peel'], text: 'przeciw engage: disengage albo poke' },
   poke: { needs: ['engage', 'dive', 'sustain', 'heal'], text: 'przeciw poke: szybki engage' },
   protect: { needs: ['poke', 'pick', 'tankkiller'], text: 'przeciw ochronie carry: poke i łapanie' },
@@ -270,6 +270,8 @@ function suggestPicks(state, game, data, options = {}) {
     const reasons = [];
     if (!position) score += champ.roles.length > 1 ? 2 : 0;
     if (position && champ.roles[0] === position) score += 3;
+    // Rola poboczna (np. mag na supporcie): grywalne, ale rzadziej niż główne picki tej roli.
+    if (position && champ.roles[0] !== position) { score -= 6; reasons.push({ good: false, text: 'rzadziej grany na tej roli' }); }
 
     const tier = tierOf(alias, data);
     const tierPts = (TIER_VALUE[tier] || 2) - 2;
@@ -319,6 +321,13 @@ function suggestPicks(state, game, data, options = {}) {
     }
     if (ally.count >= 2 && ally.engage === 0 && t.includes('engage')) {
       score += 6; reasons.push({ good: true, text: 'daje engage' });
+    }
+    // Kruchy carry bez ucieczki i ochrony to łatwy cel dla zabójców i dive'u.
+    const divers = enemyInfos.filter((e) => e.class === 'assassin' || (e.traits || []).some((x) => x === 'dive' || x === 'burst'));
+    const fragile = ['adc', 'mage'].includes(champ.class) && !t.some((x) => ['mobile', 'peel', 'antidive', 'safe', 'disengage'].includes(x));
+    if (fragile && divers.length >= 2) {
+      score -= 4 * divers.length;
+      reasons.push({ good: false, text: `łatwy cel dla ${divers.slice(0, 3).map((e) => name(e.alias)).join(', ')}` });
     }
     if (enemyArch && ARCHETYPE_HINTS[enemyArch.primary].needs.some((n) => t.includes(n))) {
       score += 5; reasons.push({ good: true, text: `odpowiada na styl wroga (${ARCHETYPES[enemyArch.primary].label})` });

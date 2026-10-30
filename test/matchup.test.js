@@ -101,3 +101,15 @@ test('plan na linię: przeciwnik z pozycji, wskazówki z cech i statystyk gracza
   assert.equal(noPos.opponent.name, 'Zed');
   console.log('plan:', plan.tips);
 });
+
+test('support: bez strzelców i fighterów, kruchy pick słabszy przeciw zabójcom', () => {
+  const state = stateFor('utility', 'Thresh', ['Samira', 'LeeSin', 'Garen', 'Zed']);
+  state.me.championId = 0;
+  state.allies = [{ position: 'utility', championId: 0, isMe: true }];
+  const { list } = engine.suggestPicks(state, game, data);
+  const names = list.map((s) => s.alias);
+  assert.ok(!names.includes('Ashe') && !names.includes('Sett'), names.join(','));
+  const lux = engine.suggestPicks(state, game, data, { limit: 50 }).list.find((s) => s.alias === 'Lux');
+  if (lux) assert.ok(lux.reasons.some((r) => !r.good && r.text.startsWith('łatwy cel')), JSON.stringify(lux.reasons));
+  console.log('support:', list.map((s) => `${s.name} ${s.score}`).join(', '));
+});
