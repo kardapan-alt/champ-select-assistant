@@ -673,6 +673,8 @@ class OpggProvider {
             report[label] = { tool: tool.name, args, error: err.message };
           }
         }
+        report.player = player;
+        try { report.playerParsed = interpretSummoner(report.summoner && report.summoner.raw, report.history && report.history.raw); } catch (err) { report.playerParsed = { error: err.message }; }
       }
     } catch (err) {
       report.error = err.message;

@@ -259,7 +259,7 @@ function loadingScreen(s) {
     <div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div>
     <h3 class="enemy-h">Przeciwnicy</h3>
     <div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>
-    <footer><span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}${s.region ? ` · serwer ${esc(s.region)}` : ''}</span></footer>
+    <footer><span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}${s.region ? ` · serwer ${esc(s.region)}` : ''}</span><button data-stats-diag>Diagnostyka OP.GG</button></footer>
   </div>`;
 }
 

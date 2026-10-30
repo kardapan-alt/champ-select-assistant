@@ -363,7 +363,15 @@ ipcMain.handle('toggle-stats', wrap(async () => {
   return { ok: true, enabled: settings.stats };
 }));
 ipcMain.handle('stats-diagnostics', wrap(async () => {
-  const report = await provider.diagnostics(game || require('./gamedata').emptyGameData());
+  // Twoje konto jako przykładowy gracz: plik pokaże też odpowiedzi narzędzi profilu i historii gier.
+  let player = null;
+  if (lcu) {
+    const me = await lcu.get('/lol-summoner/v1/current-summoner').catch(() => null);
+    const locale = await lcu.get('/riotclient/region-locale').catch(() => null);
+    const region = String((locale && (locale.webRegion || locale.region)) || '').toUpperCase();
+    if (me && me.gameName && me.tagLine) player = { gameName: me.gameName, tagLine: me.tagLine, region };
+  }
+  const report = await provider.diagnostics(game || require('./gamedata').emptyGameData(), undefined, undefined, player);
   const file = path.join(app.getPath('documents'), 'champ-select-diagnostyka-opgg.json');
   fs.writeFileSync(file, JSON.stringify(report, null, 2));
   require('electron').shell.showItemInFolder(file);
