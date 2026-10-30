@@ -1,0 +1,38 @@
+{
+  "name": "champ-select-assistant",
+  "version": "0.6.0",
+  "description": "Asystent wyboru postaci do League of Legends",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "mock": "node mock/mock-lcu.js",
+    "dist": "electron-builder --win"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "pl.daniel.champselectassistant",
+    "productName": "Champ Select Assistant",
+    "files": [
+      "src/**",
+      "data/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "zip"
+      ],
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "ChampSelectAssistant-portable.exe"
+    }
+  }
+}
