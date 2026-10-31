@@ -12,6 +12,7 @@ Asystent wyboru postaci do League of Legends (tylko champion select, nic w trakc
 - Runy, odłamki i czary dopasowuje do meczu i pokazuje, co zmienił i dlaczego: melee przeciw pokującemu dostaje Second Wind (na topie i midzie także Determinację jako drugie drzewko), przeciw all-inowi Kościaną Płytę, przy dużej liczbie CC u wroga odłamek Nieustępliwości. Czary: Bariera na midzie przeciw zabójcy, Podpalenie na wygranym matchupie na topie, Teleport na trudnym, Oczyszczenie dla ADC przy dużej ilości CC, Wyczerpanie dla supporta przeciw zabójcom. Flash i Smite zostają bez zmian.
 - Ustawia czary przywoływacza (Flash zostaje na tym klawiszu, na którym go masz).
 - Gdy wszyscy zablokują, pokazuje pełny build (buty + 5 itemów) dopasowany do składu wroga, z powodem przy każdym itemie, alternatywami, czarami i kolejnością umiejętności.
+- Rozpoznaje konkretne sytuacje w składzie wroga i mówi, czym na nie odpowiedzieć, z nazwami championów: Yasuo i Jhin na krytach → Randuin's Omen, Soraka i Warwick się leczą → antyleczenie, Malzahar ma supresję → Mercurial Scimitar / Banshee's Veil, Zed → Zhonya dla maga, tanki → przebicie, niewidzialni → Control Ward i Oracle Lens (także tarcze, szybkie ataki, burst AP). Dwie najważniejsze odpowiedzi trafiają do buildu (wyróżnione na złoto), reszta do alternatyw; panel „Na co uważać” jest w wyborze postaci i na ekranie ładowania.
 - Przycisk „Wyślij build do sklepu w grze” zapisuje ten build jako zestaw przedmiotów „CS Assist: …” (start, pierwszy powrót przeciw przeciwnikowi z linii, build w kolejności, bloki „Dlaczego: …” z powodami, alternatywy, wardy). W grze jest w sklepie w zakładce zestawów. Poprzedni zestaw aplikacji jest zastępowany, Twoje własne zestawy zostają.
 
 ## Statystyki z OP.GG
@@ -48,7 +49,7 @@ Plik `champions.json` (przycisk „Edytuj dane” otwiera jego folder w `%APPDAT
 - `items` (pierwsze 2 są stałe), `boots`, `spells`, `skills`, opcjonalnie `starters` (itemy startowe)
 - `starters`: itemy startowe dla klas i junglerów, `earlyDefense`: pierwszy item obronny przeciw AP/AD, `trinkets`, `consumables`: do zestawu w sklepie
 - `meta.tiers`: siła w mecie (S/A/B/C), `synergies`: pary championów grające dobrze razem
-- `itemPools`: itemy sytuacyjne dla klas z tagami zagrożeń, `championTraits`: cechy pozostałych championów (AP, tank, leczenie, CC, burst)
+- `itemPools`: itemy sytuacyjne dla klas z tagami zagrożeń (konkretne sytuacje, np. kryty czy supresja, są w `src/situational.js`), `championTraits`: cechy pozostałych championów (AP, tank, leczenie, CC, burst)
 Id run/itemów są sprawdzane z danymi klienta, więc po zmianie patcha błędne pozycje zostaną zastąpione lub pominięte. Po edycji kliknij „Wczytaj dane ponownie”.
 
 ## Testy bez gry

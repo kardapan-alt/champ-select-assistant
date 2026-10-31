@@ -1,6 +1,7 @@
 // Plan na całą grę na ekranie ładowania: jak grać na początku, w środku gry i w walkach drużynowych.
 // Opiera się na stylu obu składów (archetypy), sile na początku / w późnej grze i statystykach graczy z kart.
 const engine = require('./engine');
+const { detectSituations, situationView } = require('./situational');
 
 const { champInfo } = engine;
 
@@ -120,9 +121,15 @@ function gamePlan(allies, enemies, cardFor, game, data) {
   const profile = engine.describeEnemy(engine.teamProfile(theirs.map((m) => m.info)));
   if (profile.apPercent >= 65) late.push(`Wróg zadaje głównie obrażenia magiczne (${profile.apPercent}%): odporność na magię opłaca się bardziej niż pancerz.`);
   else if (profile.adPercent >= 65) late.push(`Wróg zadaje głównie obrażenia fizyczne (${profile.adPercent}%): pancerz opłaca się bardziej niż odporność na magię.`);
-  if (profile.threats.includes('dużo leczenia') || profile.threats.includes('leczenie')) late.push('Wróg się leczy: ktoś z drużyny powinien kupić antyleczenie.');
+  // Leczenie, kryty, supresję itp. opisują konkretne sytuacje poniżej (z nazwami championów).
+
+  // Konkretne zagrożenia w składzie wroga z odpowiedzią dla drużyny (np. Yasuo + Jhin → Randuin's Omen).
+  const exists = (id) => !game.items.size || game.items.has(id);
+  const situations = detectSituations(theirs.map((m) => ({ alias: m.info.alias, championId: m.player.championId, name: m.name, traits: m.info.traits || [] })), null, exists)
+    .map((s) => situationView(s, game));
 
   return {
+    situations,
     ourStyle: ourStyle ? ourStyle.labels : [],
     theirStyle: theirStyle ? theirStyle.labels : [],
     phases: [

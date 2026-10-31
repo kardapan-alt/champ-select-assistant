@@ -1,6 +1,8 @@
 // Logika asystenta: odczyt stanu wyboru postaci, sugestie picków, runy i build.
 // Czyste funkcje, bez Electrona i sieci, żeby dało się je testować.
 
+const { detectSituations, situationView, reasonFor } = require('./situational');
+
 const POSITION_LABELS = {
   top: 'Top', jungle: 'Jungle', middle: 'Mid', bottom: 'ADC', utility: 'Support', '': 'Brak roli',
 };
@@ -616,8 +618,31 @@ function buildFor(alias, state, game, data) {
   const topLate = Math.max(1, ...lateStats.map((it) => it.score));
   // Pozostałe itemy rdzenia i popularne późniejsze itemy z OP.GG startują z wysoką bazą,
   // żeby itemy sytuacyjne z wbudowanej puli wchodziły tylko przy wyraźnie jednostronnym składzie wroga.
+  // Konkretne sytuacje (np. Yasuo + Jhin → Randuin's Omen): dwie najmocniejsze dostają miejsce w buildzie,
+  // pozostałe konkurują z resztą itemów i zwykle lądują w alternatywach.
+  const enemyList = state.enemies.filter((e) => e.championId).map((e) => {
+    const a = aliasOf(e.championId);
+    return a ? { alias: a, championId: e.championId, name: nameOf(a, game), traits: champInfo(a, game, data).traits || [] } : null;
+  }).filter(Boolean);
+  const situations = detectSituations(enemyList, itemPoolKey(champ), exists);
+  const situationByTag = new Map();
+  const situational = new Map();
+  let forced = 0;
+  for (const s of situations) {
+    if (!s.myItem) continue;
+    const tag = `s:${s.key}`;
+    const strong = s.level === 2 && forced < 2;
+    if (strong) forced += 1;
+    threats[tag] = strong ? 4 : 1.2;
+    situationByTag.set(tag, s);
+    const prev = situational.get(s.myItem);
+    situational.set(s.myItem, { id: s.myItem, tags: { ...(prev ? prev.tags : pooledTags(s.myItem)), [tag]: 1 } });
+  }
+  const reasonOf = (tag) => (situationByTag.has(tag) ? reasonFor(situationByTag.get(tag)) : THREAT_REASONS[tag]);
+  const coreRest = core.slice(fixed.length);
   const candidates = [
-    ...core.slice(fixed.length).map((id) => ({ id, tags: { ...pooledTags(id), late: 1.6 }, core: true })),
+    ...[...situational.values()].map((it) => (coreRest.includes(it.id) ? { ...it, tags: { ...it.tags, late: 1.6 }, core: true } : it)),
+    ...coreRest.map((id) => ({ id, tags: { ...pooledTags(id), late: 1.6 }, core: true })),
     ...lateStats.map((it) => ({ id: it.id, tags: { ...pooledTags(it.id), late: 2 + 1.5 * (it.score / topLate) }, core: true, popular: true })),
     ...((data.itemPools || {})[itemPoolKey(champ)] || []).filter((it) => !it.only || it.only.includes(champ.class))
       // Przy statystykach OP.GG item z puli nie wygrywa samą „późną grą”, tylko odpowiedzią na zagrożenie.
@@ -632,8 +657,10 @@ function buildFor(alias, state, game, data) {
     pool.sort((a, b) => scoreOf(b) - scoreOf(a));
     const best = pool.shift();
     const contributions = Object.entries(best.tags).map(([tag, v]) => [tag, v * (left[tag] || 0)]).sort((a, b) => b[1] - a[1]);
-    const mainTag = contributions[0] && contributions[0][1] > 0 ? contributions[0][0] : 'late';
-    chosen.push({ ...best, why: best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : THREAT_REASONS[mainTag] });
+    // Konkretna sytuacja (np. "zabójcy AD: Zed") jest czytelniejsza niż ogólny powód, więc ma pierwszeństwo.
+    const specific = contributions.find(([tag, v]) => tag.startsWith('s:') && v > 0);
+    const mainTag = specific ? specific[0] : contributions[0] && contributions[0][1] > 0 ? contributions[0][0] : 'late';
+    chosen.push({ ...best, situational: mainTag.startsWith('s:'), why: best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : reasonOf(mainTag) });
     // Każdy item częściowo zaspokaja zagrożenie: przy skrajnym składzie zostaje miejsce na kolejny item tego typu.
     for (const [tag, v] of Object.entries(best.tags)) {
       left[tag] = tag === 'late' ? (left[tag] || 0) * 0.85 : Math.max(0, (left[tag] || 0) - v * 0.55);
@@ -651,7 +678,7 @@ function buildFor(alias, state, game, data) {
   const spells = spellsFor(alias, state, game, data);
   const notes = [];
   const replacedCore = core.slice(FIXED_CORE).filter((id) => !chosen.some((c) => c.id === id));
-  if (replacedCore.length) notes.push(`${replacedCore.map((id) => item(id).name).join(', ')} wypada z buildu na rzecz itemów defensywnych pod ten skład.`);
+  if (replacedCore.length) notes.push(`${replacedCore.map((id) => item(id).name).join(', ')} wypada z buildu na rzecz odpowiedzi na skład wroga.`);
   const defensive = chosen.filter((c) => [THREAT_REASONS.mr, THREAT_REASONS.armor].includes(c.why));
   if (defensive.length >= 2) notes.push(`Skład wroga jest jednostronny, dlatego build ma ${defensive.length} itemy obronne.`);
 
@@ -667,12 +694,15 @@ function buildFor(alias, state, game, data) {
     items: [
       // Item rdzenia, który przy okazji odpowiada na mocne zagrożenie (np. Zhonya przeciw AD), dostaje ten powód.
       ...fixed.map((id) => {
+        const sit = situations.find((s) => s.myItem === id && situationByTag.has(`s:${s.key}`));
+        if (sit) return { ...item(id), why: reasonFor(sit), situational: true };
         const strong = Object.entries(pooledTags(id)).filter(([t, v]) => t !== 'late' && v * (threats[t] || 0) >= 1.5).sort((a, b) => b[1] * threats[b[0]] - a[1] * threats[a[0]])[0];
         return { ...item(id), why: strong ? THREAT_REASONS[strong[0]] : 'rdzeń championa' };
       }),
-      ...chosen.map((c) => ({ ...item(c.id), why: c.why })),
+      ...chosen.map((c) => ({ ...item(c.id), why: c.why, ...(c.situational ? { situational: true } : {}) })),
     ],
-    alternatives: alternatives.map((a) => ({ ...item(a.id), why: THREAT_REASONS[Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]] })),
+    alternatives: alternatives.map((a) => ({ ...item(a.id), why: reasonOf(Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]) })),
+    situations: situations.map((s) => situationView(s, game, [...fixed, ...chosen.map((c) => c.id)])),
     skills: champ.skills || 'Q > W > E',
     notes,
   };
@@ -704,7 +734,8 @@ function itemSetFor(build, alias, state, game, data) {
   }
   for (const [why, ids] of reasons) block(`Dlaczego: ${why}`, ids);
   if (build.alternatives.length) block('Alternatywy sytuacyjne', build.alternatives.map((a) => a.id));
-  block('Wizja i mikstury', [...(data.consumables || []), ctx.position === 'support' ? trinkets.support : trinkets.later]);
+  const stealth = (build.situations || []).find((s) => s.key === 'stealth');
+  block(stealth ? `Wizja: ${stealth.champions.map((c) => c.name).join(', ')} bywają niewidzialni` : 'Wizja i mikstury', [...(data.consumables || []), ctx.position === 'support' ? trinkets.support : trinkets.later]);
 
   return {
     title: `CS Assist: ${build.name}${laneName ? ` vs ${laneName}` : ''}`.slice(0, 75),
