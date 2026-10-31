@@ -2,11 +2,12 @@ const { app, BrowserWindow, ipcMain, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { findCredentials, LcuClient } = require('./lcu');
-const { loadGameData, masteryMap, MASTERY_PATH } = require('./gamedata');
+const { loadGameData, loadMastery } = require('./gamedata');
 const engine = require('./engine');
 const { OpggProvider, mergeStats } = require('./opgg');
 const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
 const { lanePlan } = require('./laneplan');
+const { gamePlan } = require('./gameplan');
 const crypto = require('crypto');
 const { initUpdates } = require('./updater');
 
@@ -49,7 +50,7 @@ const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(f
 const writeJson = (file, value) => { try { fs.writeFileSync(file, JSON.stringify(value)); } catch { /* brak zapisu */ } };
 const log = (line) => { try { fs.appendFileSync(userFile('log.txt'), `${new Date().toISOString()} ${line}\n`); } catch { /* brak zapisu */ } };
 
-let settings = { stats: true };
+let settings = { stats: true, autoRunes: true };
 let provider = null;
 const stats = { meta: null, analyses: {} };
 const queue = [];
@@ -86,7 +87,8 @@ function loadMeta() {
 const attempted = new Map();
 
 function requestAnalysis(alias, position) {
-  if (!settings.stats || !alias || !game) return;
+  // OP.GG wymaga pozycji; bez niej (champion spoza danych, zanim wczyta się meta) spróbujemy przy następnym odświeżeniu.
+  if (!settings.stats || !alias || !game || !position) return;
   const key = `${alias}:${position}`;
   if (stats.analyses[alias] && stats.analyses[alias]._key === key) return;
   if (queue.some((q) => q.key === key)) return;
@@ -124,9 +126,13 @@ function send(state) {
   if (win && !win.isDestroyed()) win.webContents.send('state', state);
 }
 
-function champView(id) {
+// Ikona championa; z wybranym skinem (inny niż classic) kafelek tego skina z klienta.
+function champView(id, skinId = 0) {
   const c = game && game.championsById.get(id);
-  return c ? { id, alias: c.alias, name: c.name, icon: `lcuasset://lcu/lol-game-data/assets/v1/champion-icons/${id}.png` } : null;
+  if (!c) return null;
+  const skin = skinId > 0 && Math.floor(skinId / 1000) === id && skinId % 1000 !== 0;
+  const icon = skin ? `lcuasset://lcu/lol-game-data/assets/v1/champion-tiles/${id}/${skinId}.jpg` : `lcuasset://lcu/lol-game-data/assets/v1/champion-icons/${id}.png`;
+  return { id, alias: c.alias, name: c.name, icon };
 }
 
 async function tick() {
@@ -162,6 +168,7 @@ async function tick() {
     loading = null;
     if (phase !== 'ChampSelect') {
       lastSessionJson = '';
+      autoRunes = { key: '', done: '', error: '' };
       return send({ status: 'idle', phase });
     }
     const session = await lcu.get('/lol-champ-select/v1/session');
@@ -172,11 +179,12 @@ async function tick() {
       // Nowy champ select: odśwież listę posiadanych championów.
       const owned = await lcu.get('/lol-champions/v1/owned-champions-minimal');
       if (owned) game.owned = new Set(owned.filter((c) => c.id > 0).map((c) => c.id));
-      const mastery = await lcu.get(MASTERY_PATH);
-      if (mastery) game.mastery = masteryMap(mastery);
+      const mastery = await loadMastery(lcu);
+      if (mastery.map.size) game.mastery = mastery.map;
     }
     lastSessionJson = json;
     send(buildView(session));
+    autoImportRunes();
   } catch (err) {
     send({ status: 'error', message: String(err && err.message || err) });
     lcu = null;
@@ -210,7 +218,7 @@ function buildLoadingView() {
   const cardOf = (p) => playerCard(p, loading.summaries[playerKey(p)] || null, game);
   const card = (p) => ({
     ...cardOf(p),
-    championView: champView(p.championId),
+    championView: champView(p.championId, p.skinId),
     pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName,
   });
   const me = loading.allies.find((p) => p.isMe);
@@ -222,12 +230,15 @@ function buildLoadingView() {
     plan.me.icon = champView(plan.me.championId).icon;
     plan.opponent.icon = champView(plan.opponent.championId).icon;
   }
+  let teamPlan = null;
+  try { teamPlan = gamePlan(loading.allies, loading.enemies, cardOf, game, data); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(card);
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
   return {
     status: 'loading-screen',
     region: loading.region,
     plan,
+    gamePlan: teamPlan,
     final: lastFinal,
     allies: loading.allies.map(card),
     enemies,
@@ -253,10 +264,10 @@ function buildView(session) {
     myPosition: me ? me.position : '',
     positionLabel: engine.POSITION_LABELS[me ? me.position : ''] || '',
     allies: state.allies.map((a) => ({
-      champion: champView(a.championId), locked: a.locked, isMe: a.isMe,
+      champion: champView(a.championId, a.skinId), locked: a.locked, isMe: a.isMe,
       position: engine.POSITION_LABELS[a.position] || '',
     })),
-    enemies: state.enemies.map((e) => ({ champion: champView(e.championId), locked: e.locked })),
+    enemies: state.enemies.map((e) => ({ champion: champView(e.championId, e.skinId), locked: e.locked })),
     enemyProfile: engine.enemyProfile(state, game, data),
     suggestions: picks.list.map((s) => ({ ...s, icon: champView(s.championId).icon })),
     blind: picks.blind,
@@ -268,16 +279,18 @@ function buildView(session) {
     metaSource: (data.meta && data.meta.source) || '',
     statsStatus: settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
     statsEnabled: settings.stats,
+    autoRunes: autoRunesView(),
     myChampion: null,
     build: null,
     dataFile,
   };
   if (myAlias) {
-    view.myChampion = { ...champView(me.championId), locked: me.locked, runes: engine.runePageFor(myAlias, game, data, state) };
-    if (state.allLocked) view.build = engine.buildFor(myAlias, state, game, data);
+    view.myChampion = { ...champView(me.championId, me.skinId), locked: me.locked, provisional: !state.allLocked, runes: engine.runePageFor(myAlias, game, data, state) };
+    // Build od razu po wybraniu championa; dopóki nie wszyscy zablokowali, jest wstępny i zmienia się z każdym pickiem wroga.
+    view.build = { ...engine.buildFor(myAlias, state, game, data), provisional: !state.allLocked };
   }
   // Ostatni build z champ selecta zostaje do wglądu na ekranie ładowania i w trakcie gry.
-  if (view.build) lastFinal = { myChampion: view.myChampion, build: view.build };
+  if (view.build && state.allLocked) lastFinal = { myChampion: view.myChampion, build: view.build };
   else if (!state.allLocked) lastFinal = null;
   view._state = { me: me && { spell1Id: me.spell1Id, spell2Id: me.spell2Id } };
   return view;
@@ -306,6 +319,26 @@ async function importRunes(alias) {
   if (!res.ok) throw new Error((res.data && res.data.message) || `Klient odrzucił runy (${res.status})`);
   return { ok: true, name: page.name };
 }
+
+// Automatyczny import run, gdy wszyscy zablokowali championów (raz na dany skład; można wyłączyć w ustawieniach).
+let autoRunes = { key: '', done: '', error: '' };
+async function autoImportRunes() {
+  const s = lastSelectState;
+  if (!settings.autoRunes || !s || !s.allLocked || !s.me || !s.me.championId) return;
+  const alias = game.championsById.get(s.me.championId)?.alias;
+  const key = [alias, ...s.enemies.map((e) => e.championId)].join(':');
+  if (!alias || key === autoRunes.key) return;
+  autoRunes = { key, done: '', error: '' };
+  try {
+    const res = await importRunes(alias);
+    autoRunes.done = res.name;
+  } catch (err) {
+    autoRunes.error = String(err && err.message || err);
+    log(`auto-import run: ${autoRunes.error}`);
+  }
+  if (lastState && lastState.status === 'champselect') send({ ...lastState, autoRunes: autoRunesView() });
+}
+const autoRunesView = () => ({ enabled: settings.autoRunes, done: autoRunes.done, error: autoRunes.error });
 
 async function setSpells(alias) {
   if (!lcu || !game || !lastState || lastState.status !== 'champselect') throw new Error('Brak aktywnego wyboru postaci');
@@ -345,8 +378,10 @@ ipcMain.handle('get-state', () => lastState);
 let updates = null;
 let update = null;
 ipcMain.handle('get-update', () => update);
+ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('update-action', () => {
   if (!updates || !update) return { ok: false };
+  if (update.state === 'downloading') return { ok: false };
   if (update.state === 'ready') updates.install();
   else updates.openPage();
   return { ok: true };
@@ -367,6 +402,13 @@ ipcMain.handle('toggle-stats', wrap(async () => {
   lastSessionJson = '';
   return { ok: true, enabled: settings.stats };
 }));
+ipcMain.handle('toggle-auto-runes', wrap(async () => {
+  settings.autoRunes = !settings.autoRunes;
+  writeJson(userFile('settings.json'), settings);
+  autoRunes.key = '';
+  lastSessionJson = '';
+  return { ok: true, enabled: settings.autoRunes };
+}));
 ipcMain.handle('stats-diagnostics', wrap(async () => {
   // Twoje konto jako przykładowy gracz: plik pokaże też odpowiedzi narzędzi profilu i historii gier.
   let player = null;
@@ -377,6 +419,19 @@ ipcMain.handle('stats-diagnostics', wrap(async () => {
     if (me && me.gameName && me.tagLine) player = { gameName: me.gameName, tagLine: me.tagLine, region };
   }
   const report = await provider.diagnostics(game || require('./gamedata').emptyGameData(), undefined, undefined, player);
+  // Dane z klienta do sprawdzenia banów i maestrii (bez danych innych graczy: tylko komórki, championy i akcje).
+  if (lcu) {
+    const session = await lcu.get('/lol-champ-select/v1/session').catch(() => null);
+    const mastery = await loadMastery(lcu).catch(() => null);
+    const team = (list) => (list || []).map((p) => ({ cellId: p.cellId, championId: p.championId, championPickIntent: p.championPickIntent, assignedPosition: p.assignedPosition, selectedSkinId: p.selectedSkinId }));
+    report.lcu = {
+      champSelect: session ? {
+        localPlayerCellId: session.localPlayerCellId, myTeam: team(session.myTeam), theirTeam: team(session.theirTeam),
+        actions: session.actions, bans: session.bans, phase: session.timer && session.timer.phase,
+      } : null,
+      mastery: mastery ? { counts: mastery.raw, champions: mastery.map.size } : null,
+    };
+  }
   const file = path.join(app.getPath('documents'), 'champ-select-diagnostyka-opgg.json');
   fs.writeFileSync(file, JSON.stringify(report, null, 2));
   require('electron').shell.showItemInFolder(file);
@@ -392,7 +447,10 @@ app.whenReady().then(() => {
     const url = new URL(request.url);
     if (!lcu) return new Response(null, { status: 503 });
     try {
-      const res = await lcu.raw('GET', url.pathname);
+      let res = await lcu.raw('GET', url.pathname);
+      // Brak kafelka skina w kliencie: zwykła ikona championa.
+      const tile = /^\/lol-game-data\/assets\/v1\/champion-tiles\/(\d+)\//.exec(url.pathname);
+      if (tile && res.status !== 200) res = await lcu.raw('GET', `/lol-game-data/assets/v1/champion-icons/${tile[1]}.png`);
       return new Response(res.body, { status: res.status, headers: { 'Content-Type': res.headers['content-type'] || 'image/png', 'Cache-Control': 'max-age=86400' } });
     } catch {
       return new Response(null, { status: 502 });

@@ -578,12 +578,26 @@ function interpretVision(root) {
   return seconds ? Math.round((score / (seconds / 60)) * 100) / 100 : null;
 }
 
+// OP.GG podaje tylko najczęściej grane championy (top 10). Champion spoza listy ma mniej gier niż ostatni na liście.
+function seasonListInfo(root) {
+  let info = null;
+  walk(root, (node) => {
+    if (info || Array.isArray(node) || !Array.isArray(node.champion_stats)) return;
+    const plays = node.champion_stats.map((c) => num(c && c.play)).filter((n) => n != null);
+    const total = num(node.play);
+    const listed = plays.reduce((a, b) => a + b, 0);
+    if (plays.length && total != null && listed < total) info = { partial: true, below: Math.min(...plays) };
+  });
+  return info;
+}
+
 function interpretSummoner(rawProfile, rawHistory) {
   const profile = parsePayload(rawProfile);
   const history = parsePayload(rawHistory);
   return {
     rank: interpretRank(profile) || interpretRank(history),
     seasonChampions: Object.fromEntries(interpretChampionSeason(profile)),
+    seasonList: seasonListInfo(profile),
     games: interpretGames(history),
     visionPerMin: interpretVision(profile),
   };

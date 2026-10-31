@@ -116,6 +116,9 @@ const server = http.createServer((req, res) => {
       case 'GET /lol-champions/v1/owned-champions-minimal': return json(champions.filter((c) => c.alias !== 'Lux'));
       case 'GET /lol-champion-mastery/v1/local-player/champion-mastery':
         return json(champions.filter((c, i) => i % 3 !== 0).map((c, i) => ({ championId: c.id, championLevel: 1 + (i * 7) % 10, championPoints: ((i * 7919) % 400) * 1000 + 1200 })));
+      // Kolekcja ma też championy, których brakuje w liście local-player (jak w prawdziwym kliencie).
+      case 'GET /lol-collections/v1/inventories/1001/champion-mastery':
+        return json(champions.filter((c, i) => i % 3 === 0).map((c) => ({ championId: c.id, championLevel: 7, championPoints: 55000 })));
       case 'GET /lol-perks/v1/pages': return json(pages);
       case 'GET /lol-perks/v1/currentpage': return json(pages[pages.length - 1]);
       case 'POST /lol-perks/v1/pages': {

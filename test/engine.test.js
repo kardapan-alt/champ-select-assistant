@@ -44,6 +44,7 @@ test('odczyt sesji i sugestie dla mida', async () => {
   assert.equal(blind, true, 'Zed jeszcze niewidoczny, więc blind pick');
   assert.ok(list.every((s) => typeof s.mastery.points === 'number'));
   assert.ok(list.some((s) => s.mastery.points > 0), 'maestria z klienta');
+  assert.ok(list.every((s) => s.mastery.points > 0), 'maestria z local-player i z kolekcji gracza');
   const names = list.map((s) => s.alias);
   for (const s of list) assert.ok(data.champions[s.alias].roles.includes('middle'));
   assert.ok(!names.includes('Syndra'), 'zbanowany champion nie powinien być sugerowany');

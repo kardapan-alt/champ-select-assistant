@@ -36,7 +36,7 @@ function latestRelease() {
   });
 }
 
-// notify(update) dostaje { state: 'available' | 'ready', version, portable }.
+// notify(update) dostaje { state: 'available' | 'downloading' | 'ready', version, portable, percent }.
 function initUpdates(notify, log = () => {}) {
   const actions = { install: () => {}, openPage: () => shell.openExternal(RELEASES_PAGE) };
   if (!app.isPackaged) return actions;
@@ -53,6 +53,16 @@ function initUpdates(notify, log = () => {}) {
   const { autoUpdater } = require('electron-updater');
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  // Pobieranie trwa chwilę (ok. 80 MB), więc pokazujemy postęp, żeby było widać, że coś się dzieje.
+  let lastPercent = -1;
+  const downloading = (version, percent) => {
+    if (percent === lastPercent) return;
+    lastPercent = percent;
+    notify({ state: 'downloading', version, percent, portable: false });
+  };
+  let nextVersion = '';
+  autoUpdater.on('update-available', (info) => { nextVersion = info.version; downloading(nextVersion, 0); });
+  autoUpdater.on('download-progress', (p) => downloading(nextVersion, Math.floor(p.percent || 0)));
   autoUpdater.on('update-downloaded', (info) => notify({ state: 'ready', version: info.version, portable: false }));
   autoUpdater.on('error', (err) => log(`aktualizacje: ${err.message}`));
   const check = () => autoUpdater.checkForUpdates().catch((err) => log(`aktualizacje: ${err.message}`));

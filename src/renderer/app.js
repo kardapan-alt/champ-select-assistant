@@ -100,10 +100,17 @@ function compPanel(c) {
   return `<div class="panel"><h3>Archetypy składów</h3><div class="comps">${side('Wasz styl', c.ally, 'ally')}${side('Styl wroga', c.enemy, 'enemy')}</div>${hint}</div>`;
 }
 
-function myChampionPanel(m, readonly = false) {
+function myChampionPanel(m, readonly = false, auto = null) {
   const r = m.runes;
+  // W trakcie wyboru runy są wstępne: dopasowanie do wroga jest pełne dopiero, gdy wszyscy zablokują.
+  const status = readonly ? ''
+    : m.provisional
+      ? `<div class="note">Wstępne runy: zmienią się, gdy przeciwnicy wybiorą championów.${auto && auto.enabled ? ' Zaimportują się same po zablokowaniu wszystkich.' : ''}</div>`
+      : auto && auto.done ? `<div class="note good">Runy zaimportowane automatycznie: ${esc(auto.done)}</div>`
+        : auto && auto.error ? `<div class="note bad">Automatyczny import run nie udał się: ${esc(auto.error)}</div>` : '';
   return `<div class="panel">
-    <h3>Twój champion</h3>
+    <h3>Twój champion${m.provisional && !readonly ? ' · runy wstępne' : ''}</h3>
+    ${status}
     <div class="mychamp">
       <img src="${esc(m.icon)}" alt="">
       <div>
@@ -143,7 +150,8 @@ const whyTile = (i) => itemTile(i, `<div class="why">${esc(i.why)}</div>`);
 
 function buildPanel(b, readonly = false) {
   return `<div class="panel">
-    <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}</h3>
+    <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
+    ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     <div class="muted" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: najpopularniejszy build z OP.GG, sloty sytuacyjne dobrane pod skład wroga.' : 'Baza: wbudowane dane, sloty sytuacyjne dobrane pod skład wroga.'}</div>
     <div class="build-row"><h4>Skład wroga</h4>${enemyBar(b.enemy)}</div>
     <div class="build-row"><h4>Pełny build pod ten skład</h4><div class="items">${[b.boots, ...b.items].map(whyTile).join('')}</div></div>
@@ -163,14 +171,14 @@ function buildPanel(b, readonly = false) {
 const gier = (n) => (n === 1 ? 'gra' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'gry' : 'gier');
 const pctClass = (v) => (v == null ? '' : v >= 55 ? 'good' : v < 48 ? 'bad' : '');
 
-// Pierścień z procentem wygranych (kolor zależny od wyniku) i podpisem pod spodem.
-function ring(value, title, caption) {
+// Blok statystyki: duży procent wygranych (kolor zależny od wyniku), nazwa, liczba gier i pasek.
+function stat(value, title, caption) {
   const v = value == null ? null : Math.max(0, Math.min(100, value));
-  const color = v == null ? 'var(--line)' : v >= 55 ? 'var(--good)' : v < 48 ? 'var(--bad)' : 'var(--gold)';
-  return `<div class="ring-box">
-    <div class="ring" style="background: conic-gradient(${color} ${v ?? 0}%, var(--panel-2) 0)"><span>${v == null ? '–' : `${v}%`}</span></div>
-    <div class="ring-title">${title}</div>
-    <div class="ring-cap">${caption}</div>
+  return `<div class="stat">
+    <div class="stat-v ${pctClass(v)}">${v == null ? '–' : `${v}%`}</div>
+    <div class="stat-t">${title}</div>
+    <div class="stat-c">${caption}</div>
+    <div class="stat-bar"><i class="${pctClass(v)}" style="width:${v ?? 0}%"></i></div>
   </div>`;
 }
 
@@ -208,16 +216,18 @@ function playerCardHtml(p, side) {
   const r = p.rank;
   const rec = p.recent || {};
   const games = (n) => `${n ?? 0} ${gier(n ?? 0)}`;
-  const rankLine = r ? `<span class="rank-name">${esc(r.label)}</span>${r.lp != null ? ` <span class="muted">${r.lp} LP</span>` : ''}` : '<span class="muted">Bez rangi</span>';
+  const rankLine = r
+    ? `<span class="rank-badge tier-${esc(r.tier.toLowerCase())}">${esc(r.label)}</span>${r.lp != null ? `<span class="lp">${r.lp} LP</span>` : ''}`
+    : '<span class="rank-badge">Bez rangi</span>';
   const tags = [...p.tags].sort((x, y) => (x.kind === 'warn' ? -1 : 0) - (y.kind === 'warn' ? -1 : 0)).slice(0, 3);
   const body = p.pending
     ? '<div class="muted pc-wait">Pobieram statystyki…</div>'
     : !p.loaded
       ? '<div class="muted pc-wait">Brak danych gracza</div>'
-      : `<div class="rings">
-          ${ring(r ? r.winRate : null, 'Sezon', r && r.games ? games(r.games) : 'brak gier')}
-          ${ring(c.seasonWinRate, 'Champion', games(c.seasonGames))}
-          ${ring(rec.last30WinRate, '30 dni', games(rec.last30Days))}
+      : `<div class="stats">
+          ${stat(r ? r.winRate : null, 'Sezon', r && r.games ? games(r.games) : 'brak gier')}
+          ${stat(c.seasonWinRate, 'Champion', c.seasonBelow ? `&lt; ${c.seasonBelow} ${gier(c.seasonBelow)}` : games(c.seasonGames))}
+          ${stat(rec.last30WinRate, '30 dni', rec.last30More ? `${rec.last30Days}+ ${gier(rec.last30Days)}` : games(rec.last30Days))}
         </div>
         ${c.kda ? `<div class="pc-kda">KDA championem <b>${c.kda.k} / <span class="bad">${c.kda.d}</span> / ${c.kda.a}</b></div>` : ''}
         ${tags.length ? `<div class="pc-tags">${tags.map((t) => `<span class="tag ${t.kind === 'good' ? 'good' : t.kind === 'warn' ? 'bad' : ''}">${esc(t.text)}</span>`).join('')}</div>` : ''}
@@ -245,12 +255,27 @@ function planPanel(plan) {
     <div class="plan-head">
       ${img(plan.me.icon, 'icon', plan.me.name)}<span class="vs">vs</span>${img(plan.opponent.icon, 'icon', plan.opponent.name)}
       <div class="meta">
-        <h3>Plan na linię: ${esc(plan.me.name)} vs ${esc(plan.opponent.name)}</h3>
+        <h2>Plan na linię: ${esc(plan.me.name)} vs ${esc(plan.opponent.name)}</h2>
         <div class="sub">${label ? `<span class="tag ${cls}">${label} matchup</span>` : ''} ${wr} <span class="muted">· obrażenia ${esc(plan.damage)}${plan.opponent.player ? ` · ${esc(plan.opponent.player)}` : ''}</span></div>
       </div>
     </div>
     <ul class="plan-tips">${plan.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
     ${plan.firstBack ? `<div class="plan-back">${img(plan.firstBack.icon, 'spell', plan.firstBack.name)}<span>Pierwszy powrót, gdy przegrywasz wymiany: <b>${esc(plan.firstBack.name)}</b></span></div>` : ''}
+  </div>`;
+}
+
+function gamePlanPanel(g) {
+  if (!g) return '';
+  const styles = (list) => (list.length ? list.map((l) => `<span class="tag">${esc(l)}</span>`).join('') : '<span class="muted">brak wyraźnego stylu</span>');
+  const people = (title, list, cls) => (list.length
+    ? `<div class="gp-people"><span class="gp-label ${cls}">${title}</span>${list.map((x) => `<span><b>${esc(x.who)}</b> <span class="muted">· ${esc(x.why)}</span></span>`).join('')}</div>`
+    : '');
+  return `<div class="panel plan game-plan">
+    <h2>Plan na grę</h2>
+    <div class="gp-styles"><span class="ally-c">Wy</span>${styles(g.ourStyle)}<span class="enemy-c">Wróg</span>${styles(g.theirStyle)}</div>
+    ${g.phases.map((ph) => `<div class="gp-phase"><h4>${esc(ph.title)}</h4><ul class="plan-tips">${ph.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
+    ${people('Uważajcie na', g.threats, 'bad')}
+    ${people('Słaby punkt wroga', g.targets, 'good')}
   </div>`;
 }
 
@@ -262,7 +287,7 @@ function loadingScreen(s) {
     </div>` : '';
   const body = tab === 'build'
     ? `<div class="final">${s.final.myChampion ? myChampionPanel(s.final.myChampion, true) : ''}${s.final.build ? buildPanel(s.final.build, true) : ''}</div>`
-    : `${planPanel(s.plan)}
+    : `${s.plan || s.gamePlan ? `<div class="plans">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : ''}
     <h3 class="ally-h">Twoja drużyna</h3>
     <div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div>
     <h3 class="enemy-h">Przeciwnicy</h3>
@@ -302,8 +327,8 @@ function render(s) {
     bansPanel(s),
     !meLocked ? suggestionsPanel(s) : '',
     compPanel(s.compositions),
-    s.myChampion ? myChampionPanel(s.myChampion) : '',
-    s.build ? buildPanel(s.build) : (meLocked ? '<div class="panel"><h3>Build</h3><div class="muted">Build pojawi się, gdy wszyscy zablokują championów.</div></div>' : ''),
+    s.myChampion ? myChampionPanel(s.myChampion, false, s.autoRunes) : '',
+    s.build ? buildPanel(s.build) : '',
   ].join('');
 
   $app.innerHTML = `<div class="layout">
@@ -312,6 +337,7 @@ function render(s) {
       <footer>
         <span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}</span>
         <button data-toggle-stats>${s.statsEnabled ? 'Wyłącz OP.GG' : 'Włącz OP.GG'}</button>
+        <button data-toggle-auto-runes>${s.autoRunes && s.autoRunes.enabled ? 'Auto-import run: wł.' : 'Auto-import run: wył.'}</button>
         <button data-stats-diag>Diagnostyka OP.GG</button>
         <button data-open-data>Edytuj dane</button><button data-reload-data>Wczytaj dane ponownie</button>
       </footer>
@@ -354,6 +380,9 @@ $app.addEventListener('click', async (e) => {
     } else if ('toggleStats' in btn.dataset) {
       const res = await window.assist.toggleStats();
       res.ok ? toast(res.enabled ? 'Statystyki OP.GG włączone' : 'Statystyki OP.GG wyłączone, używam własnych danych') : toast(res.error, true);
+    } else if ('toggleAutoRunes' in btn.dataset) {
+      const res = await window.assist.toggleAutoRunes();
+      res.ok ? toast(res.enabled ? 'Runy będą importowane same po zablokowaniu wszystkich' : 'Automatyczny import run wyłączony') : toast(res.error, true);
     } else if ('statsDiag' in btn.dataset) {
       toast('Zbieram odpowiedzi z OP.GG…');
       const res = await window.assist.statsDiagnostics();
@@ -374,9 +403,11 @@ const $update = document.getElementById('update');
 function renderUpdate(u) {
   if (!u) return;
   const ready = u.state === 'ready';
-  $update.innerHTML = `${ready ? `Wersja ${esc(u.version)} pobrana` : `Dostępna wersja ${esc(u.version)}`} <button>${ready ? 'Uruchom ponownie' : 'Pobierz'}</button>`;
+  if (u.state === 'downloading') $update.textContent = `Pobieram wersję ${u.version}… ${u.percent || 0}%`;
+  else $update.innerHTML = `${ready ? `Wersja ${esc(u.version)} pobrana` : `Dostępna wersja ${esc(u.version)}`} <button>${ready ? 'Uruchom ponownie' : 'Pobierz'}</button>`;
   $update.hidden = false;
 }
+window.assist.appVersion().then((v) => { document.getElementById('version').textContent = `v${v}`; });
 $update.addEventListener('click', (e) => { if (e.target.closest('button')) window.assist.updateAction(); });
 window.assist.onUpdate(renderUpdate);
 window.assist.getUpdate().then(renderUpdate);

@@ -28,6 +28,7 @@ function readSession(session) {
       championId,
       locked,
       isMe: p.cellId === me,
+      skinId: p.selectedSkinId || 0,
       spell1Id: p.spell1Id,
       spell2Id: p.spell2Id,
     };
@@ -36,14 +37,17 @@ function readSession(session) {
   const enemies = (session.theirTeam || []).map((p) => ({
     cellId: p.cellId,
     championId: p.championId || 0,
+    skinId: p.selectedSkinId || 0,
     locked: lockedCells.has(p.cellId) && p.championId > 0,
   }));
 
+  // Bany: zakończone u obu drużyn oraz te, które Twoja drużyna właśnie wybiera (ich też nie proponujemy).
+  const myCells = new Set((session.myTeam || []).map((p) => p.cellId));
   const bans = new Set([
     ...((session.bans && session.bans.myTeamBans) || []),
     ...((session.bans && session.bans.theirTeamBans) || []),
-    ...actions.filter((a) => a.type === 'ban' && a.completed).map((a) => a.championId),
-  ].filter((id) => id > 0));
+    ...actions.filter((a) => a.type === 'ban' && (a.completed || a.isAllyAction || myCells.has(a.actorCellId))).map((a) => a.championId),
+  ].map(Number).filter((id) => id > 0));
 
   const phase = (session.timer && session.timer.phase) || '';
   const allLocked = phase === 'FINALIZATION' || phase === 'GAME_STARTING'
@@ -724,5 +728,5 @@ function orderSpells(spellIds, current) {
 }
 
 module.exports = {
-  POSITION_LABELS, readSession, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, runePageFor, normalizeRunes, buildFor, orderSpells,
+  POSITION_LABELS, readSession, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, archetypeOf, describeEnemy, runePageFor, normalizeRunes, buildFor, orderSpells,
 };
