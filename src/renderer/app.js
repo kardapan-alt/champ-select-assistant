@@ -100,10 +100,17 @@ function compPanel(c) {
   return `<div class="panel"><h3>Archetypy składów</h3><div class="comps">${side('Wasz styl', c.ally, 'ally')}${side('Styl wroga', c.enemy, 'enemy')}</div>${hint}</div>`;
 }
 
-function myChampionPanel(m, readonly = false) {
+function myChampionPanel(m, readonly = false, auto = null) {
   const r = m.runes;
+  // W trakcie wyboru runy są wstępne: dopasowanie do wroga jest pełne dopiero, gdy wszyscy zablokują.
+  const status = readonly ? ''
+    : m.provisional
+      ? `<div class="note">Wstępne runy: zmienią się, gdy przeciwnicy wybiorą championów.${auto && auto.enabled ? ' Zaimportują się same po zablokowaniu wszystkich.' : ''}</div>`
+      : auto && auto.done ? `<div class="note good">Runy zaimportowane automatycznie: ${esc(auto.done)}</div>`
+        : auto && auto.error ? `<div class="note bad">Automatyczny import run nie udał się: ${esc(auto.error)}</div>` : '';
   return `<div class="panel">
-    <h3>Twój champion</h3>
+    <h3>Twój champion${m.provisional && !readonly ? ' · runy wstępne' : ''}</h3>
+    ${status}
     <div class="mychamp">
       <img src="${esc(m.icon)}" alt="">
       <div>
@@ -143,7 +150,8 @@ const whyTile = (i) => itemTile(i, `<div class="why">${esc(i.why)}</div>`);
 
 function buildPanel(b, readonly = false) {
   return `<div class="panel">
-    <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}</h3>
+    <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
+    ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     <div class="muted" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: najpopularniejszy build z OP.GG, sloty sytuacyjne dobrane pod skład wroga.' : 'Baza: wbudowane dane, sloty sytuacyjne dobrane pod skład wroga.'}</div>
     <div class="build-row"><h4>Skład wroga</h4>${enemyBar(b.enemy)}</div>
     <div class="build-row"><h4>Pełny build pod ten skład</h4><div class="items">${[b.boots, ...b.items].map(whyTile).join('')}</div></div>
@@ -319,8 +327,8 @@ function render(s) {
     bansPanel(s),
     !meLocked ? suggestionsPanel(s) : '',
     compPanel(s.compositions),
-    s.myChampion ? myChampionPanel(s.myChampion) : '',
-    s.build ? buildPanel(s.build) : (meLocked ? '<div class="panel"><h3>Build</h3><div class="muted">Build pojawi się, gdy wszyscy zablokują championów.</div></div>' : ''),
+    s.myChampion ? myChampionPanel(s.myChampion, false, s.autoRunes) : '',
+    s.build ? buildPanel(s.build) : '',
   ].join('');
 
   $app.innerHTML = `<div class="layout">
@@ -329,6 +337,7 @@ function render(s) {
       <footer>
         <span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}</span>
         <button data-toggle-stats>${s.statsEnabled ? 'Wyłącz OP.GG' : 'Włącz OP.GG'}</button>
+        <button data-toggle-auto-runes>${s.autoRunes && s.autoRunes.enabled ? 'Auto-import run: wł.' : 'Auto-import run: wył.'}</button>
         <button data-stats-diag>Diagnostyka OP.GG</button>
         <button data-open-data>Edytuj dane</button><button data-reload-data>Wczytaj dane ponownie</button>
       </footer>
@@ -371,6 +380,9 @@ $app.addEventListener('click', async (e) => {
     } else if ('toggleStats' in btn.dataset) {
       const res = await window.assist.toggleStats();
       res.ok ? toast(res.enabled ? 'Statystyki OP.GG włączone' : 'Statystyki OP.GG wyłączone, używam własnych danych') : toast(res.error, true);
+    } else if ('toggleAutoRunes' in btn.dataset) {
+      const res = await window.assist.toggleAutoRunes();
+      res.ok ? toast(res.enabled ? 'Runy będą importowane same po zablokowaniu wszystkich' : 'Automatyczny import run wyłączony') : toast(res.error, true);
     } else if ('statsDiag' in btn.dataset) {
       toast('Zbieram odpowiedzi z OP.GG…');
       const res = await window.assist.statsDiagnostics();

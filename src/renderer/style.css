@@ -121,7 +121,8 @@ footer { flex-wrap: wrap; align-items: center; }
 .pcard.enemy { border-top-color: var(--enemy); }
 .pcard.me { border-color: var(--gold); border-top-color: var(--gold); }
 .pc-head { display: flex; gap: 10px; align-items: center; }
-.pc-head .icon { width: 56px; height: 56px; border-radius: 8px; flex: none; }
+.pc-head .icon { width: 56px; height: 56px; border-radius: 8px; flex: none; object-fit: cover; }
+img.icon { object-fit: cover; }
 .pc-head .meta { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .pc-head .name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc-head .sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

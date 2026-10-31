@@ -26,8 +26,29 @@ function buildGameData({ champions, perkstyles, perks, items, spells, owned, mas
   return g;
 }
 
-function masteryMap(list) {
-  return new Map((Array.isArray(list) ? list : []).map((m) => [m.championId, m]));
+// Maestria z kilku list naraz: przy tym samym championie wygrywa wpis z większą liczbą punktów.
+function masteryMap(...lists) {
+  const out = new Map();
+  for (const list of lists) {
+    for (const m of Array.isArray(list) ? list : []) {
+      if (!m || !(m.championId > 0)) continue;
+      const prev = out.get(m.championId);
+      if (!prev || (m.championPoints || 0) > (prev.championPoints || 0)) out.set(m.championId, m);
+    }
+  }
+  return out;
+}
+
+// Endpoint local-player nie zawsze zwraca wszystkie championy, więc dokładamy maestrię z kolekcji gracza.
+async function loadMastery(lcu) {
+  const [local, me] = await Promise.all([
+    lcu.get(MASTERY_PATH).catch(() => null),
+    lcu.get('/lol-summoner/v1/current-summoner').catch(() => null),
+  ]);
+  const collection = me && me.summonerId
+    ? await lcu.get(`/lol-collections/v1/inventories/${me.summonerId}/champion-mastery`).catch(() => null)
+    : null;
+  return { map: masteryMap(local, collection), raw: { local: Array.isArray(local) ? local.length : null, collection: Array.isArray(collection) ? collection.length : null } };
 }
 
 async function loadGameData(lcu) {
@@ -39,10 +60,12 @@ async function loadGameData(lcu) {
     lcu.get(`${base}/items.json`),
     lcu.get(`${base}/summoner-spells.json`),
     lcu.get('/lol-champions/v1/owned-champions-minimal'),
-    lcu.get(MASTERY_PATH),
+    loadMastery(lcu),
   ]);
   if (!champions) throw new Error('Nie udało się pobrać listy championów z klienta');
-  return buildGameData({ champions, perkstyles, perks, items, spells, owned, mastery });
+  const g = buildGameData({ champions, perkstyles, perks, items, spells, owned });
+  g.mastery = mastery.map;
+  return g;
 }
 
-module.exports = { loadGameData, buildGameData, emptyGameData, masteryMap, MASTERY_PATH };
+module.exports = { loadGameData, loadMastery, buildGameData, emptyGameData, masteryMap, MASTERY_PATH };

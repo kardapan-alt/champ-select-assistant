@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('assist', {
   openDataFile: () => ipcRenderer.invoke('open-data-file'),
   reloadData: () => ipcRenderer.invoke('reload-data'),
   toggleStats: () => ipcRenderer.invoke('toggle-stats'),
+  toggleAutoRunes: () => ipcRenderer.invoke('toggle-auto-runes'),
   statsDiagnostics: () => ipcRenderer.invoke('stats-diagnostics'),
 });

@@ -18,6 +18,13 @@ async function readLoadingPlayers(lcu) {
   const locale = await lcu.get('/riotclient/region-locale');
   const region = (locale && (locale.webRegion || locale.region)) || '';
 
+  // Wybrane skiny: selectedSkinIndex z playerChampionSelections (id skina = champion * 1000 + numer).
+  const selections = new Map((gameData.playerChampionSelections || []).map((s) => [s.puuid || s.summonerInternalName, s]));
+  const skinOf = (p) => {
+    if (p.selectedSkinId || p.skinId) return p.selectedSkinId || p.skinId;
+    const s = selections.get(p.puuid) || selections.get(p.summonerInternalName);
+    return s && p.championId && s.selectedSkinIndex > 0 ? p.championId * 1000 + s.selectedSkinIndex : 0;
+  };
   const toPlayer = async (p, teamIndex) => {
     let gameName = p.gameName || p.riotIdGameName || '';
     let tagLine = p.tagLine || p.riotIdTagLine || '';
@@ -31,6 +38,7 @@ async function readLoadingPlayers(lcu) {
       gameName,
       tagLine,
       championId: p.championId || 0,
+      skinId: skinOf(p),
       position: normPosition(p.selectedPosition || p.position),
       team: teamIndex,
       isMe: !!(me && p.puuid && p.puuid === me.puuid),

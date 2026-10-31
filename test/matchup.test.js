@@ -134,3 +134,21 @@ test('plan na grę: fazy gry ze składów, groźni gracze przed słabymi punktam
   assert.equal(gamePlan(players.allies, [], cardFor, game, data), null);
   console.log('plan gry:', plan.phases.map((p) => p.tips).flat());
 });
+
+test('bany: zakończone i wybierane przez Twoją drużynę nie trafiają do sugestii', () => {
+  const ban = (cell, alias, completed) => ({ actorCellId: cell, type: 'ban', championId: idOf(alias), completed, isInProgress: !completed });
+  const session = {
+    localPlayerCellId: 0,
+    myTeam: [{ cellId: 0, assignedPosition: 'utility', championId: 0 }, { cellId: 1, assignedPosition: 'bottom', championId: idOf('Jinx'), selectedSkinId: idOf('Jinx') * 1000 + 4 }],
+    theirTeam: [{ cellId: 5, championId: 0 }],
+    actions: [[ban(0, 'Leona', true), ban(1, 'Thresh', false), ban(5, 'Lulu', false)]],
+    bans: { myTeamBans: [], theirTeamBans: [] },
+    timer: { phase: 'BAN_PICK' },
+  };
+  const state = engine.readSession(session);
+  assert.ok(state.bans.has(idOf('Leona')) && state.bans.has(idOf('Thresh')));
+  assert.ok(!state.bans.has(idOf('Lulu')), 'niezatwierdzony ban wroga jest niewidoczny dla nas');
+  assert.equal(state.allies[1].skinId, idOf('Jinx') * 1000 + 4, 'wybrany skin sojusznika');
+  const picks = engine.suggestPicks(state, game, data).list.map((s) => s.alias);
+  assert.ok(!picks.includes('Leona') && !picks.includes('Thresh'));
+});
