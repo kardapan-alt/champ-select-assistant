@@ -228,6 +228,7 @@ function buildLoadingView() {
     status: 'loading-screen',
     region: loading.region,
     plan,
+    final: lastFinal,
     allies: loading.allies.map(card),
     enemies,
     statsEnabled: settings.stats,
@@ -236,6 +237,7 @@ function buildLoadingView() {
 }
 
 let lastSelectState = null;
+let lastFinal = null;
 
 function buildView(session) {
   const state = engine.readSession(session);
@@ -274,6 +276,9 @@ function buildView(session) {
     view.myChampion = { ...champView(me.championId), locked: me.locked, runes: engine.runePageFor(myAlias, game, data, state) };
     if (state.allLocked) view.build = engine.buildFor(myAlias, state, game, data);
   }
+  // Ostatni build z champ selecta zostaje do wglądu na ekranie ładowania i w trakcie gry.
+  if (view.build) lastFinal = { myChampion: view.myChampion, build: view.build };
+  else if (!state.allLocked) lastFinal = null;
   view._state = { me: me && { spell1Id: me.spell1Id, spell2Id: me.spell2Id } };
   return view;
 }

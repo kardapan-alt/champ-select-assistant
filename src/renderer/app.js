@@ -100,7 +100,7 @@ function compPanel(c) {
   return `<div class="panel"><h3>Archetypy składów</h3><div class="comps">${side('Wasz styl', c.ally, 'ally')}${side('Styl wroga', c.enemy, 'enemy')}</div>${hint}</div>`;
 }
 
-function myChampionPanel(m) {
+function myChampionPanel(m, readonly = false) {
   const r = m.runes;
   return `<div class="panel">
     <h3>Twój champion</h3>
@@ -121,10 +121,10 @@ function myChampionPanel(m) {
     <div class="rune-names muted">Odłamki: ${r.shards.map((x) => esc(x.name)).join(', ')}</div>
     ${r.adaptations.length ? `<div class="adapt"><h4>Dopasowane ${r.laneOpponent ? `pod ${esc(r.laneOpponent)} i skład wroga` : 'pod skład wroga'}</h4>${r.adaptations.map((a) => `<div>• ${esc(a)}</div>`).join('')}</div>` : ''}
     <div class="spells-line">${r.spells.map((x) => img(x.icon, 'spell', x.name)).join('')}<span>${r.spells.map((x) => esc(x.name)).join(' + ')}${r.spellsWhy ? ` <span class="muted">· ${esc(r.spellsWhy)}</span>` : ''}</span></div>
-    <div class="actions">
+    ${readonly ? '' : `<div class="actions">
       <button class="primary" data-runes="${esc(m.alias)}">Importuj runy</button>
       <button data-spells="${esc(m.alias)}">Ustaw czary przywoływacza</button>
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -141,7 +141,7 @@ function enemyBar(e) {
 
 const whyTile = (i) => itemTile(i, `<div class="why">${esc(i.why)}</div>`);
 
-function buildPanel(b) {
+function buildPanel(b, readonly = false) {
   return `<div class="panel">
     <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}</h3>
     <div class="muted" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: najpopularniejszy build z OP.GG, sloty sytuacyjne dobrane pod skład wroga.' : 'Baza: wbudowane dane, sloty sytuacyjne dobrane pod skład wroga.'}</div>
@@ -151,10 +151,10 @@ function buildPanel(b) {
     ${b.alternatives.length ? `<div class="build-row" style="margin-top:14px"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}
     <div class="build-row"><h4>Czary</h4><div class="items">${b.spells.map((s) => itemTile(s)).join('')}</div>${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}</div>
     <div class="build-row"><h4>Kolejność umiejętności</h4><div class="skills">${esc(b.skills)}</div></div>
-    <div class="actions" style="margin-top:12px">
+    ${readonly ? '' : `<div class="actions" style="margin-top:12px">
       <button class="primary" data-itemset="${esc(b.alias)}">Wyślij build do sklepu w grze</button>
       <span class="muted small">Zestaw „CS Assist” pojawi się w sklepie w zakładce z zestawami przedmiotów.</span>
-    </div>
+    </div>`}
   </div>`;
 }
 
@@ -176,6 +176,8 @@ function ring(value, title, caption) {
 
 // Rozwinięte listy championów (pamiętane między odświeżeniami widoku).
 const expanded = new Map();
+// Zakładka na ekranie ładowania i w trakcie gry: gracze albo build z champion selecta.
+let loadingTab = 'players';
 const champIcon = (id) => `lcuasset://lcu/lol-game-data/assets/v1/champion-icons/${id}.png`;
 
 function champTable(list, withKda) {
@@ -253,12 +255,21 @@ function planPanel(plan) {
 }
 
 function loadingScreen(s) {
-  return `<div class="loading-screen">
-    ${planPanel(s.plan)}
+  const tab = s.final ? loadingTab : 'players';
+  const tabs = s.final ? `<div class="seg loading-tabs">
+      <button data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">Plan i gracze</button>
+      <button data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">Build i runy</button>
+    </div>` : '';
+  const body = tab === 'build'
+    ? `<div class="final">${s.final.myChampion ? myChampionPanel(s.final.myChampion, true) : ''}${s.final.build ? buildPanel(s.final.build, true) : ''}</div>`
+    : `${planPanel(s.plan)}
     <h3 class="ally-h">Twoja drużyna</h3>
     <div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div>
     <h3 class="enemy-h">Przeciwnicy</h3>
-    <div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>
+    <div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`;
+  return `<div class="loading-screen">
+    ${tabs}
+    ${body}
     <footer><span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}${s.region ? ` · serwer ${esc(s.region)}` : ''}</span><button data-stats-diag>Diagnostyka OP.GG</button></footer>
   </div>`;
 }
@@ -281,7 +292,8 @@ function render(s) {
       idle: ['Czekam na wybór postaci', 'Wejdź do kolejki. Gdy zacznie się champion select, zobaczysz tu składy i sugestie.'],
       error: ['Coś poszło nie tak', 'Spróbuję połączyć się ponownie za chwilę.'],
     }[s.status] || ['', ''];
-    $app.innerHTML = `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div></div>`;
+    const diag = s.status === 'idle' ? '<div class="actions" style="justify-content:center;margin-top:18px"><button data-stats-diag>Diagnostyka OP.GG</button></div>' : '';
+    $app.innerHTML = `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>${diag}</div>`;
     return;
   }
 
@@ -314,6 +326,11 @@ $app.addEventListener('click', async (e) => {
   if (btn.dataset.pool) {
     const key = btn.dataset.pool;
     expanded.set(key, expanded.get(key) === btn.dataset.view ? null : btn.dataset.view);
+    render(lastState);
+    return;
+  }
+  if (btn.dataset.loadingTab) {
+    loadingTab = btn.dataset.loadingTab;
     render(lastState);
     return;
   }
