@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('assist', {
   onUpdate: (cb) => ipcRenderer.on('update', (_e, update) => cb(update)),
   getUpdate: () => ipcRenderer.invoke('get-update'),
   updateAction: () => ipcRenderer.invoke('update-action'),
+  appVersion: () => ipcRenderer.invoke('app-version'),
   importRunes: (alias) => ipcRenderer.invoke('import-runes', alias),
   setSpells: (alias) => ipcRenderer.invoke('set-spells', alias),
   exportItemSet: (alias) => ipcRenderer.invoke('export-item-set', alias),

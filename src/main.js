@@ -345,8 +345,10 @@ ipcMain.handle('get-state', () => lastState);
 let updates = null;
 let update = null;
 ipcMain.handle('get-update', () => update);
+ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('update-action', () => {
   if (!updates || !update) return { ok: false };
+  if (update.state === 'downloading') return { ok: false };
   if (update.state === 'ready') updates.install();
   else updates.openPage();
   return { ok: true };

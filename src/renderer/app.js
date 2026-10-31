@@ -374,9 +374,11 @@ const $update = document.getElementById('update');
 function renderUpdate(u) {
   if (!u) return;
   const ready = u.state === 'ready';
-  $update.innerHTML = `${ready ? `Wersja ${esc(u.version)} pobrana` : `Dostępna wersja ${esc(u.version)}`} <button>${ready ? 'Uruchom ponownie' : 'Pobierz'}</button>`;
+  if (u.state === 'downloading') $update.textContent = `Pobieram wersję ${u.version}… ${u.percent || 0}%`;
+  else $update.innerHTML = `${ready ? `Wersja ${esc(u.version)} pobrana` : `Dostępna wersja ${esc(u.version)}`} <button>${ready ? 'Uruchom ponownie' : 'Pobierz'}</button>`;
   $update.hidden = false;
 }
+window.assist.appVersion().then((v) => { document.getElementById('version').textContent = `v${v}`; });
 $update.addEventListener('click', (e) => { if (e.target.closest('button')) window.assist.updateAction(); });
 window.assist.onUpdate(renderUpdate);
 window.assist.getUpdate().then(renderUpdate);
