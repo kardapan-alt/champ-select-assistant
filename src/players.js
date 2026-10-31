@@ -83,7 +83,7 @@ function playerCard(player, summary, game, now = Date.now()) {
     tags: [],
   };
   if (!summary) return card;
-  const { rank, seasonChampions = {}, games = [] } = summary;
+  const { rank, seasonChampions = {}, games = [], seasonList = null } = summary;
   const champGames = games.filter((g) => g.championId === player.championId);
   const champName = (id) => game.championsById.get(id)?.name || '';
 
@@ -108,6 +108,8 @@ function playerCard(player, summary, game, now = Date.now()) {
   const season = seasonChampions[player.championId];
   card.champion = {
     seasonGames: season ? season.games : 0,
+    // Poza top listą OP.GG: wiemy tylko, że gier jest mniej niż u ostatniego championa na liście.
+    seasonBelow: !season && seasonList && seasonList.partial ? seasonList.below : null,
     seasonWinRate: season && season.games && season.wins != null ? Math.round((season.wins / season.games) * 100) : null,
     recentGames: champGames.length,
     last30Days: champGames.filter((g) => g.createdAt && now - g.createdAt <= 30 * DAY).length,
@@ -124,6 +126,8 @@ function playerCard(player, summary, game, now = Date.now()) {
       games: games.length,
       winRate: Math.round((wins / games.length) * 100),
       last30Days: recentDays.length,
+      // OP.GG daje najwyżej 20 ostatnich gier: gdy wszystkie są z 30 dni, gier mogło być więcej.
+      last30More: recentDays.length === games.length && games.length >= 20,
       last30WinRate: rate(recentDays),
     };
     const champ30 = champGames.filter((g) => g.createdAt && now - g.createdAt <= 30 * DAY);

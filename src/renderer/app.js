@@ -216,8 +216,8 @@ function playerCardHtml(p, side) {
       ? '<div class="muted pc-wait">Brak danych gracza</div>'
       : `<div class="rings">
           ${ring(r ? r.winRate : null, 'Sezon', r && r.games ? games(r.games) : 'brak gier')}
-          ${ring(c.seasonWinRate, 'Champion', games(c.seasonGames))}
-          ${ring(rec.last30WinRate, '30 dni', games(rec.last30Days))}
+          ${ring(c.seasonWinRate, 'Champion', c.seasonBelow ? `mniej niż ${c.seasonBelow} ${gier(c.seasonBelow)}` : games(c.seasonGames))}
+          ${ring(rec.last30WinRate, '30 dni', rec.last30More ? `${rec.last30Days}+ ${gier(rec.last30Days)}` : games(rec.last30Days))}
         </div>
         ${c.kda ? `<div class="pc-kda">KDA championem <b>${c.kda.k} / <span class="bad">${c.kda.d}</span> / ${c.kda.a}</b></div>` : ''}
         ${tags.length ? `<div class="pc-tags">${tags.map((t) => `<span class="tag ${t.kind === 'good' ? 'good' : t.kind === 'warn' ? 'bad' : ''}">${esc(t.text)}</span>`).join('')}</div>` : ''}

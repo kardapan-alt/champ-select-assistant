@@ -64,9 +64,9 @@ test('format OP.GG: profil i historia gracza na karcie z ekranu ładowania', () 
   const card = playerCard({ gameName: 'Gracz', tagLine: 'TEST', championId: 103, position: 'middle' }, s, game, now);
   assert.equal(card.rank.label, 'Emerald I');
   assert.equal(card.rank.winRate, 48);
-  assert.deepEqual(card.champion, { seasonGames: 40, seasonWinRate: 63, recentGames: 1, last30Days: 1, kda: { k: 6, d: 2, a: 9 }, last30WinRate: 100 });
+  assert.deepEqual(card.champion, { seasonGames: 40, seasonBelow: null, seasonWinRate: 63, recentGames: 1, last30Days: 1, kda: { k: 6, d: 2, a: 9 }, last30WinRate: 100 });
   assert.equal(card.seasonChamps[0].name, 'Ahri');
-  assert.deepEqual(card.recent, { games: 2, winRate: 50, last30Days: 1, last30WinRate: 100 });
+  assert.deepEqual(card.recent, { games: 2, winRate: 50, last30Days: 1, last30More: false, last30WinRate: 100 });
 });
 
 test('historia gier: limit z maksimum schematu', () => {
@@ -83,4 +83,15 @@ test('champion w UPPER_SNAKE_CASE, gdy schemat tego wymaga', () => {
   assert.equal(arg('Kaisa', "Kai'Sa"), 'KAISA');
   assert.equal(arg('Nunu', 'Nunu & Willump'), 'NUNU_WILLUMP');
   assert.equal(arg('DrMundo', 'Dr. Mundo'), 'DR_MUNDO');
+});
+
+test('champion spoza top listy OP.GG: "mniej niż N gier" zamiast 0', () => {
+  const profile = fixture('summoner').replace('MostChampions("RANKED",33,60,', 'MostChampions("RANKED",33,200,');
+  const s = opgg.interpretSummoner(profile, fixture('history'));
+  assert.deepEqual(s.seasonList, { partial: true, below: 20 });
+  const card = playerCard({ gameName: 'Gracz', tagLine: 'TEST', championId: 238, position: 'middle' }, s, game, Date.parse('2026-10-31T12:00:00Z'));
+  assert.equal(card.champion.seasonGames, 0);
+  assert.equal(card.champion.seasonBelow, 20);
+  const full = playerCard({ gameName: 'Gracz', tagLine: 'TEST', championId: 238, position: 'middle' }, opgg.interpretSummoner(fixture('summoner'), fixture('history')), game);
+  assert.equal(full.champion.seasonBelow, null, 'pełna lista: naprawdę 0 gier');
 });
