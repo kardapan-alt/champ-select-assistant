@@ -26,7 +26,7 @@ const perkstyles = { styles: [
   style(8300, 'Inspiracja', [[8351, 8360, 8369], [8306, 8304, 8321], [8313, 8352, 8345], [8347, 8410, 8316]]),
 ] };
 const perks = perkstyles.styles.flatMap((s) => s.slots.flatMap((sl) => sl.perks)).map((pid) => ({ id: pid, name: names.perks[pid] || `Runa ${pid}`, iconPath: `/lol-game-data/assets/v1/perk-images/${pid}.png` }));
-const itemIds = new Set(JSON.stringify(data).match(/\b[1-9]\d{3}\b/g).map(Number));
+const itemIds = new Set(JSON.stringify([data, require('../src/situational').SITUATIONS]).match(/\b[1-9]\d{3}\b/g).map(Number));
 const items = [...itemIds].map((iid) => ({ id: iid, name: names.items[iid] || `Item ${iid}`, iconPath: `/lol-game-data/assets/ASSETS/Items/Icons2D/${iid}.png` }));
 const spells = [[4, 'Błysk'], [14, 'Podpalenie'], [12, 'Teleportacja'], [7, 'Uzdrowienie'], [3, 'Wyczerpanie'], [11, 'Porażenie'], [6, 'Duch'], [21, 'Bariera'], [1, 'Oczyszczenie']]
   .map(([sid, name]) => ({ id: sid, name, iconPath: `/lol-game-data/assets/DATA/Spells/Icons2D/${sid}.png` }));

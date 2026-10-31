@@ -80,7 +80,9 @@ test('statystyki wroga zmieniają sugestie, a build dalej się adaptuje', async 
   console.log('Ahri (OP.GG) vs AD:', build.boots.id, build.items.map((i) => `${i.id}(${i.why})`).join(', '));
   assert.equal(build.fromStats, true);
   assert.deepEqual(build.items.slice(0, 2).map((i) => i.id), [3165, 6653]);
-  assert.ok(build.items.some((i) => i.why === 'dużo obrażeń fizycznych'));
+  // Zhonya z konkretnym powodem: kto w składzie wroga jest zabójcą AD.
+  const zhonya = build.items.find((i) => i.id === 3157);
+  assert.ok(zhonya && /^zabójcy AD: .*Zed/.test(zhonya.why), zhonya && zhonya.why);
   const page = engine.runePageFor('Ahri', game, merged);
   assert.equal(page.primaryStyleId, 8200);
 });

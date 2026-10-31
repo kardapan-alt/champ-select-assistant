@@ -44,6 +44,7 @@ test('format OP.GG: kontry z my_win_rate, synergie po partnerze', () => {
   assert.deepEqual(a.starters, [1056, 2003, 2003]);
   assert.deepEqual(a.spells, [4, 14]);
   assert.equal(a.skills, 'Q > W > E');
+  assert.deepEqual(a.lateItems.map((x) => x.id), [3089, 3135, 4646], 'późniejsze itemy bez rdzenia, wg popularności');
   assert.deepEqual(a.runes, { p: 8100, s: 8200, perks: [8112, 8139, 8140, 8106, 8210, 8226], shards: [5005, 5008, 5001] });
 });
 
@@ -94,4 +95,16 @@ test('champion spoza top listy OP.GG: "mniej niż N gier" zamiast 0', () => {
   assert.equal(card.champion.seasonBelow, 20);
   const full = playerCard({ gameName: 'Gracz', tagLine: 'TEST', championId: 238, position: 'middle' }, opgg.interpretSummoner(fixture('summoner'), fixture('history')), game);
   assert.equal(full.champion.seasonBelow, null, 'pełna lista: naprawdę 0 gier');
+});
+
+test('build z OP.GG: cały rdzeń i popularne późniejsze itemy zamiast ogólnej puli klasy', () => {
+  const data = require('../data/champions.json');
+  const a = opgg.interpretAnalysis(fixture('analysis'), game);
+  const merged = opgg.mergeStats(data, { analyses: { Ahri: a } }, game);
+  const state = { me: { position: 'middle', championId: 103 }, allies: [], enemies: [{ championId: 238 }], bans: new Set() };
+  const build = require('../src/engine').buildFor('Ahri', state, game, merged);
+  const ids = build.items.map((i) => i.id);
+  assert.deepEqual(ids.slice(0, 3), [3118, 4645, 3157]);
+  assert.deepEqual(ids.slice(3), [3089, 3135]);
+  assert.ok(build.items.slice(3).every((i) => i.why === 'popularny w tym patchu'));
 });

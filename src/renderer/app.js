@@ -135,7 +135,7 @@ function myChampionPanel(m, readonly = false, auto = null) {
   </div>`;
 }
 
-const itemTile = (it, extra = '') => `<div class="item">${img(it.icon, '', it.name)}${esc(it.name)}${extra}</div>`;
+const itemTile = (it, extra = '', cls = '') => `<div class="item ${cls}">${it.step ? `<span class="step">${it.step}</span>` : ''}${img(it.icon, '', it.name)}<div class="item-name">${esc(it.name)}</div>${extra}</div>`;
 
 function enemyBar(e) {
   if (!e || !e.count) return '';
@@ -146,7 +146,33 @@ function enemyBar(e) {
   </div>`;
 }
 
-const whyTile = (i) => itemTile(i, `<div class="why">${esc(i.why)}</div>`);
+const whyTile = (i) => itemTile(i, `<div class="why">${esc(i.why)}</div>`, i.situational ? 'situ' : '');
+// Kolejność buildu: numer na rogu ikony (buty jako drugi item, jak w zestawie do sklepu).
+const buildTiles = (b) => {
+  const [first, ...rest] = b.items;
+  return [first, b.boots, ...rest].filter(Boolean).map((it, i) => whyTile({ ...it, step: i + 1 })).join('');
+};
+// "Q > W > E" jako klawisze.
+const skillKeys = (order) => String(order || '').split('>').map((k) => k.trim()).filter(Boolean)
+  .map((k) => `<span class="key key-${esc(k.toLowerCase())}">${esc(k)}</span>`).join('<span class="key-sep">›</span>');
+
+// Konkretne zagrożenia w składzie wroga i odpowiedź na nie (np. Yasuo + Jhin → Randuin's Omen).
+function situationsPanel(list, title = 'Na co uważać w składzie wroga') {
+  if (!list || !list.length) return '';
+  const rows = list.map((x) => {
+    const it = x.item;
+    const answer = !it ? ''
+      : `<div class="sit-item">${img(it.icon, 'sit-icon', it.name)}<div><b>${esc(it.name)}</b>${it.mine
+        ? `<span class="tag ${it.inBuild ? 'good' : ''}">${it.inBuild ? 'w Twoim buildzie' : 'alternatywa dla Ciebie'}</span>`
+        : `<span class="muted">kupuje: ${esc(it.owner)}</span>`}</div></div>`;
+    return `<div class="sit${x.level === 2 ? ' strong' : ''}">
+      <div class="sit-champs">${x.champions.map((c) => img(c.icon, 'sit-champ', c.name)).join('')}</div>
+      <div class="sit-body"><div class="sit-text">${esc(x.text)}</div><div class="sit-answer">${esc(x.answer)}</div></div>
+      ${answer}
+    </div>`;
+  }).join('');
+  return `<div class="panel situations"><h3>${esc(title)}</h3><div class="sit-list">${rows}</div></div>`;
+}
 
 function buildPanel(b, readonly = false) {
   return `<div class="panel">
@@ -154,11 +180,11 @@ function buildPanel(b, readonly = false) {
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     <div class="muted" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: najpopularniejszy build z OP.GG, sloty sytuacyjne dobrane pod skład wroga.' : 'Baza: wbudowane dane, sloty sytuacyjne dobrane pod skład wroga.'}</div>
     <div class="build-row"><h4>Skład wroga</h4>${enemyBar(b.enemy)}</div>
-    <div class="build-row"><h4>Pełny build pod ten skład</h4><div class="items">${[b.boots, ...b.items].map(whyTile).join('')}</div></div>
+    <div class="build-row"><h4>Pełny build pod ten skład</h4><div class="items path">${buildTiles(b)}</div></div>
     ${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}
     ${b.alternatives.length ? `<div class="build-row" style="margin-top:14px"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}
     <div class="build-row"><h4>Czary</h4><div class="items">${b.spells.map((s) => itemTile(s)).join('')}</div>${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}</div>
-    <div class="build-row"><h4>Kolejność umiejętności</h4><div class="skills">${esc(b.skills)}</div></div>
+    <div class="build-row"><h4>Kolejność umiejętności</h4><div class="skills">${skillKeys(b.skills)}</div></div>
     ${readonly ? '' : `<div class="actions" style="margin-top:12px">
       <button class="primary" data-itemset="${esc(b.alias)}">Wyślij build do sklepu w grze</button>
       <span class="muted small">Zestaw „CS Assist” pojawi się w sklepie w zakładce z zestawami przedmiotów.</span>
@@ -286,8 +312,9 @@ function loadingScreen(s) {
       <button data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">Build i runy</button>
     </div>` : '';
   const body = tab === 'build'
-    ? `<div class="final">${s.final.myChampion ? myChampionPanel(s.final.myChampion, true) : ''}${s.final.build ? buildPanel(s.final.build, true) : ''}</div>`
+    ? `<div class="final">${s.final.myChampion ? myChampionPanel(s.final.myChampion, true) : ''}<div>${s.final.build ? situationsPanel(s.final.build.situations) + buildPanel(s.final.build, true) : ''}</div></div>`
     : `${s.plan || s.gamePlan ? `<div class="plans">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : ''}
+    ${situationsPanel((s.final && s.final.build && s.final.build.situations) || (s.gamePlan && s.gamePlan.situations))}
     <h3 class="ally-h">Twoja drużyna</h3>
     <div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div>
     <h3 class="enemy-h">Przeciwnicy</h3>
@@ -299,6 +326,27 @@ function loadingScreen(s) {
   </div>`;
 }
 
+// Aktualizacja widoku bez przebudowy: zmieniamy tylko węzły, które się różnią, więc obrazki nie ładują się od nowa,
+// przewinięcie i najechanie myszą zostają, a animację wejścia dostają tylko nowe panele.
+function morph(from, to) {
+  if (from.nodeType !== to.nodeType || from.nodeName !== to.nodeName) { from.replaceWith(to); return; }
+  if (from.nodeType !== 1) { if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue; return; }
+  for (const a of [...from.attributes]) if (!to.hasAttribute(a.name)) from.removeAttribute(a.name);
+  for (const a of [...to.attributes]) if (from.getAttribute(a.name) !== a.value) from.setAttribute(a.name, a.value);
+  morphChildren(from, to);
+}
+function morphChildren(from, to) {
+  const before = [...from.childNodes];
+  const after = [...to.childNodes];
+  after.forEach((node, i) => (i < before.length ? morph(before[i], node) : from.appendChild(node)));
+  before.slice(after.length).forEach((node) => node.remove());
+}
+function patch(el, html) {
+  const next = document.createElement(el.tagName);
+  next.innerHTML = html;
+  morphChildren(el, next);
+}
+
 function render(s) {
   if (!s) return;
   lastState = s;
@@ -307,7 +355,7 @@ function render(s) {
   $status.className = 'status' + (live ? ' live' : '');
 
   if (s.status === 'loading-screen') {
-    $app.innerHTML = loadingScreen(s);
+    patch($app, loadingScreen(s));
     return;
   }
   if (s.status !== 'champselect') {
@@ -318,7 +366,7 @@ function render(s) {
       error: ['Coś poszło nie tak', 'Spróbuję połączyć się ponownie za chwilę.'],
     }[s.status] || ['', ''];
     const diag = s.status === 'idle' ? '<div class="actions" style="justify-content:center;margin-top:18px"><button data-stats-diag>Diagnostyka OP.GG</button></div>' : '';
-    $app.innerHTML = `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>${diag}</div>`;
+    patch($app, `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>${diag}</div>`);
     return;
   }
 
@@ -326,12 +374,13 @@ function render(s) {
   const center = [
     bansPanel(s),
     !meLocked ? suggestionsPanel(s) : '',
-    compPanel(s.compositions),
+    s.build ? situationsPanel(s.build.situations) : '',
     s.myChampion ? myChampionPanel(s.myChampion, false, s.autoRunes) : '',
     s.build ? buildPanel(s.build) : '',
+    compPanel(s.compositions),
   ].join('');
 
-  $app.innerHTML = `<div class="layout">
+  patch($app, `<div class="layout">
     <section class="team ally"><h3>Twoja drużyna</h3>${s.allies.map((p) => slot(p, false)).join('')}</section>
     <section class="center">${center}
       <footer>
@@ -343,7 +392,7 @@ function render(s) {
       </footer>
     </section>
     <section class="team enemy"><h3>Przeciwnicy</h3>${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
-  </div>`;
+  </div>`);
 }
 
 $app.addEventListener('click', async (e) => {
@@ -412,5 +461,12 @@ $update.addEventListener('click', (e) => { if (e.target.closest('button')) windo
 window.assist.onUpdate(renderUpdate);
 window.assist.getUpdate().then(renderUpdate);
 
-window.assist.onState(render);
+// Ten sam stan z procesu głównego nie przebudowuje widoku (obrazki nie mrugają, przyciski nie gubią kliknięć).
+let lastStateJson = '';
+window.assist.onState((s) => {
+  const json = JSON.stringify(s);
+  if (json === lastStateJson) return;
+  lastStateJson = json;
+  render(s);
+});
 window.assist.getState().then(render);

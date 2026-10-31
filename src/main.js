@@ -464,14 +464,22 @@ app.whenReady().then(() => {
   data = baseData;
   initStats();
   // Ikony z klienta (wymagają autoryzacji, więc pobiera je proces główny).
+  // Obrazki z klienta trzymane w pamięci: kolejne odświeżenia widoku nie pytają klienta o to samo.
+  const assetCache = new Map();
   protocol.handle('lcuasset', async (request) => {
     const url = new URL(request.url);
+    const hit = assetCache.get(url.pathname);
+    if (hit) return new Response(hit.body, { status: 200, headers: { 'Content-Type': hit.type } });
     if (!lcu) return new Response(null, { status: 503 });
     try {
       let res = await lcu.raw('GET', url.pathname);
       // Brak kafelka skina w kliencie: zwykła ikona championa.
       const tile = /^\/lol-game-data\/assets\/v1\/champion-tiles\/(\d+)\//.exec(url.pathname);
       if (tile && res.status !== 200) res = await lcu.raw('GET', `/lol-game-data/assets/v1/champion-icons/${tile[1]}.png`);
+      if (res.status === 200) {
+        if (assetCache.size > 600) assetCache.delete(assetCache.keys().next().value);
+        assetCache.set(url.pathname, { body: res.body, type: res.headers['content-type'] || 'image/png' });
+      }
       return new Response(res.body, { status: res.status, headers: { 'Content-Type': res.headers['content-type'] || 'image/png', 'Cache-Control': 'max-age=86400' } });
     } catch {
       return new Response(null, { status: 502 });

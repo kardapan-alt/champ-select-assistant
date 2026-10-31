@@ -91,7 +91,7 @@ test('build po zlockowaniu i antyleczenie', async () => {
   assert.equal(state.allLocked, true);
   const build = engine.buildFor('Ahri', state, game, data);
   assert.equal(build.items.length, 5);
-  assert.ok(build.items.some((s) => s.why === 'antyleczenie'), 'Soraka/Warwick/Mordekaiser leczą');
+  assert.ok(build.items.some((s) => s.why === 'leczenie: Warwick, Soraka'), 'Soraka i Warwick leczą');
   const unknown = engine.buildFor('Zoe', state, game, data);
   assert.equal(unknown.estimated, true);
   assert.equal(unknown.items.length, 5);

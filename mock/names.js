@@ -4,6 +4,7 @@ module.exports = {
     2504: "Kaenic Rookern", 3006: "Berserker's Greaves", 3009: "Boots of Swiftness", 3011: "Chemtech Putrifier", 3020: "Sorcerer's Shoes",
     3026: "Guardian Angel", 3031: "Infinity Edge", 3033: "Mortal Reminder", 3036: "Lord Dominik's Regards", 3046: "Phantom Dancer",
     3047: "Plated Steelcaps", 3050: "Zeke's Convergence", 3053: "Sterak's Gage", 3065: "Spirit Visage", 3068: "Sunfire Aegis",
+    3123: "Executioner's Calling", 3916: "Oblivion Orb", 6695: "Serpent's Fang", 3140: "Quicksilver Sash", 6673: "Immortal Shieldbow",
     3071: "Black Cleaver", 3072: "Bloodthirster", 3074: "Ravenous Hydra", 3075: "Thornmail", 3078: "Trinity Force",
     3083: "Warmog's Armor", 3084: "Heartsteel", 3085: "Runaan's Hurricane", 3089: "Rabadon's Deathcap", 3091: "Wit's End",
     3094: "Rapid Firecannon", 3100: "Lich Bane", 3102: "Banshee's Veil", 3107: "Redemption", 3109: "Knight's Vow",
