@@ -86,7 +86,8 @@ function loadMeta() {
 const attempted = new Map();
 
 function requestAnalysis(alias, position) {
-  if (!settings.stats || !alias || !game) return;
+  // OP.GG wymaga pozycji; bez niej (champion spoza danych, zanim wczyta się meta) spróbujemy przy następnym odświeżeniu.
+  if (!settings.stats || !alias || !game || !position) return;
   const key = `${alias}:${position}`;
   if (stats.analyses[alias] && stats.analyses[alias]._key === key) return;
   if (queue.some((q) => q.key === key)) return;
