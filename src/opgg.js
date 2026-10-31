@@ -339,6 +339,21 @@ function interpretAnalysis(raw, game) {
   if (boots.length) result.boots = mostPopular(boots).ids[0];
   const core = idSets(root, /core|item/i).filter((s) => !/start|boot/.test(s.key) && s.ids.length >= 2 && s.ids.every(isItem));
   if (core.length) result.items = mostPopular(core).ids.slice(0, 3);
+  // Późniejsze itemy (4., 5., 6. i ostatnie) z aktualnego patcha: popularność sumowana po slotach.
+  const late = new Map();
+  walk(root, (node, path) => {
+    const key = String(path[path.length - 1] || '');
+    if (!Array.isArray(node) || !/^(fourth|fifth|sixth|last)_items$/i.test(key)) return;
+    const weight = /^last/i.test(key) ? 0.5 : 1;
+    for (const row of node) {
+      const ids = row && Array.isArray(row.ids) ? row.ids.map(num) : [];
+      if (ids.length !== 1 || !isItem(ids[0])) continue;
+      late.set(ids[0], (late.get(ids[0]) || 0) + weight * (pct(row.pick_rate) || 0));
+    }
+  });
+  const taken = new Set([...(result.items || []), result.boots]);
+  const lateItems = [...late.entries()].filter(([id]) => !taken.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (lateItems.length) result.lateItems = lateItems.map(([id, score]) => ({ id, score: Math.round(score) }));
   const starters = idSets(root, /start/i).filter((s) => s.ids.length >= 1 && s.ids.every(isItem));
   if (starters.length) result.starters = mostPopular(starters).ids;
   const spells = idSets(root, /spell|summoner/i).filter((s) => s.ids.length === 2 && s.ids.every((id) => id < 100));
@@ -837,6 +852,7 @@ function mergeStats(base, { meta, analyses = {} } = {}, game) {
     if (a.items && a.items.length >= 2) merged.items = a.items;
     if (a.boots) merged.boots = a.boots;
     if (a.starters && a.starters.length) merged.starters = a.starters;
+    if (a.lateItems && a.lateItems.length) merged.lateItems = a.lateItems;
     if (a.matchups && Object.keys(a.matchups).length) merged.matchupRates = a.matchups;
     if (a.spells) merged.spells = a.spells;
     if (a.skills) merged.skills = a.skills;

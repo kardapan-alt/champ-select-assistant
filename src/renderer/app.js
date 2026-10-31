@@ -412,5 +412,12 @@ $update.addEventListener('click', (e) => { if (e.target.closest('button')) windo
 window.assist.onUpdate(renderUpdate);
 window.assist.getUpdate().then(renderUpdate);
 
-window.assist.onState(render);
+// Ten sam stan z procesu głównego nie przebudowuje widoku (obrazki nie mrugają, przyciski nie gubią kliknięć).
+let lastStateJson = '';
+window.assist.onState((s) => {
+  const json = JSON.stringify(s);
+  if (json === lastStateJson) return;
+  lastStateJson = json;
+  render(s);
+});
 window.assist.getState().then(render);

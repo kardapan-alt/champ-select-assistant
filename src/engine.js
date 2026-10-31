@@ -609,15 +609,19 @@ function buildFor(alias, state, game, data) {
   else if (champ.class === 'mage' && enemy.apShare >= 0.65 && enemy.cc >= 3) { boots = data.boots.vsAp; bootsWhy = 'MR i odporność na CC'; }
 
   const core = (champ.items || tpl.items).filter(exists);
-  const fixed = core.slice(0, FIXED_CORE);
-  // Pozostałe itemy rdzenia startują z wysoką bazą, żeby wypadały tylko przy realnym zagrożeniu.
+  // Ze statystykami OP.GG cały rdzeń (3 itemy) jest z aktualnego patcha, więc zostaje w całości.
+  const fixed = core.slice(0, champ.statsBuild ? 3 : FIXED_CORE);
+  const pooledTags = (id) => (Object.values(data.itemPools || {}).flat().find((it) => it.id === id) || {}).tags || {};
+  const lateStats = (champ.lateItems || []).filter((it) => exists(it.id));
+  const topLate = Math.max(1, ...lateStats.map((it) => it.score));
+  // Pozostałe itemy rdzenia i popularne późniejsze itemy z OP.GG startują z wysoką bazą,
+  // żeby itemy sytuacyjne z wbudowanej puli wchodziły tylko przy wyraźnie jednostronnym składzie wroga.
   const candidates = [
-    // Item rdzenia, który jest też w puli (np. Zhonya), zachowuje swoje tagi obronne.
-    ...core.slice(FIXED_CORE).map((id) => {
-      const pooled = Object.values(data.itemPools || {}).flat().find((it) => it.id === id);
-      return { id, tags: { ...(pooled ? pooled.tags : {}), late: 1.6 }, core: true };
-    }),
-    ...((data.itemPools || {})[itemPoolKey(champ)] || []).filter((it) => !it.only || it.only.includes(champ.class)),
+    ...core.slice(fixed.length).map((id) => ({ id, tags: { ...pooledTags(id), late: 1.6 }, core: true })),
+    ...lateStats.map((it) => ({ id: it.id, tags: { ...pooledTags(it.id), late: 2 + 1.5 * (it.score / topLate) }, core: true, popular: true })),
+    ...((data.itemPools || {})[itemPoolKey(champ)] || []).filter((it) => !it.only || it.only.includes(champ.class))
+      // Przy statystykach OP.GG item z puli nie wygrywa samą „późną grą”, tylko odpowiedzią na zagrożenie.
+      .map((it) => (lateStats.length ? { ...it, tags: { ...it.tags, late: 0 } } : it)),
   ].filter((it, i, arr) => exists(it.id) && !fixed.includes(it.id) && arr.findIndex((x) => x.id === it.id) === i);
 
   const left = { ...threats };
@@ -629,7 +633,7 @@ function buildFor(alias, state, game, data) {
     const best = pool.shift();
     const contributions = Object.entries(best.tags).map(([tag, v]) => [tag, v * (left[tag] || 0)]).sort((a, b) => b[1] - a[1]);
     const mainTag = contributions[0] && contributions[0][1] > 0 ? contributions[0][0] : 'late';
-    chosen.push({ ...best, why: best.core && mainTag === 'late' ? 'rdzeń championa' : THREAT_REASONS[mainTag] });
+    chosen.push({ ...best, why: best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : THREAT_REASONS[mainTag] });
     // Każdy item częściowo zaspokaja zagrożenie: przy skrajnym składzie zostaje miejsce na kolejny item tego typu.
     for (const [tag, v] of Object.entries(best.tags)) {
       left[tag] = tag === 'late' ? (left[tag] || 0) * 0.85 : Math.max(0, (left[tag] || 0) - v * 0.55);
@@ -661,7 +665,11 @@ function buildFor(alias, state, game, data) {
     spellsWhy: spells.why,
     boots: { ...item(boots), why: bootsWhy },
     items: [
-      ...fixed.map((id) => ({ ...item(id), why: 'rdzeń championa' })),
+      // Item rdzenia, który przy okazji odpowiada na mocne zagrożenie (np. Zhonya przeciw AD), dostaje ten powód.
+      ...fixed.map((id) => {
+        const strong = Object.entries(pooledTags(id)).filter(([t, v]) => t !== 'late' && v * (threats[t] || 0) >= 1.5).sort((a, b) => b[1] * threats[b[0]] - a[1] * threats[a[0]])[0];
+        return { ...item(id), why: strong ? THREAT_REASONS[strong[0]] : 'rdzeń championa' };
+      }),
       ...chosen.map((c) => ({ ...item(c.id), why: c.why })),
     ],
     alternatives: alternatives.map((a) => ({ ...item(a.id), why: THREAT_REASONS[Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]] })),
