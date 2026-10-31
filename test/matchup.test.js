@@ -5,6 +5,7 @@ const { loadGameData } = require('../src/gamedata');
 const engine = require('../src/engine');
 const { readLoadingPlayers } = require('../src/players');
 const { lanePlan } = require('../src/laneplan');
+const { gamePlan } = require('../src/gameplan');
 const data = require('../data/champions.json');
 
 process.env.PORT = '0';
@@ -112,4 +113,24 @@ test('support: bez strzelców i fighterów, kruchy pick słabszy przeciw zabójc
   const lux = engine.suggestPicks(state, game, data, { limit: 50 }).list.find((s) => s.alias === 'Lux');
   if (lux) assert.ok(lux.reasons.some((r) => !r.good && r.text.startsWith('łatwy cel')), JSON.stringify(lux.reasons));
   console.log('support:', list.map((s) => `${s.name} ${s.score}`).join(', '));
+});
+
+test('plan na grę: fazy gry ze składów, groźni gracze przed słabymi punktami', async () => {
+  await step(6);
+  const players = await readLoadingPlayers(lcu);
+  const cardFor = (p) => ({
+    loaded: true,
+    tags: p.gameName === 'Cień Midu' ? [{ text: 'Doświadczony (300 gier)' }] : p.gameName === 'Topowy Młot' ? [{ text: 'Mało gier tym championem' }] : [],
+    champion: { seasonGames: p.gameName === 'Cień Midu' ? 300 : 2 },
+    recent: { games: 20, winRate: p.gameName === 'Wilk z Zaun' ? 70 : 50 },
+  });
+  const plan = gamePlan(players.allies, players.enemies, cardFor, game, data);
+  assert.deepEqual(plan.phases.map((p) => p.title), ['Początek gry', 'Środek gry', 'Walki drużynowe']);
+  assert.ok(plan.phases.every((p) => p.tips.length >= 1));
+  assert.ok(plan.ourStyle.length >= 1);
+  assert.deepEqual(plan.threats.map((t) => t.who), ['Cień Midu (Zed)', 'Wilk z Zaun (Warwick)'], 'doświadczenie przed dobrą serią');
+  assert.deepEqual(plan.targets, [{ who: 'Topowy Młot (Mordekaiser)', why: 'mało gier tym championem' }]);
+  // Bez widocznych przeciwników nie ma planu.
+  assert.equal(gamePlan(players.allies, [], cardFor, game, data), null);
+  console.log('plan gry:', plan.phases.map((p) => p.tips).flat());
 });

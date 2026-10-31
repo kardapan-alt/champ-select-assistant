@@ -724,5 +724,5 @@ function orderSpells(spellIds, current) {
 }
 
 module.exports = {
-  POSITION_LABELS, readSession, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, runePageFor, normalizeRunes, buildFor, orderSpells,
+  POSITION_LABELS, readSession, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, archetypeOf, describeEnemy, runePageFor, normalizeRunes, buildFor, orderSpells,
 };

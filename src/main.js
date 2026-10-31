@@ -7,6 +7,7 @@ const engine = require('./engine');
 const { OpggProvider, mergeStats } = require('./opgg');
 const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
 const { lanePlan } = require('./laneplan');
+const { gamePlan } = require('./gameplan');
 const crypto = require('crypto');
 const { initUpdates } = require('./updater');
 
@@ -223,12 +224,15 @@ function buildLoadingView() {
     plan.me.icon = champView(plan.me.championId).icon;
     plan.opponent.icon = champView(plan.opponent.championId).icon;
   }
+  let teamPlan = null;
+  try { teamPlan = gamePlan(loading.allies, loading.enemies, cardOf, game, data); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(card);
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
   return {
     status: 'loading-screen',
     region: loading.region,
     plan,
+    gamePlan: teamPlan,
     final: lastFinal,
     allies: loading.allies.map(card),
     enemies,
