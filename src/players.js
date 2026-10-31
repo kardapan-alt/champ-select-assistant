@@ -147,7 +147,8 @@ function playerCard(player, summary, game, now = Date.now()) {
     if (deaths != null && deaths >= 7) tag(`Dużo zgonów (śr. ${round(deaths)})`, 'warn');
     const kp = avg(games, (g) => g.kp);
     if (kp != null && kp >= 60) tag(`Wysoki KP (${Math.round(kp)}%)`, 'good');
-    const visionPerMin = avg(games.filter((g) => g.vision != null && g.minutes), (g) => g.vision / g.minutes);
+    // Historia OP.GG nie ma wyniku wizji: wtedy średnia z sezonowych statystyk championów.
+    const visionPerMin = avg(games.filter((g) => g.vision != null && g.minutes), (g) => g.vision / g.minutes) ?? summary.visionPerMin ?? null;
     const isSupport = player.position === 'utility';
     if (visionPerMin != null && visionPerMin >= (isSupport ? 2.2 : 1.1)) tag('Dobra wizja', 'good');
     else if (visionPerMin != null && visionPerMin < (isSupport ? 1.3 : 0.5)) tag('Słaba wizja', 'warn');

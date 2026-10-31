@@ -1,0 +1,10 @@
+class LolGetSummonerProfile: data
+class Data: summoner
+class Summoner: game_name,tagline,region,league_stats,most_champions,recent_champion_stats
+class LeagueStat: game_type,tier_info,win,lose
+class TierInfo: tier,division,lp
+class MostChampions: game_type,season_id,play,win,lose,champion_stats
+class ChampionStat: id,play,win,lose,game_length_second,kill,death,assist,champion_name
+class RecentChampionStat: id,play,win,kill,death,assist,champion_name
+
+LolGetSummonerProfile(Data(Summoner("Gracz","TEST","EUNE",[LeagueStat("FLEXRANKED",TierInfo("GOLD",2,10),10,12),LeagueStat("SOLORANKED",TierInfo("EMERALD",1,65),187,202)],MostChampions("RANKED",33,60,35,25,[ChampionStat(103,40,25,15,72000,200,150,300,"Ahri"),ChampionStat(89,20,10,10,36000,20,100,300,"Leona")]),[RecentChampionStat(238,1,1,10,2,5,"Zed")])))

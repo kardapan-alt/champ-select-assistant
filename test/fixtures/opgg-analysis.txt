@@ -1,0 +1,13 @@
+class LolGetChampionAnalysis: champion,position,data
+class Data: summary,damage_type,strong_counters,weak_counters,synergies,boots,core_items,starter_items,summoner_spells,runes,skill_masteries
+class Summary: id,positions
+class Position: name,counters
+class Counter: champion_id,champion_name,play,win
+class StrongCounter: champion_id,champion_name,play,win,my_win_rate,counter_win_rate,win_rate
+class Synergies: top,jungle,adc,support
+class Top: champion_id,champion_name,position,synergy_champion_id,synergy_champion_name,synergy_position,score_rank,score,play,win,win_rate
+class CoreItems: ids,ids_names,play,win,pick_rate
+class Runes: id,primary_page_id,primary_rune_ids,secondary_page_id,secondary_rune_ids,stat_mod_ids,play,win,pick_rate
+class SkillMasteries: ids,play,win,pick_rate
+
+LolGetChampionAnalysis("AHRI","MID",Data(Summary(103,[Position("MID",[Counter(238,"Zed",4420,2050)])]),"AP",[StrongCounter(901,"Smolder",231,144,0.62,0.38,0.62)],[StrongCounter(238,"Zed",4420,2050,0.46,0.54,0.54)],Synergies([Top(103,"Ahri","MID",41,"Gangplank","TOP",8,0,935,515,0.55)],[Top(103,"Ahri","MID",64,"Lee Sin","JUNGLE",3,0,900,430,0.48)],[],[Top(103,"Ahri","MID",89,"Leona","SUPPORT",1,0,1200,660,0.55)]),CoreItems([3020],["Sorcerer's Shoes"],5000,2600,0.8),CoreItems([3118,4645,3157],["Malignance","Shadowflame","Zhonya's Hourglass"],3000,1600,0.3),CoreItems([1056,2003,2003],["Doran's Ring","Health Potion","Health Potion"],7000,3600,0.7),CoreItems([4,14],["Flash","Ignite"],6000,3100,0.6),Runes(1,8100,[8112,8139,8140,8106],8200,[8210,8226],[5005,5008,5001],4000,2100,0.4),SkillMasteries(["Q","W","E"],8000,4100,0.9)))

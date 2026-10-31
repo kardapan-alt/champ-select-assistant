@@ -1,0 +1,9 @@
+class LolListSummonerMatches: data
+class Data: game_history
+class GameHistory: id,created_at,game_map,game_type,game_length_second,participants,teams
+class Participant: champion_id,champion_name,team_key,position,stats
+class Stats: ward_place,kill,death,assist,minion_kill,neutral_minion_kill,result
+class Team: key,game_stat
+class GameStat: is_win,champion_kill
+
+LolListSummonerMatches(Data([GameHistory("g1","2026-10-30T10:04:50+09:00","SUMMONERS_RIFT","SOLORANKED",1800,[Participant(103,"Ahri","BLUE","MID",Stats(8,6,2,9,200,10,"WIN"))],[Team("BLUE",GameStat(true,30)),Team("RED",GameStat(false,20))]),GameHistory("g2","2026-09-01T10:00:00+09:00","SUMMONERS_RIFT","SOLORANKED",1500,[Participant(89,"Leona","RED","SUPPORT",Stats(30,1,8,12,30,0,"LOSE"))],[Team("BLUE",GameStat(true,25)),Team("RED",GameStat(false,10))])]))
