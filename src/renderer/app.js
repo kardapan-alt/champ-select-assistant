@@ -186,7 +186,7 @@ function stat(value, title, caption) {
 const expanded = new Map();
 // Zakładka na ekranie ładowania i w trakcie gry: gracze albo build z champion selecta.
 let loadingTab = 'players';
-const champIcon = (id) => `lcuasset://lcu/lol-game-data/assets/v1/champion-icons/${id}.png`;
+const champIcon = (id) => `lcuasset://lcu/lol-game-data/assets/v1/champion-tiles/${id}/${id * 1000}.jpg`;
 
 function champTable(list, withKda) {
   if (!list || !list.length) return '<div class="muted pool-empty">Brak gier</div>';
