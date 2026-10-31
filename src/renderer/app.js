@@ -29,7 +29,7 @@ function slot(p, enemy) {
   const c = p.champion;
   const cls = ['slot', p.isMe ? 'me' : '', c && !p.locked ? 'hover' : ''].join(' ');
   const state = !c ? 'wybiera…' : p.locked ? 'zablokowany' : 'rozważa';
-  const role = enemy ? '' : `<b>${esc(p.position)}</b> · `;
+  const role = enemy || !p.position ? '' : `<b>${esc(p.position)}</b> · `;
   return `<div class="${cls}">
     ${img(c && c.icon, 'icon', c && c.name)}
     <div class="meta">
@@ -76,6 +76,29 @@ function suggestionsPanel(s) {
     <div class="modeline">${mode}${s.metaSource ? `<span class="muted">meta: ${esc(s.metaSource)}</span>` : ''}</div>
     <div class="suggestions">${rows}</div>
   </div>`;
+}
+
+// ARAM: kto z ławki (albo obecny champion) najlepiej pasuje do składu.
+function aramPanel(s) {
+  const list = s.aramChoices || [];
+  if (!list.length) return '';
+  const best = list[0];
+  const mine = list.find((c) => c.current);
+  // Zamianę polecamy tylko przy wyraźnej różnicy; przy kilku punktach to kwestia gustu.
+  const head = best.current
+    ? '<span class="mode counter">Twój champion pasuje najlepiej. Zostań przy nim.</span>'
+    : mine && best.score - mine.score >= 5
+      ? `<span class="mode blind">Warto wziąć z ławki: ${esc(best.name)} (+${best.score - mine.score} pkt)</span>`
+      : '<span class="mode counter">Twój champion jest w porządku, różnice z ławką są małe.</span>';
+  const rows = list.map((g, i) => `
+    <div class="sugg${g.current ? ' current' : ''}">
+      <img src="${esc(g.icon)}" alt="">
+      <div>
+        <div class="top"><span class="rank">${i + 1}.</span><strong>${esc(g.name)}</strong>${g.current ? '<span class="tag good">Twój</span>' : '<span class="tag">ławka</span>'}${tierBadge(g.tier)}<span class="score">${g.score} pkt</span>${masteryBadge(g.mastery)}</div>
+        <div class="reasons">${g.reasons.length ? g.reasons.map((r) => `<span class="tag ${r.good ? 'good' : 'bad'}">${esc(r.text)}</span>`).join('') : '<span class="muted">pasuje do składu</span>'}</div>
+      </div>
+    </div>`).join('');
+  return `<div class="panel"><h3>ARAM · ławka</h3><div class="modeline">${head}</div><div class="suggestions">${rows}</div></div>`;
 }
 
 function bansPanel(s) {
@@ -174,20 +197,30 @@ function situationsPanel(list, title = 'Na co uważać w składzie wroga') {
   return `<div class="panel situations"><h3>${esc(title)}</h3><div class="sit-list">${rows}</div></div>`;
 }
 
-function buildPanel(b, readonly = false) {
+// Stan zestawu w sklepie: wysłany automatycznie, błąd albo informacja, kiedy się wyśle.
+function itemSetStatus(b, auto) {
+  if (!auto || !auto.enabled) return '<span class="muted small">Zestaw „CS Assist” pojawi się w sklepie w zakładce z zestawami przedmiotów.</span>';
+  if (auto.done) return `<span class="small good">✓ W sklepie: ${esc(auto.done)}</span>`;
+  if (auto.error) return `<span class="small bad">Automatyczne wysłanie nie udało się: ${esc(auto.error)}</span>`;
+  return `<span class="muted small">${b.provisional ? 'Wyśle się sam do sklepu, gdy wszyscy zablokują.' : 'Wysyłam do sklepu…'}</span>`;
+}
+
+function buildPanel(b, readonly = false, auto = null) {
+  const aram = b.mode === 'aram';
   return `<div class="panel">
     <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
+    ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
     <div class="muted" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: najpopularniejszy build z OP.GG, sloty sytuacyjne dobrane pod skład wroga.' : 'Baza: wbudowane dane, sloty sytuacyjne dobrane pod skład wroga.'}</div>
-    <div class="build-row"><h4>Skład wroga</h4>${enemyBar(b.enemy)}</div>
+    ${b.enemy && b.enemy.count ? `<div class="build-row"><h4>Skład wroga</h4>${enemyBar(b.enemy)}</div>` : ''}
     <div class="build-row"><h4>Pełny build pod ten skład</h4><div class="items path">${buildTiles(b)}</div></div>
     ${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}
     ${b.alternatives.length ? `<div class="build-row" style="margin-top:14px"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}
     <div class="build-row"><h4>Czary</h4><div class="items">${b.spells.map((s) => itemTile(s)).join('')}</div>${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}</div>
     <div class="build-row"><h4>Kolejność umiejętności</h4><div class="skills">${skillKeys(b.skills)}</div></div>
-    ${readonly ? '' : `<div class="actions" style="margin-top:12px">
-      <button class="primary" data-itemset="${esc(b.alias)}">Wyślij build do sklepu w grze</button>
-      <span class="muted small">Zestaw „CS Assist” pojawi się w sklepie w zakładce z zestawami przedmiotów.</span>
+    ${readonly ? '' : `<div class="actions" style="margin-top:12px;align-items:center">
+      <button class="primary" data-itemset="${esc(b.alias)}">${auto && auto.done ? 'Wyślij ponownie' : 'Wyślij build do sklepu w grze'}</button>
+      ${itemSetStatus(b, auto)}
     </div>`}
   </div>`;
 }
@@ -297,7 +330,7 @@ function gamePlanPanel(g) {
     ? `<div class="gp-people"><span class="gp-label ${cls}">${title}</span>${list.map((x) => `<span><b>${esc(x.who)}</b> <span class="muted">· ${esc(x.why)}</span></span>`).join('')}</div>`
     : '');
   return `<div class="panel plan game-plan">
-    <h2>Plan na grę</h2>
+    <h2>${g.mode === 'aram' ? 'Plan na ARAM' : 'Plan na grę'}</h2>
     <div class="gp-styles"><span class="ally-c">Wy</span>${styles(g.ourStyle)}<span class="enemy-c">Wróg</span>${styles(g.theirStyle)}</div>
     ${g.phases.map((ph) => `<div class="gp-phase"><h4>${esc(ph.title)}</h4><ul class="plan-tips">${ph.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
     ${people('Uważajcie na', g.threats, 'bad')}
@@ -313,7 +346,7 @@ function loadingScreen(s) {
     </div>` : '';
   const body = tab === 'build'
     ? `<div class="final">${s.final.myChampion ? myChampionPanel(s.final.myChampion, true) : ''}<div>${s.final.build ? situationsPanel(s.final.build.situations) + buildPanel(s.final.build, true) : ''}</div></div>`
-    : `${s.plan || s.gamePlan ? `<div class="plans">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : ''}
+    : `${s.plan || s.gamePlan ? `<div class="plans${s.plan && s.gamePlan ? '' : ' single'}">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : ''}
     ${situationsPanel((s.final && s.final.build && s.final.build.situations) || (s.gamePlan && s.gamePlan.situations))}
     <h3 class="ally-h">Twoja drużyna</h3>
     <div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div>
@@ -373,10 +406,10 @@ function render(s) {
   const meLocked = s.myChampion && s.myChampion.locked;
   const center = [
     bansPanel(s),
-    !meLocked ? suggestionsPanel(s) : '',
+    s.mode === 'aram' ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
     s.build ? situationsPanel(s.build.situations) : '',
     s.myChampion ? myChampionPanel(s.myChampion, false, s.autoRunes) : '',
-    s.build ? buildPanel(s.build) : '',
+    s.build ? buildPanel({ ...s.build, mode: s.mode }, false, s.autoItemSet) : '',
     compPanel(s.compositions),
   ].join('');
 
@@ -387,11 +420,12 @@ function render(s) {
         <span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}</span>
         <button data-toggle-stats>${s.statsEnabled ? 'Wyłącz OP.GG' : 'Włącz OP.GG'}</button>
         <button data-toggle-auto-runes>${s.autoRunes && s.autoRunes.enabled ? 'Auto-import run: wł.' : 'Auto-import run: wył.'}</button>
+        <button data-toggle-auto-item-set>${s.autoItemSet && s.autoItemSet.enabled ? 'Auto-build do sklepu: wł.' : 'Auto-build do sklepu: wył.'}</button>
         <button data-stats-diag>Diagnostyka OP.GG</button>
         <button data-open-data>Edytuj dane</button><button data-reload-data>Wczytaj dane ponownie</button>
       </footer>
     </section>
-    <section class="team enemy"><h3>Przeciwnicy</h3>${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
+    <section class="team enemy"><h3>Przeciwnicy</h3>${s.mode === 'aram' && !s.enemies.length ? '<div class="muted">Na ARAM-ie przeciwników widać dopiero na ekranie ładowania.</div>' : ''}${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
   </div>`);
 }
 
@@ -429,6 +463,9 @@ $app.addEventListener('click', async (e) => {
     } else if ('toggleStats' in btn.dataset) {
       const res = await window.assist.toggleStats();
       res.ok ? toast(res.enabled ? 'Statystyki OP.GG włączone' : 'Statystyki OP.GG wyłączone, używam własnych danych') : toast(res.error, true);
+    } else if ('toggleAutoItemSet' in btn.dataset) {
+      const res = await window.assist.toggleAutoItemSet();
+      res.ok ? toast(res.enabled ? 'Build wyśle się sam do sklepu po zablokowaniu wszystkich' : 'Automatyczne wysyłanie buildu wyłączone') : toast(res.error, true);
     } else if ('toggleAutoRunes' in btn.dataset) {
       const res = await window.assist.toggleAutoRunes();
       res.ok ? toast(res.enabled ? 'Runy będą importowane same po zablokowaniu wszystkich' : 'Automatyczny import run wyłączony') : toast(res.error, true);

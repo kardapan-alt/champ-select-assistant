@@ -14,5 +14,6 @@ contextBridge.exposeInMainWorld('assist', {
   reloadData: () => ipcRenderer.invoke('reload-data'),
   toggleStats: () => ipcRenderer.invoke('toggle-stats'),
   toggleAutoRunes: () => ipcRenderer.invoke('toggle-auto-runes'),
+  toggleAutoItemSet: () => ipcRenderer.invoke('toggle-auto-item-set'),
   statsDiagnostics: () => ipcRenderer.invoke('stats-diagnostics'),
 });

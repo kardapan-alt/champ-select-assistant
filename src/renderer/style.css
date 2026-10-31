@@ -291,3 +291,5 @@ button:active { transform: translateY(1px); }
 ::-webkit-scrollbar-thumb { background: #232c3d; border-radius: 6px; border: 2px solid var(--bg); }
 ::-webkit-scrollbar-track { background: transparent; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.sugg.current { border-color: rgba(60,207,142,.35); }
+.plans.single { grid-template-columns: 1fr; }

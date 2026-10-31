@@ -11,7 +11,8 @@ const toDataRole = (pos) => (pos === 'utility' ? 'support' : pos);
 
 // ---------- stan wyboru postaci ----------
 
-function readSession(session) {
+// mode: 'aram' (Howling Abyss: losowe championy, ławka, brak linii) albo 'classic'.
+function readSession(session, mode = 'classic') {
   const actions = (session.actions || []).flat();
   const pickActions = actions.filter((a) => a.type === 'pick');
   const lockedCells = new Set(pickActions.filter((a) => a.completed).map((a) => a.actorCellId));
@@ -52,14 +53,20 @@ function readSession(session) {
   ].map(Number).filter((id) => id > 0));
 
   const phase = (session.timer && session.timer.phase) || '';
+  const aram = mode === 'aram' || !!session.benchEnabled;
+  // ARAM nie ma blokowania: championy są przydzielone od razu, a zamiana z ławką jest możliwa do końca.
   const allLocked = phase === 'FINALIZATION' || phase === 'GAME_STARTING'
-    || (pickActions.length > 0 && pickActions.every((a) => a.completed));
+    || (pickActions.length > 0 && pickActions.every((a) => a.completed))
+    || (aram && allies.length > 0 && allies.every((a) => a.championId > 0));
+  if (aram) for (const a of allies) a.locked = a.championId > 0;
+  const bench = (session.benchChampions || session.benchChampionIds || [])
+    .map((b) => Number(typeof b === 'object' ? b.championId : b)).filter((id) => id > 0);
 
   const banActions = actions.filter((a) => a.type === 'ban');
   const banPhase = phase === 'PLANNING' || banActions.some((a) => a.isInProgress && !a.completed);
   const myBanTurn = banActions.some((a) => a.actorCellId === me && a.isInProgress && !a.completed);
 
-  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, phase, allLocked, banPhase, myBanTurn };
+  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, phase, allLocked, banPhase, myBanTurn, mode: aram ? 'aram' : 'classic', bench };
 }
 
 // ---------- informacje o championach ----------
@@ -263,13 +270,17 @@ function suggestPicks(state, game, data, options = {}) {
 
   // Blind pick: przeciwnik z Twojej linii jeszcze nie jest widoczny.
   const laneOpponent = position ? enemyInfos.find((e) => e.roles && e.roles[0] === position) : null;
-  const blind = !laneOpponent;
+  const blind = !laneOpponent && !options.aram;
 
   const results = [];
-  for (const [alias, champ] of Object.entries(data.champions)) {
+  // options.only: tylko te championy (np. ławka ARAM-u), niezależnie od posiadania.
+  const source = options.only
+    ? [...options.only].map((id) => game.championsById.get(id)?.alias).filter(Boolean).map((a) => [a, champInfo(a, game, data)])
+    : Object.entries(data.champions);
+  for (const [alias, champ] of source) {
     const summary = game.championsByAlias.get(alias);
-    if (!summary || taken.has(summary.id) || allyAliases.has(alias)) continue;
-    if (game.owned && game.owned.size > 0 && !game.owned.has(summary.id)) continue;
+    if (!summary || (!options.only && (taken.has(summary.id) || allyAliases.has(alias)))) continue;
+    if (!options.only && game.owned && game.owned.size > 0 && !game.owned.has(summary.id)) continue;
     if (position && !champ.roles.includes(position)) continue;
 
     let score = 50;
@@ -343,6 +354,9 @@ function suggestPicks(state, game, data, options = {}) {
     if (allyArch && ARCHETYPES[allyArch.primary].traits.some((x) => t.includes(x))) {
       score += 3; reasons.push({ good: true, text: `pasuje do stylu drużyny (${ARCHETYPES[allyArch.primary].label})` });
     }
+    // ARAM: jedna linia bez powrotów do bazy, więc poke i leczenie są warte więcej niż zwykle.
+    if (options.aram && t.includes('poke')) { score += 4; reasons.push({ good: true, text: 'poke jest mocny na ARAM-ie' }); }
+    if (options.aram && (t.includes('heal') || t.includes('sustain'))) { score += 3; reasons.push({ good: true, text: 'leczenie pomaga, gdy nie ma powrotów do bazy' }); }
     if (enemy.tanks >= 2 && t.includes('tankkiller')) {
       score += 7; reasons.push({ good: true, text: 'dobry na tanki przeciwnika' });
     }
@@ -356,6 +370,15 @@ function suggestPicks(state, game, data, options = {}) {
   }
   results.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   return { position, blind, laneOpponent: laneOpponent ? name(laneOpponent.alias) : null, list: results.slice(0, limit) };
+}
+
+// ARAM: który champion z ławki (albo obecny) najlepiej pasuje do składu drużyny.
+function aramChoices(state, game, data) {
+  if (!state.me || !state.me.championId) return [];
+  const ids = [state.me.championId, ...state.bench.filter((id) => id !== state.me.championId)];
+  if (ids.length < 2) return [];
+  const { list } = suggestPicks({ ...state, me: { ...state.me, position: '' } }, game, data, { only: ids, limit: ids.length, aram: true });
+  return list.map((c) => ({ ...c, current: c.championId === state.me.championId }));
 }
 
 // ---------- bany ----------
@@ -456,9 +479,10 @@ function matchupVerdict(champ, lane) {
 
 function matchContext(alias, state, game, data) {
   const champ = champInfo(alias, game, data);
-  const position = toDataRole(state && state.me ? state.me.position : '') || (champ.roles || [])[0] || '';
+  const aram = !!state && state.mode === 'aram';
+  const position = aram ? 'aram' : toDataRole(state && state.me ? state.me.position : '') || (champ.roles || [])[0] || '';
   const enemyInfos = state ? teamInfos(state.enemies || [], game, data) : [];
-  const lane = position === 'jungle' ? null : laneOpponentOf(state, game, data);
+  const lane = position === 'jungle' || aram ? null : laneOpponentOf(state, game, data);
   return { champ, position, lane, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
 }
 
@@ -522,7 +546,23 @@ function adaptRunes(page, ctx, game) {
   return { page: out, changes };
 }
 
-const SPELL = { flash: 4, ignite: 14, tp: 12, heal: 7, exhaust: 3, smite: 11, barrier: 21, cleanse: 1 };
+const SPELL = { flash: 4, ignite: 14, tp: 12, heal: 7, exhaust: 3, smite: 11, barrier: 21, cleanse: 1, ghost: 6, clarity: 13, mark: 32 };
+
+// ARAM: bez Smite'a i Teleportu. Śnieżka (Mark) dla wchodzących w walkę, Heal / Barrier / Exhaust dla reszty.
+function aramSpells(ctx, has) {
+  const { champ, enemy } = ctx;
+  const t = champ.traits || [];
+  const divers = enemy.burst + enemy.dive;
+  const pick = (id, why) => (has(id) ? { ids: [SPELL.flash, id], why } : null);
+  if (['tank', 'fighter', 'assassin'].includes(champ.class) || t.includes('engage') || t.includes('dive')) {
+    return pick(SPELL.mark, 'ARAM: Śnieżka (Mark), żeby doskoczyć do wroga i zacząć walkę') || pick(SPELL.ghost, 'ARAM: Duch, żeby dogonić wroga');
+  }
+  if (champ.class === 'support' || t.includes('enchanter')) {
+    return divers >= 2 ? pick(SPELL.exhaust, 'ARAM: Wyczerpanie na zabójców i dive') : pick(SPELL.heal, 'ARAM: Uzdrowienie dla Ciebie i sojusznika');
+  }
+  if (champ.class === 'adc') return pick(SPELL.heal, 'ARAM: Uzdrowienie, standard dla strzelca');
+  return divers >= 2 ? pick(SPELL.barrier, 'ARAM: Bariera na burst i dive wroga') : pick(SPELL.heal, 'ARAM: Uzdrowienie w długich walkach');
+}
 
 // Czary przywoływacza: baza championa + zamiana drugiego czaru (nie Flasha) pod mecz.
 function spellsFor(alias, state, game, data) {
@@ -537,6 +577,7 @@ function spellsFor(alias, state, game, data) {
     ids[ids.findIndex((id) => id !== SPELL.flash)] = to;
     why = reason;
   };
+  if (ctx.position === 'aram') return aramSpells(ctx, has) || { ids: [SPELL.flash, SPELL.heal], why: 'ARAM' };
   if (ctx.position === 'jungle' || ids.includes(SPELL.smite)) return { ids, why };
   const { enemy, lane, champ } = ctx;
   const laneName = lane && nameOf(lane.alias, game);
@@ -624,7 +665,8 @@ function buildFor(alias, state, game, data) {
     const a = aliasOf(e.championId);
     return a ? { alias: a, championId: e.championId, name: nameOf(a, game), traits: champInfo(a, game, data).traits || [] } : null;
   }).filter(Boolean);
-  const situations = detectSituations(enemyList, itemPoolKey(champ), exists);
+  // Na ARAM-ie nie ma wardów ani Oracle Lens, więc niewidzialność nie ma odpowiedzi w sklepie.
+  const situations = detectSituations(enemyList, itemPoolKey(champ), exists).filter((s) => !(state.mode === 'aram' && s.vision));
   const situationByTag = new Map();
   const situational = new Map();
   let forced = 0;
@@ -719,7 +761,8 @@ function itemSetFor(build, alias, state, game, data) {
   const blocks = [];
   const block = (type, ids) => { const items = list(ids); if (items.length) blocks.push({ type: type.slice(0, 60), items, showIfSummonerSpell: '', hideIfSummonerSpell: '' }); };
 
-  block(laneName ? `Start (vs ${laneName})` : 'Start', [...(ctx.champ.starters || (data.starters || {})[startKey] || []), trinkets.start]);
+  const aram = ctx.position === 'aram';
+  if (!aram) block(laneName ? `Start (vs ${laneName})` : 'Start', [...(ctx.champ.starters || (data.starters || {})[startKey] || []), trinkets.start]);
   if (ctx.lane && data.earlyDefense) {
     const comp = ctx.lane.dmg === 'ap' ? data.earlyDefense.ap : ctx.lane.dmg === 'ad' ? data.earlyDefense.ad : null;
     if (comp) block(`Pierwszy powrót, gdy przegrywasz wymiany z ${laneName}`, [comp, 2055]);
@@ -735,14 +778,15 @@ function itemSetFor(build, alias, state, game, data) {
   for (const [why, ids] of reasons) block(`Dlaczego: ${why}`, ids);
   if (build.alternatives.length) block('Alternatywy sytuacyjne', build.alternatives.map((a) => a.id));
   const stealth = (build.situations || []).find((s) => s.key === 'stealth');
-  block(stealth ? `Wizja: ${stealth.champions.map((c) => c.name).join(', ')} bywają niewidzialni` : 'Wizja i mikstury', [...(data.consumables || []), ctx.position === 'support' ? trinkets.support : trinkets.later]);
+  if (!aram) block(stealth ? `Wizja: ${stealth.champions.map((c) => c.name).join(', ')} bywają niewidzialni` : 'Wizja i mikstury', [...(data.consumables || []), ctx.position === 'support' ? trinkets.support : trinkets.later]);
 
   return {
-    title: `CS Assist: ${build.name}${laneName ? ` vs ${laneName}` : ''}`.slice(0, 75),
+    title: `CS Assist${aram ? ' ARAM' : ''}: ${build.name}${laneName ? ` vs ${laneName}` : ''}`.slice(0, 75),
     associatedChampions: [game.championsByAlias.get(alias)?.id].filter(Boolean),
-    associatedMaps: [11],
+    // Mapa 11: Summoner's Rift, 12: Howling Abyss (ARAM). Zestaw przypięty do złej mapy nie pokazuje się w sklepie.
+    associatedMaps: [aram ? 12 : 11],
     blocks,
-    map: 'SR',
+    map: 'any',
     mode: 'any',
     preferredItemSlots: [],
     sortrank: 0,
@@ -767,5 +811,5 @@ function orderSpells(spellIds, current) {
 }
 
 module.exports = {
-  POSITION_LABELS, readSession, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, archetypeOf, describeEnemy, runePageFor, normalizeRunes, buildFor, orderSpells,
+  POSITION_LABELS, SPELL, readSession, aramChoices, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, archetypeOf, describeEnemy, runePageFor, normalizeRunes, buildFor, orderSpells,
 };

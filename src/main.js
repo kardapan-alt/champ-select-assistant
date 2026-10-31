@@ -50,7 +50,16 @@ const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(f
 const writeJson = (file, value) => { try { fs.writeFileSync(file, JSON.stringify(value)); } catch { /* brak zapisu */ } };
 const log = (line) => { try { fs.appendFileSync(userFile('log.txt'), `${new Date().toISOString()} ${line}\n`); } catch { /* brak zapisu */ } };
 
-let settings = { stats: true, autoRunes: true };
+let settings = { stats: true, autoRunes: true, autoItemSet: true };
+// Tryb gry z /lol-gameflow/v1/session: 'aram' (Howling Abyss) albo 'classic'.
+let currentMode = 'classic';
+async function detectMode() {
+  const flow = await lcu.get('/lol-gameflow/v1/session').catch(() => null);
+  const gameMode = String((flow && flow.gameData && flow.gameData.queue && flow.gameData.queue.gameMode) || '').toUpperCase();
+  const mapId = flow && flow.map && flow.map.id;
+  currentMode = mapId === 12 || ['ARAM', 'KIWI'].includes(gameMode) ? 'aram' : 'classic';
+  return currentMode;
+}
 let provider = null;
 const stats = { meta: null, analyses: {} };
 const queue = [];
@@ -86,16 +95,18 @@ function loadMeta() {
 
 const attempted = new Map();
 
-function requestAnalysis(alias, position) {
+function requestAnalysis(alias, position, mode = currentMode) {
   // OP.GG wymaga pozycji; bez niej (champion spoza danych, zanim wczyta się meta) spróbujemy przy następnym odświeżeniu.
+  // Na ARAM-ie pozycja nic nie zmienia, ale pole jest wymagane, więc wystarczy dowolna.
+  if (mode === 'aram') position = position || 'middle';
   if (!settings.stats || !alias || !game || !position) return;
-  const key = `${alias}:${position}`;
+  const key = `${alias}:${position}:${mode}`;
   if (stats.analyses[alias] && stats.analyses[alias]._key === key) return;
   if (queue.some((q) => q.key === key)) return;
   // Nieudane zapytanie ponawiaj najwcześniej po 5 minutach.
   if (Date.now() - (attempted.get(key) || 0) < 5 * 60 * 1000) return;
   attempted.set(key, Date.now());
-  queue.push({ key, alias, position });
+  queue.push({ key, alias, position, mode });
   pump();
 }
 
@@ -103,7 +114,7 @@ function pump() {
   while (running < 2 && queue.length) {
     const job = queue.shift();
     running++;
-    provider.analysis(job.alias, job.position, game).then((a) => {
+    provider.analysis(job.alias, job.position, game, job.mode).then((a) => {
       if (a) { stats.analyses[job.alias] = { ...a, _key: job.key }; scheduleRefresh(); }
     }).catch(() => {}).finally(() => { running--; pump(); });
   }
@@ -119,6 +130,7 @@ function requestNeeded(state, picks) {
   if (state.me && state.me.championId) requestAnalysis(aliasOf(state.me.championId), myPos || roleOf(aliasOf(state.me.championId)));
   for (const e of state.enemies) if (e.championId) { const a = aliasOf(e.championId); requestAnalysis(a, roleOf(a)); }
   for (const s of picks.list) requestAnalysis(s.alias, myPos || roleOf(s.alias));
+  for (const id of state.bench || []) requestAnalysis(aliasOf(id), roleOf(aliasOf(id)));
 }
 
 function send(state) {
@@ -157,11 +169,13 @@ async function tick() {
     if (LOADING_PHASES.includes(phase)) {
       lastSessionJson = '';
       if (!loading) {
+        await detectMode();
         const players = await readLoadingPlayers(lcu).catch(() => null);
         if (!players) return send({ status: 'idle', phase });
         loading = { ...players, summaries: {} };
         fetchPlayerStats(loading);
         loadingDirty = true;
+        autoExportItemSetForLoading();
       }
       if (loadingDirty) { loadingDirty = false; send(buildLoadingView()); }
       return;
@@ -170,13 +184,15 @@ async function tick() {
     if (phase !== 'ChampSelect') {
       lastSessionJson = '';
       autoRunes = { key: '', done: '', error: '' };
+      autoItemSet = { key: '', done: '', error: '' };
       return send({ status: 'idle', phase });
     }
     const session = await lcu.get('/lol-champ-select/v1/session');
     if (!session) return;
-    const json = JSON.stringify([session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase]);
+    const json = JSON.stringify([session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase, session.benchChampions]);
     if (json === lastSessionJson) return;
     if (!lastSessionJson) {
+      await detectMode();
       // Nowy champ select: odśwież listę posiadanych championów.
       const owned = await lcu.get('/lol-champions/v1/owned-champions-minimal');
       if (owned) game.owned = new Set(owned.filter((c) => c.id > 0).map((c) => c.id));
@@ -186,6 +202,7 @@ async function tick() {
     lastSessionJson = json;
     send(buildView(session));
     autoImportRunes();
+    autoExportItemSet();
   } catch (err) {
     send({ status: 'error', message: String(err && err.message || err) });
     lcu = null;
@@ -223,8 +240,9 @@ function buildLoadingView() {
     pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName,
   });
   const me = loading.allies.find((p) => p.isMe);
+  const aram = currentMode === 'aram';
   let plan = null;
-  try { plan = lanePlan(me, loading.enemies, cardOf, game, data); } catch (err) { log(`plan linii: ${err.message}`); }
+  if (!aram) try { plan = lanePlan(me, loading.enemies, cardOf, game, data); } catch (err) { log(`plan linii: ${err.message}`); }
   if (plan) {
     // Winrate matchupu z OP.GG: analiza Twojego championa (z pamięci podręcznej lub nowe zapytanie).
     requestAnalysis(game.championsById.get(me.championId)?.alias, plan.role);
@@ -232,7 +250,7 @@ function buildLoadingView() {
     plan.opponent.icon = champView(plan.opponent.championId).icon;
   }
   let teamPlan = null;
-  try { teamPlan = gamePlan(loading.allies, loading.enemies, cardOf, game, data); } catch (err) { log(`plan gry: ${err.message}`); }
+  try { teamPlan = gamePlan(loading.allies, loading.enemies, cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(card);
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
   return {
@@ -240,7 +258,8 @@ function buildLoadingView() {
     region: loading.region,
     plan,
     gamePlan: teamPlan,
-    final: lastFinal,
+    mode: currentMode,
+    final: finalWithEnemies(me),
     allies: loading.allies.map(card),
     enemies,
     statsEnabled: settings.stats,
@@ -251,22 +270,42 @@ function buildLoadingView() {
 let lastSelectState = null;
 let lastFinal = null;
 
+// Build z champ selecta przeliczony na ekranie ładowania, gdy znamy już wszystkich przeciwników
+// (na ARAM-ie w wyborze postaci nie widać wroga).
+function loadingSelectState(me) {
+  const s = lastSelectState;
+  if (!s || !s.me || !me || s.me.championId !== me.championId) return null;
+  return { ...s, enemies: loading.enemies.map((p) => ({ championId: p.championId })) };
+}
+function finalWithEnemies(me) {
+  const s = loadingSelectState(me);
+  if (!lastFinal || !s) return lastFinal;
+  const alias = game.championsById.get(me.championId)?.alias;
+  try {
+    return { ...lastFinal, build: { ...engine.buildFor(alias, s, game, data), provisional: false } };
+  } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
+}
+
 function buildView(session) {
-  const state = engine.readSession(session);
+  const state = engine.readSession(session, currentMode);
   lastSelectState = state;
   const me = state.me;
   const myAlias = me && me.championId ? game.championsById.get(me.championId)?.alias : null;
-  const picks = engine.suggestPicks(state, game, data);
+  const aram = state.mode === 'aram';
+  // Na ARAM-ie nie ma wyboru z całej puli: zamiast sugestii ranking championów z ławki.
+  const picks = aram ? { list: [], blind: false, laneOpponent: null } : engine.suggestPicks(state, game, data);
   requestNeeded(state, picks);
   const view = {
     status: 'champselect',
+    mode: state.mode,
+    aramChoices: aram ? engine.aramChoices(state, game, data).map((c) => ({ ...c, icon: champView(c.championId).icon })) : [],
     phase: state.phase,
     allLocked: state.allLocked,
     myPosition: me ? me.position : '',
     positionLabel: engine.POSITION_LABELS[me ? me.position : ''] || '',
     allies: state.allies.map((a) => ({
       champion: champView(a.championId, a.skinId), locked: a.locked, isMe: a.isMe,
-      position: engine.POSITION_LABELS[a.position] || '',
+      position: aram ? '' : engine.POSITION_LABELS[a.position] || '',
     })),
     enemies: state.enemies.map((e) => ({ champion: champView(e.championId, e.skinId), locked: e.locked })),
     enemyProfile: engine.enemyProfile(state, game, data),
@@ -281,6 +320,7 @@ function buildView(session) {
     statsStatus: settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
     statsEnabled: settings.stats,
     autoRunes: autoRunesView(),
+    autoItemSet: autoItemSetView(),
     myChampion: null,
     build: null,
     dataFile,
@@ -327,7 +367,8 @@ async function autoImportRunes() {
   const s = lastSelectState;
   if (!settings.autoRunes || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
-  const key = [alias, ...s.enemies.map((e) => e.championId)].join(':');
+  // Gdy dojdą statystyki OP.GG dla Twojego championa, runy importują się jeszcze raz (już z aktualnego patcha).
+  const key = [alias, ...s.enemies.map((e) => e.championId), statsKey(alias)].join(':');
   if (!alias || key === autoRunes.key) return;
   autoRunes = { key, done: '', error: '' };
   try {
@@ -351,10 +392,10 @@ async function setSpells(alias) {
 }
 
 // Zestaw przedmiotów w sklepie: zastępuje poprzedni zestaw tej aplikacji, pozostałe zestawy gracza zostają.
-async function exportItemSet(alias) {
-  if (!lcu || !game || !lastSelectState) throw new Error('Brak aktywnego wyboru postaci');
-  const build = engine.buildFor(alias, lastSelectState, game, data);
-  const set = engine.itemSetFor(build, alias, lastSelectState, game, data);
+async function exportItemSet(alias, state = lastSelectState) {
+  if (!lcu || !game || !state) throw new Error('Brak aktywnego wyboru postaci');
+  const build = engine.buildFor(alias, state, game, data);
+  const set = engine.itemSetFor(build, alias, state, game, data);
   const me = await lcu.get('/lol-summoner/v1/current-summoner');
   if (!me || !me.summonerId) throw new Error('Nie udało się odczytać konta z klienta');
   const url = `/lol-item-sets/v1/item-sets/${me.summonerId}/sets`;
@@ -362,8 +403,42 @@ async function exportItemSet(alias) {
   const others = (current.itemSets || []).filter((s) => !String(s.title || '').startsWith(RUNE_PREFIX));
   const body = { ...current, accountId: current.accountId || me.accountId, timestamp: Date.now(), itemSets: [...others, { ...set, uid: crypto.randomUUID() }] };
   const res = await lcu.request('PUT', url, body);
-  if (!res.ok) throw new Error((res.data && res.data.message) || `Klient odrzucił zestaw przedmiotów (${res.status})`);
+  if (!res.ok) {
+    log(`zestaw przedmiotów: ${res.status} ${JSON.stringify(res.data).slice(0, 300)}`);
+    throw new Error((res.data && res.data.message) || `Klient odrzucił zestaw przedmiotów (${res.status})`);
+  }
   return { ok: true, name: set.title };
+}
+
+// Automatyczny zestaw w sklepie: po zablokowaniu wszystkich (na ARAM-ie po każdej zamianie championa).
+let autoItemSet = { key: '', done: '', error: '' };
+const statsKey = (alias) => (settings.stats && stats.analyses[alias] ? stats.analyses[alias]._key : '');
+const autoItemSetView = () => ({ enabled: settings.autoItemSet, done: autoItemSet.done, error: autoItemSet.error });
+async function runAutoItemSet(alias, state, key) {
+  if (!alias || key === autoItemSet.key) return;
+  autoItemSet = { key, done: '', error: '' };
+  try {
+    autoItemSet.done = (await exportItemSet(alias, state)).name;
+  } catch (err) {
+    autoItemSet.error = String(err && err.message || err);
+    log(`auto-zestaw: ${autoItemSet.error}`);
+  }
+  if (lastState && lastState.status === 'champselect') send({ ...lastState, autoItemSet: autoItemSetView() });
+}
+function autoExportItemSet() {
+  const s = lastSelectState;
+  if (!settings.autoItemSet || !s || !s.allLocked || !s.me || !s.me.championId) return;
+  const alias = game.championsById.get(s.me.championId)?.alias;
+  runAutoItemSet(alias, s, [alias, ...s.enemies.map((e) => e.championId), statsKey(alias)].join(':'));
+}
+// ARAM: w wyborze postaci nie widać wroga, więc na ekranie ładowania wysyłamy zestaw jeszcze raz, już pod skład wroga.
+function autoExportItemSetForLoading() {
+  if (!settings.autoItemSet || currentMode !== 'aram' || !loading) return;
+  const me = loading.allies.find((p) => p.isMe);
+  const s = loadingSelectState(me);
+  if (!s) return;
+  const alias = game.championsById.get(me.championId)?.alias;
+  runAutoItemSet(alias, s, [alias, ...s.enemies.map((e) => e.championId), statsKey(alias)].join(':'));
 }
 
 const wrap = (fn) => async (_e, ...args) => {
@@ -402,6 +477,13 @@ ipcMain.handle('toggle-stats', wrap(async () => {
   if (settings.stats) loadMeta();
   lastSessionJson = '';
   return { ok: true, enabled: settings.stats };
+}));
+ipcMain.handle('toggle-auto-item-set', wrap(async () => {
+  settings.autoItemSet = !settings.autoItemSet;
+  writeJson(userFile('settings.json'), settings);
+  autoItemSet.key = '';
+  lastSessionJson = '';
+  return { ok: true, enabled: settings.autoItemSet };
 }));
 ipcMain.handle('toggle-auto-runes', wrap(async () => {
   settings.autoRunes = !settings.autoRunes;
