@@ -35,8 +35,9 @@ function lanePlan(me, enemies, cardFor, game, data) {
   if (!laneAlias) return null;
   const lane = champInfo(laneAlias, game, data);
   const laneName = name(laneAlias);
-  const verdict = matchupVerdict(champ, lane);
   const rate = champ.matchupRates && champ.matchupRates[laneAlias];
+  // Winrate z OP.GG ma pierwszeństwo przed listami kontr, żeby ocena zgadzała się z liczbą pokazaną obok.
+  const verdict = rate != null ? (rate >= 51.5 ? 'good' : rate <= 48.5 ? 'bad' : 'even') : matchupVerdict(champ, lane);
   const tips = [];
 
   tips.push(VERDICT[verdict]);

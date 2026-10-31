@@ -152,3 +152,15 @@ test('bany: zakończone i wybierane przez Twoją drużynę nie trafiają do suge
   const picks = engine.suggestPicks(state, game, data).list.map((s) => s.alias);
   assert.ok(!picks.includes('Leona') && !picks.includes('Thresh'));
 });
+
+test('plan na linię: ocena matchupu z winrate\'u OP.GG, gdy jest dostępny', async () => {
+  await step(6);
+  const players = await readLoadingPlayers(lcu);
+  const me = players.allies.find((p) => p.isMe);
+  const withRate = (rate) => ({ ...data, champions: { ...data.champions, Ahri: { ...data.champions.Ahri, matchupRates: { Zed: rate } } } });
+  const bad = lanePlan(me, players.enemies, null, game, withRate(46.2));
+  assert.equal(bad.verdict, 'bad');
+  assert.ok(bad.tips[0].startsWith('Trudny'));
+  assert.equal(lanePlan(me, players.enemies, null, game, withRate(50.4)).verdict, 'even');
+  assert.equal(lanePlan(me, players.enemies, null, game, withRate(53)).verdict, 'good');
+});

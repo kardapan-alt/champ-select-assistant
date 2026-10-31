@@ -126,12 +126,13 @@ function send(state) {
   if (win && !win.isDestroyed()) win.webContents.send('state', state);
 }
 
-// Ikona championa; z wybranym skinem (inny niż classic) kafelek tego skina z klienta.
+// Obrazek championa: kafelek z aktualnej grafiki skina (wybranego albo podstawowego) zamiast starych kwadratowych ikon.
+// Gdy klient nie ma kafelka, protokół lcuasset podaje zwykłą ikonę.
 function champView(id, skinId = 0) {
   const c = game && game.championsById.get(id);
   if (!c) return null;
-  const skin = skinId > 0 && Math.floor(skinId / 1000) === id && skinId % 1000 !== 0;
-  const icon = skin ? `lcuasset://lcu/lol-game-data/assets/v1/champion-tiles/${id}/${skinId}.jpg` : `lcuasset://lcu/lol-game-data/assets/v1/champion-icons/${id}.png`;
+  const skin = skinId > 0 && Math.floor(skinId / 1000) === id ? skinId : id * 1000;
+  const icon = `lcuasset://lcu/lol-game-data/assets/v1/champion-tiles/${id}/${skin}.jpg`;
   return { id, alias: c.alias, name: c.name, icon };
 }
 
@@ -409,6 +410,25 @@ ipcMain.handle('toggle-auto-runes', wrap(async () => {
   lastSessionJson = '';
   return { ok: true, enabled: settings.autoRunes };
 }));
+// Surowe odpowiedzi maestrii z każdego endpointu (Twoje konto), żeby sprawdzić, skąd brakuje championów.
+async function masteryDiagnostics() {
+  const me = await lcu.get('/lol-summoner/v1/current-summoner').catch(() => null);
+  const out = { account: me ? { gameName: me.gameName, tagLine: me.tagLine, summonerId: me.summonerId } : null, endpoints: {} };
+  for (const p of require('./gamedata').masteryPaths(me)) {
+    const res = await lcu.raw('GET', p).catch((err) => ({ status: 0, body: Buffer.from(String(err.message)) }));
+    let body = null;
+    try { body = JSON.parse(res.body.toString('utf8')); } catch { body = res.body.toString('utf8').slice(0, 300); }
+    const list = require('./gamedata').masteryList(body);
+    out.endpoints[p.replace(/[0-9a-f-]{30,}/i, '{puuid}')] = {
+      status: res.status,
+      count: list ? list.length : null,
+      shape: list ? Object.keys(list[0] || {}) : typeof body === 'object' && body ? Object.keys(body).slice(0, 20) : body,
+      sample: list ? list.slice(0, 60).map((x) => ({ championId: x.championId, championLevel: x.championLevel, championPoints: x.championPoints })) : null,
+    };
+  }
+  return out;
+}
+
 ipcMain.handle('stats-diagnostics', wrap(async () => {
   // Twoje konto jako przykładowy gracz: plik pokaże też odpowiedzi narzędzi profilu i historii gier.
   let player = null;
@@ -430,6 +450,7 @@ ipcMain.handle('stats-diagnostics', wrap(async () => {
         actions: session.actions, bans: session.bans, phase: session.timer && session.timer.phase,
       } : null,
       mastery: mastery ? { counts: mastery.raw, champions: mastery.map.size } : null,
+      masteryRaw: await masteryDiagnostics(),
     };
   }
   const file = path.join(app.getPath('documents'), 'champ-select-diagnostyka-opgg.json');

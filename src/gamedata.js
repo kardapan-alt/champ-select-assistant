@@ -40,15 +40,21 @@ function masteryMap(...lists) {
 }
 
 // Endpoint local-player nie zawsze zwraca wszystkie championy, więc dokładamy maestrię z kolekcji gracza.
+// Lista maestrii z odpowiedzi: tablica albo obiekt z tablicą (różne wersje klienta).
+const masteryList = (res) => (Array.isArray(res) ? res : res && Array.isArray(res.masteries) ? res.masteries : res && Array.isArray(res.championMasteries) ? res.championMasteries : null);
+
+function masteryPaths(me) {
+  const paths = [MASTERY_PATH];
+  if (me && me.puuid) paths.push(`/lol-champion-mastery/v1/${me.puuid}/champion-mastery`, `/lol-collections/v1/inventories/${me.puuid}/champion-mastery`);
+  if (me && me.summonerId) paths.push(`/lol-collections/v1/inventories/${me.summonerId}/champion-mastery`);
+  return paths;
+}
+
 async function loadMastery(lcu) {
-  const [local, me] = await Promise.all([
-    lcu.get(MASTERY_PATH).catch(() => null),
-    lcu.get('/lol-summoner/v1/current-summoner').catch(() => null),
-  ]);
-  const collection = me && me.summonerId
-    ? await lcu.get(`/lol-collections/v1/inventories/${me.summonerId}/champion-mastery`).catch(() => null)
-    : null;
-  return { map: masteryMap(local, collection), raw: { local: Array.isArray(local) ? local.length : null, collection: Array.isArray(collection) ? collection.length : null } };
+  const me = await lcu.get('/lol-summoner/v1/current-summoner').catch(() => null);
+  const paths = masteryPaths(me);
+  const lists = await Promise.all(paths.map((p) => lcu.get(p).then(masteryList).catch(() => null)));
+  return { map: masteryMap(...lists), raw: Object.fromEntries(paths.map((p, i) => [p, lists[i] ? lists[i].length : null])) };
 }
 
 async function loadGameData(lcu) {
@@ -68,4 +74,4 @@ async function loadGameData(lcu) {
   return g;
 }
 
-module.exports = { loadGameData, loadMastery, buildGameData, emptyGameData, masteryMap, MASTERY_PATH };
+module.exports = { loadGameData, loadMastery, masteryPaths, masteryList, buildGameData, emptyGameData, masteryMap, MASTERY_PATH };
