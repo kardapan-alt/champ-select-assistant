@@ -97,9 +97,13 @@ function parsePayload(payload) {
   if (payload == null || typeof payload === 'object') return payload;
   const text = String(payload).trim();
   try { return JSON.parse(text); } catch { /* inny format */ }
-  const reprStart = text.search(/[A-Za-z_][\w.]*\(/);
+  // Format OP.GG MCP: nagłówek "class Nazwa: pole1,pole2" i treść z wywołaniami bez nazw pól, np. Top("Malphite",false,...).
+  const schema = {};
+  for (const m of text.matchAll(/^class\s+([A-Za-z_]\w*)\s*:\s*(.*)$/gm)) schema[m[1]] = m[2].split(',').map((f) => f.trim()).filter(Boolean);
+  const body = Object.keys(schema).length ? text.replace(/^class\s+.*$/gm, '') : text;
+  const reprStart = body.search(/[A-Za-z_][\w.]*\(/);
   if (reprStart >= 0) {
-    try { return parseRepr(text.slice(reprStart)); } catch { /* inny format */ }
+    try { return parseRepr(body.slice(reprStart), schema); } catch { /* inny format */ }
   }
   if (text.includes(',') && text.includes('\n')) return parseCsv(text);
   return text;
@@ -137,7 +141,7 @@ function toScalar(v) {
 }
 
 // Prosty parser zapisu Name(a=1, b=[X(c=2)], d='tekst').
-function parseRepr(text) {
+function parseRepr(text, schema = {}) {
   let i = 0;
   const ws = () => { while (i < text.length && /\s/.test(text[i])) i++; };
   const value = () => {
@@ -203,7 +207,10 @@ function parseRepr(text) {
       ws();
       if (text[i] === ',') i++;
     }
-    if (positional.length) out._args = positional;
+    // Argumenty pozycyjne dostają nazwy pól z nagłówka (jeśli serwer go podał).
+    const fields = schema[name];
+    if (fields) positional.forEach((v, idx) => { if (idx < fields.length && !(fields[idx] in out)) out[fields[idx]] = v; else (out._args = out._args || []).push(v); });
+    else if (positional.length) out._args = positional;
     return out;
   };
   return value();
@@ -226,6 +233,8 @@ const pick = (obj, keys) => {
 const RE = {
   champId: [/^champion_?id$/i, /^championid$/i, /^champ_?id$/i],
   winRate: [/^win_?rate$/i, /^winrate$/i, /^win_?ratio$/i],
+  myWinRate: [/^my_?win_?rate$/i],
+  partnerId: [/^synergy_?champion_?id$/i, /^partner_?champion_?id$/i],
   play: [/^play$/i, /^games?$/i, /^play_?count$/i, /^pick_?count$/i, /^count$/i],
   pickRate: [/^pick_?rate$/i, /^pickrate$/i],
   tier: [/^tier$/i],
@@ -237,19 +246,31 @@ const RE = {
 const pct = (v) => { const n = num(v); return n == null ? null : n <= 1 ? n * 100 : n; };
 
 // Wszystkie tablice obiektów, które opisują championów z winrate'em (kontry, synergie).
+// W synergiach champion_id to analizowany champion, a partner jest w synergy_champion_id.
+// Winrate zawsze z perspektywy analizowanego championa: my_win_rate, a bez niego win_rate albo win/play.
 function championRateLists(root) {
   const out = [];
+  const idOf = (r) => num(pick(r, RE.partnerId)) ?? num(pick(r, RE.champId));
+  const rateOf = (r) => {
+    const mine = pick(r, RE.myWinRate);
+    if (mine !== undefined) return pct(mine);
+    const rate = pick(r, RE.winRate);
+    if (rate !== undefined) return pct(rate);
+    const play = num(pick(r, RE.play));
+    const win = num(r.win);
+    return play && win != null ? (win / play) * 100 : undefined;
+  };
   walk(root, (node, path) => {
     if (!Array.isArray(node) || !node.length) return;
-    const rows = node.filter((r) => r && typeof r === 'object' && num(pick(r, RE.champId)) != null);
+    const rows = node.filter((r) => r && typeof r === 'object' && idOf(r) != null);
     if (rows.length < Math.max(1, node.length / 2)) return;
-    const withRate = rows.filter((r) => pick(r, RE.winRate) !== undefined);
+    const withRate = rows.filter((r) => rateOf(r) !== undefined);
     if (!withRate.length) return;
     out.push({
       key: path.join('.').toLowerCase(),
       rows: withRate.map((r) => ({
-        championId: num(pick(r, RE.champId)),
-        winRate: pct(pick(r, RE.winRate)),
+        championId: idOf(r),
+        winRate: rateOf(r),
         games: num(pick(r, RE.play)) || 0,
       })),
     });
@@ -294,7 +315,9 @@ function interpretAnalysis(raw, game) {
 
   for (const list of championRateLists(root)) {
     if (/synerg|ally|duo/.test(list.key)) {
-      result.synergy = list.rows.filter((r) => r.winRate >= 50 + COUNTER_EDGE && r.games >= MIN_GAMES / 2).map((r) => aliasOf(r.championId)).filter(Boolean);
+      // Synergie są podzielone na role sojusznika (top, jungle, adc, support): zbieramy wszystkie.
+      const good = list.rows.filter((r) => r.winRate >= 50 + COUNTER_EDGE && r.games >= MIN_GAMES / 2).map((r) => aliasOf(r.championId)).filter(Boolean);
+      result.synergy = [...new Set([...(result.synergy || []), ...good])];
       continue;
     }
     // Wiersze to przeciwnicy z winrate'em analizowanego championa w tym matchupie.
@@ -352,33 +375,57 @@ function interpretAnalysis(raw, game) {
 const TIER_LETTER = (rank) => (rank <= 1 ? 'S' : rank === 2 ? 'A' : rank === 3 ? 'B' : 'C');
 const POSITION_MAP = { top: 'top', jungle: 'jungle', mid: 'middle', middle: 'middle', adc: 'bottom', bottom: 'bottom', bot: 'bottom', support: 'support', utility: 'support' };
 
-// Meta (tiery i role): lista wierszy champion + pozycja + tier.
+const normName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+// Champion z wiersza: po id albo po nazwie (OP.GG w mecie podaje tylko nazwę, np. "Malphite", "Nunu & Willump").
+function championResolver(game) {
+  const byName = new Map();
+  for (const c of game.championsById.values()) {
+    byName.set(normName(c.name), c.alias);
+    byName.set(normName(c.alias), c.alias);
+  }
+  return (node) => {
+    const id = num(pick(node, RE.champId));
+    if (id != null) return game.championsById.get(id)?.alias;
+    const name = pick(node, [/^champion$/i, /^champion_?name$/i]);
+    return typeof name === 'string' ? byName.get(normName(name)) : undefined;
+  };
+}
+
+const MIN_ROLE_RATE = 0.1; // rzadsze pozycje (np. Malphite na midzie) nie są traktowane jako rola championa
+
+// Meta (tiery i role): lista wierszy champion + pozycja + tier (1 = OP ... 5 = słaby).
 function interpretMeta(raw, game) {
   const root = parsePayload(raw);
   const out = { tiers: { S: [], A: [], B: [], C: [] }, roles: {} };
-  const seen = new Set();
+  const aliasOf = championResolver(game);
+  const rows = {};
   walk(root, (node, path) => {
     if (Array.isArray(node) || typeof node !== 'object') return;
-    const id = num(pick(node, RE.champId));
-    if (id == null) return;
-    const alias = game.championsById.get(id)?.alias;
+    const alias = aliasOf(node);
     if (!alias) return;
     const posRaw = pick(node, RE.position) ?? path.map((p) => String(p).toLowerCase()).reverse().find((p) => POSITION_MAP[p]);
     const position = POSITION_MAP[String(posRaw || '').toLowerCase()];
     if (!position) return;
-    const rateGames = num(pick(node, RE.play)) || 0;
-    out.roles[alias] = out.roles[alias] || [];
-    if (!out.roles[alias].some((r) => r.position === position)) out.roles[alias].push({ position, games: rateGames, pickRate: pct(pick(node, RE.pickRate)) || 0 });
+    const roleRate = num(pick(node, [/^role_?rate$/i]));
+    if (node.is_rip === true || (roleRate != null && pct(roleRate) < MIN_ROLE_RATE * 100)) return;
     const tierRaw = pick(node, RE.tier) ?? pick(node, RE.rank);
     const tierNum = num(tierRaw);
-    const letter = typeof tierRaw === 'string' && /^[SABCD]/i.test(tierRaw) ? tierRaw[0].toUpperCase() : tierNum != null ? TIER_LETTER(tierNum) : null;
-    if (letter && !seen.has(alias)) {
-      seen.add(alias);
-      (out.tiers[letter === 'D' ? 'C' : letter] || out.tiers.C).push(alias);
-    }
+    rows[alias] = rows[alias] || [];
+    if (rows[alias].some((r) => r.position === position)) return;
+    rows[alias].push({
+      position,
+      games: num(pick(node, RE.play)) || 0,
+      pickRate: pct(pick(node, RE.pickRate)) || 0,
+      letter: typeof tierRaw === 'string' && /^[SABCD]/i.test(tierRaw) ? tierRaw[0].toUpperCase() : tierNum != null ? TIER_LETTER(tierNum) : null,
+    });
   });
-  for (const alias of Object.keys(out.roles)) {
-    out.roles[alias] = out.roles[alias].sort((a, b) => (b.pickRate - a.pickRate) || (b.games - a.games)).map((r) => r.position);
+  for (const [alias, list] of Object.entries(rows)) {
+    // Najpierw pozycja z największą liczbą gier; tier championa to tier na tej pozycji.
+    list.sort((a, b) => (b.games - a.games) || (b.pickRate - a.pickRate));
+    out.roles[alias] = list.map((r) => r.position);
+    const letter = list[0].letter;
+    if (letter) (out.tiers[letter === 'D' ? 'C' : letter] || out.tiers.C).push(alias);
   }
   return out;
 }
@@ -422,28 +469,71 @@ function interpretRank(root) {
 }
 
 // Statystyki championów w sezonie: wiersze z id championa i liczbą gier.
+// OP.GG: summoner.most_champions.champion_stats[] = ChampionStat(id, play, win, lose, ..., champion_name).
 function interpretChampionSeason(root) {
   const out = new Map();
-  walk(root, (node) => {
-    if (!Array.isArray(node)) return;
+  const most = [];
+  walk(root, (node, path) => {
+    if (Array.isArray(node) && /most_?champions/i.test(path.join('.'))) most.push(node);
+  });
+  const lists = [];
+  if (most.length) lists.push(...most);
+  else walk(root, (node, path) => { if (Array.isArray(node) && !/recent/i.test(path.join('.'))) lists.push(node); });
+  for (const node of lists) {
     for (const row of node) {
       if (!row || typeof row !== 'object') continue;
       const flat = flatten(row);
-      const id = num(field(flat, ['champion_id', 'championid']));
+      const id = num(field(flat, ['champion_id', 'championid'])) ?? (field(flat, ['champion_name']) !== undefined || most.length ? num(flat.id) : null);
       const games = num(field(flat, ['play', 'games', 'game_count', 'played']));
       if (id == null || games == null) continue;
-      if (field(flat, ['kill', 'kills']) !== undefined && field(flat, ['created_at', 'game_id', 'gameid']) !== undefined) continue; // to jest pojedyncza gra
+      if (field(flat, ['created_at', 'game_id', 'gameid']) !== undefined) continue; // to jest pojedyncza gra
       const wins = num(field(flat, ['win', 'wins']));
       if (!out.has(id)) out.set(id, { games, wins: wins ?? null });
     }
-  });
+  }
   return out;
 }
 
 const resultWin = (v) => (typeof v === 'boolean' ? v : typeof v === 'string' ? /^(win|victory|true)$/i.test(v) : num(v) === 1);
 
+// Jedna gra z historii OP.GG: GameHistory(created_at, game_length_second, participants[], teams[]).
+// participants zawiera tylko sprawdzanego gracza, KP liczymy z zabójstw jego drużyny.
+function opggHistoryGame(g) {
+  const p = (g.participants || []).find((x) => x && x.stats) || null;
+  if (!p) return null;
+  const st = p.stats;
+  const championId = num(p.champion_id);
+  if (championId == null || num(st.death) == null) return null;
+  const team = (g.teams || []).find((t) => t && t.key === p.team_key);
+  const teamKills = team && team.game_stat ? num(team.game_stat.champion_kill) : null;
+  const kills = num(st.kill) || 0;
+  const assists = num(st.assist) || 0;
+  const seconds = num(g.game_length_second);
+  const created = g.created_at ? new Date(g.created_at).getTime() : null;
+  return {
+    championId,
+    win: st.result != null ? resultWin(st.result) : team && team.game_stat ? team.game_stat.is_win === true : null,
+    kills,
+    deaths: num(st.death),
+    assists,
+    cs: (num(st.minion_kill) || 0) + (num(st.neutral_minion_kill) || 0),
+    vision: num(st.vision_score),
+    wards: num(st.ward_place),
+    kp: teamKills ? ((kills + assists) / teamKills) * 100 : null,
+    position: String(p.position || '').toLowerCase(),
+    minutes: seconds ? seconds / 60 : null,
+    createdAt: Number.isNaN(created) ? null : created,
+    queue: g.game_type || null,
+  };
+}
+
 // Ostatnie gry gracza: jedna pozycja na grę, z jego własnymi statystykami.
 function interpretGames(root) {
+  const history = [];
+  walk(root, (node, path) => { if (Array.isArray(node) && /game_?history|matches/i.test(String(path[path.length - 1] || ''))) history.push(node); });
+  const fromHistory = history.flatMap((list) => list.map((g) => (g && typeof g === 'object' && Array.isArray(g.participants) ? opggHistoryGame(g) : null)).filter(Boolean));
+  if (fromHistory.length) return fromHistory;
+
   let games = [];
   walk(root, (node) => {
     if (!Array.isArray(node) || games.length) return;
@@ -475,6 +565,19 @@ function interpretGames(root) {
   return games;
 }
 
+// Wynik wizji na minutę z sezonowych statystyk championów (historia gier OP.GG nie podaje vision score).
+function interpretVision(root) {
+  let score = 0;
+  let seconds = 0;
+  walk(root, (node) => {
+    if (Array.isArray(node) || !node.basic || typeof node.basic !== 'object') return;
+    const v = num(node.basic.vision_score);
+    const s = num(node.game_second ?? node.game_length_second);
+    if (v != null && s) { score += v; seconds += s; }
+  });
+  return seconds ? Math.round((score / (seconds / 60)) * 100) / 100 : null;
+}
+
 function interpretSummoner(rawProfile, rawHistory) {
   const profile = parsePayload(rawProfile);
   const history = parsePayload(rawHistory);
@@ -482,6 +585,7 @@ function interpretSummoner(rawProfile, rawHistory) {
     rank: interpretRank(profile) || interpretRank(history),
     seasonChampions: Object.fromEntries(interpretChampionSeason(profile)),
     games: interpretGames(history),
+    visionPerMin: interpretVision(profile),
   };
 }
 
@@ -512,7 +616,10 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
     const k = key.toLowerCase();
     let v;
     if (k.includes('champion') && champion) {
-      v = values ? enumMatch(values, [champion, championName || champion]) : champion;
+      // Bez listy wartości: format z opisu pola, np. "UPPER_SNAKE_CASE" (Lee Sin -> LEE_SIN).
+      const snake = /upper_?snake/i.test(schema.description || '');
+      const upperSnake = (s) => String(s).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/['.]/g, '').replace(/&/g, ' ').trim().split(/\s+/).join('_').toUpperCase();
+      v = values ? enumMatch(values, [champion, championName || champion]) : snake ? upperSnake(championName || champion) : champion;
     } else if (k.includes('position') || k === 'lane' || k === 'role') {
       if (position) v = values ? enumMatch(values, [OPGG_POSITION[position] || position]) : (OPGG_POSITION[position] || position);
     } else if (k.includes('game_mode') || k === 'mode' || k === 'queue') {
@@ -528,6 +635,8 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
       v = values ? enumMatch(values, wanted) || values[0] : (region || 'global');
     } else if (k === 'format') {
       v = values ? enumMatch(values, ['json']) || undefined : undefined;
+    } else if (k === 'limit' || k === 'count') {
+      v = schema.maximum || 20;
     } else if (k.includes('desired_output_fields') || k.includes('output_fields')) {
       v = values || undefined;
     }
@@ -647,7 +756,7 @@ class OpggProvider {
       report.tools = tools;
       const meta = findTool(tools, [/lane_?meta/i, /positions?[-_]data/i, /champion[-_]?positions/i, /tier/i]);
       const analysis = findTool(tools, [/champion[-_]?analysis/i]);
-      for (const [label, tool, ctx] of [['meta', meta, {}], ['analysis', analysis, { champion: alias, championName: alias, position }]]) {
+      for (const [label, tool, ctx] of [['meta', meta, {}], ['analysis', analysis, { champion: alias, championName: game.championsByAlias.get(alias)?.name || alias, position }]]) {
         if (!tool) { report[label] = { error: 'nie znaleziono narzędzia' }; continue; }
         const args = buildArgs(tool, ctx);
         try {

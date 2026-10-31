@@ -1,0 +1,6 @@
+class LolListLaneMetaChampions: lang,position_filter,data
+class Data: positions
+class Positions: top,mid,jungle,adc,support
+class Top: champion,is_rip,play,win,kill,win_rate,pick_rate,role_rate,ban_rate,kda,tier,rank,rank_prev,rank_prev_patch
+
+LolListLaneMetaChampions("en_US","all",Data(Positions([Top("Malphite",false,126678,65097,560640,0.51,0.07,0.78,0.18,2.43,1,1,1,1),Top("Sett",false,113439,57245,740917,0.5,0.06,0.93,0.03,1.64,2,6,6,8)],[Top("Ahri",false,180006,91803,900000,0.51,0.1,0.95,0.03,2.56,1,1,1,1),Top("Malphite",false,9000,4400,30000,0.49,0.01,0.05,0.18,2.1,4,40,40,40)],[Top("Nunu & Willump",false,40000,20800,100000,0.52,0.03,0.9,0.02,2.8,3,12,12,12)],[Top("Ashe",false,90000,45000,500000,0.5,0.08,0.7,0.05,2.3,2,5,5,5)],[Top("Ashe",false,30000,14500,100000,0.48,0.03,0.25,0.05,2.0,5,50,50,50),Top("Sett",true,800,350,2000,0.44,0.001,0.01,0.03,1.5,5,60,60,60)])))
