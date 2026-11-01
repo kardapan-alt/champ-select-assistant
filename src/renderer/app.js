@@ -198,6 +198,18 @@ function situationsPanel(list, title = 'Na co uważać w składzie wroga') {
 }
 
 // Stan zestawu w sklepie: wysłany automatycznie, błąd albo informacja, kiedy się wyśle.
+// Za dużo zestawów w kliencie: grupy, które gracz może usunąć jednym kliknięciem (z ręcznego albo automatycznego wysłania).
+let itemSetProblem = null;
+function itemSetCleanup(b, auto) {
+  const groups = (itemSetProblem && itemSetProblem.groups) || (auto && auto.groups);
+  if (!groups || !groups.length) return '';
+  return `<div class="adapt" style="margin-top:10px">
+    <h4>Za dużo zestawów przedmiotów w kliencie</h4>
+    <div>Klient ma limit miejsca na wszystkie zestawy razem. Usuń jedną z grup (najczęściej zestawy z innych aplikacji), a build wyśle się od razu:</div>
+    <div class="actions" style="margin-top:6px">${groups.map((g) => `<button data-clean-sets="${esc(g.name)}" data-alias="${esc(b.alias)}">Usuń „${esc(g.name)}” (${g.count}, ${g.kb} KB)</button>`).join('')}</div>
+  </div>`;
+}
+
 function itemSetStatus(b, auto) {
   if (!auto || !auto.enabled) return '<span class="muted small">Zestaw „CS Assist” pojawi się w sklepie w zakładce z zestawami przedmiotów.</span>';
   if (auto.done) return `<span class="small good">✓ W sklepie: ${esc(auto.done)}</span>`;
@@ -221,7 +233,7 @@ function buildPanel(b, readonly = false, auto = null) {
     ${readonly ? '' : `<div class="actions" style="margin-top:12px;align-items:center">
       <button class="primary" data-itemset="${esc(b.alias)}">${auto && auto.done ? 'Wyślij ponownie' : 'Wyślij build do sklepu w grze'}</button>
       ${itemSetStatus(b, auto)}
-    </div>`}
+    </div>${itemSetCleanup(b, auto)}`}
   </div>`;
 }
 
@@ -456,7 +468,16 @@ $app.addEventListener('click', async (e) => {
       res.ok ? toast(`Zaimportowano runy: ${res.name}`) : toast(res.error, true);
     } else if (btn.dataset.itemset) {
       const res = await window.assist.exportItemSet(btn.dataset.itemset);
+      itemSetProblem = res.ok || !res.itemSetGroups ? null : { groups: res.itemSetGroups };
       res.ok ? toast(`Wysłano do sklepu: ${res.name}`) : toast(res.error, true);
+      render(lastState);
+    } else if (btn.dataset.cleanSets) {
+      const res = await window.assist.cleanItemSets(btn.dataset.cleanSets);
+      if (!res.ok) { toast(res.error, true); return; }
+      const sent = await window.assist.exportItemSet(btn.dataset.alias);
+      itemSetProblem = sent.ok || !sent.itemSetGroups ? null : { groups: sent.itemSetGroups };
+      sent.ok ? toast(`Usunięto ${res.removed} zestawów i wysłano: ${sent.name}`) : toast(sent.error, true);
+      render(lastState);
     } else if (btn.dataset.spells) {
       const res = await window.assist.setSpells(btn.dataset.spells);
       res.ok ? toast('Ustawiono czary przywoływacza') : toast(res.error, true);

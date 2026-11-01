@@ -95,13 +95,16 @@ function loadMeta() {
 
 const attempted = new Map();
 
-function requestAnalysis(alias, position, mode = currentMode) {
+function requestAnalysis(alias, position, mode = currentMode, replace = true) {
   // OP.GG wymaga pozycji; bez niej (champion spoza danych, zanim wczyta się meta) spróbujemy przy następnym odświeżeniu.
   // Na ARAM-ie pozycja nic nie zmienia, ale pole jest wymagane, więc wystarczy dowolna.
   if (mode === 'aram') position = position || 'middle';
   if (!settings.stats || !alias || !game || !position) return;
   const key = `${alias}:${position}:${mode}`;
   if (stats.analyses[alias] && stats.analyses[alias]._key === key) return;
+  // Analiza dla innej roli lub trybu (np. Cho'Gath z topa, gdy grasz nim w jungli) nie może dawać run i czarów:
+  // usuwamy ją od razu, do czasu nowej obowiązują własne dane.
+  if (stats.analyses[alias] && replace) { delete stats.analyses[alias]; scheduleRefresh(); }
   if (queue.some((q) => q.key === key)) return;
   // Nieudane zapytanie ponawiaj najwcześniej po 5 minutach.
   if (Date.now() - (attempted.get(key) || 0) < 5 * 60 * 1000) return;
@@ -127,9 +130,11 @@ const dataRole = (pos) => (pos === 'utility' ? 'support' : pos);
 function requestNeeded(state, picks) {
   const aliasOf = (id) => game.championsById.get(id)?.alias;
   const myPos = dataRole(state.me ? state.me.position : '');
-  if (state.me && state.me.championId) requestAnalysis(aliasOf(state.me.championId), myPos || roleOf(aliasOf(state.me.championId)));
-  for (const e of state.enemies) if (e.championId) { const a = aliasOf(e.championId); requestAnalysis(a, roleOf(a)); }
-  for (const s of picks.list) requestAnalysis(s.alias, myPos || roleOf(s.alias));
+  // Twój champion i sugestie mają pierwszeństwo: przeciwnik tym samym championem nie podmienia ich analizy.
+  const mine = new Set();
+  if (state.me && state.me.championId) { const a = aliasOf(state.me.championId); mine.add(a); requestAnalysis(a, myPos || roleOf(a)); }
+  for (const s of picks.list) { mine.add(s.alias); requestAnalysis(s.alias, myPos || roleOf(s.alias)); }
+  for (const e of state.enemies) if (e.championId) { const a = aliasOf(e.championId); requestAnalysis(a, roleOf(a), currentMode, !mine.has(a)); }
   for (const id of state.bench || []) requestAnalysis(aliasOf(id), roleOf(aliasOf(id)));
 }
 
@@ -140,6 +145,18 @@ function send(state) {
 
 // Obrazek championa: kafelek z aktualnej grafiki skina (wybranego albo podstawowego) zamiast starych kwadratowych ikon.
 // Gdy klient nie ma kafelka, protokół lcuasset podaje zwykłą ikonę.
+const champJson = new Map();
+let tileFailLogged = false;
+async function tilePathFor(championId, skinId) {
+  if (!champJson.has(championId)) champJson.set(championId, lcu.get(`/lol-game-data/assets/v1/champions/${championId}.json`).catch(() => null));
+  const c = await champJson.get(championId);
+  const skins = (c && c.skins) || [];
+  const skin = skins.find((x) => x.id === skinId)
+    || skins.find((x) => (x.chromas || []).some((ch) => ch.id === skinId))
+    || skins.find((x) => x.isBase) || skins[0];
+  return skin ? skin.tilePath || skin.loadScreenPath || '' : '';
+}
+
 function champView(id, skinId = 0) {
   const c = game && game.championsById.get(id);
   if (!c) return null;
@@ -391,21 +408,49 @@ async function setSpells(alias) {
   return { ok: true };
 }
 
+// Grupy zestawów po początku tytułu („Blitz: Ahri” → „Blitz”), żeby gracz mógł sam zdecydować, które usunąć.
+const itemSetGroup = (title) => {
+  const t = String(title || '').trim();
+  const m = /^(.+?)(?::| - | \| )/.exec(t);
+  return (m ? m[1] : t.split(/\s+/)[0] || 'bez nazwy').slice(0, 30);
+};
+function itemSetGroups(sets) {
+  const groups = new Map();
+  for (const set of sets) {
+    const name = itemSetGroup(set.title);
+    const g = groups.get(name) || { name, count: 0, bytes: 0 };
+    g.count += 1;
+    g.bytes += Buffer.byteLength(JSON.stringify(set));
+    groups.set(name, g);
+  }
+  return [...groups.values()].sort((a, b) => b.bytes - a.bytes).slice(0, 6).map((g) => ({ ...g, kb: Math.ceil(g.bytes / 1024) }));
+}
+async function itemSetsUrl() {
+  const me = await lcu.get('/lol-summoner/v1/current-summoner');
+  if (!me || !me.summonerId) throw new Error('Nie udało się odczytać konta z klienta');
+  return { me, url: `/lol-item-sets/v1/item-sets/${me.summonerId}/sets` };
+}
+
 // Zestaw przedmiotów w sklepie: zastępuje poprzedni zestaw tej aplikacji, pozostałe zestawy gracza zostają.
 async function exportItemSet(alias, state = lastSelectState) {
   if (!lcu || !game || !state) throw new Error('Brak aktywnego wyboru postaci');
   const build = engine.buildFor(alias, state, game, data);
   const set = engine.itemSetFor(build, alias, state, game, data);
-  const me = await lcu.get('/lol-summoner/v1/current-summoner');
-  if (!me || !me.summonerId) throw new Error('Nie udało się odczytać konta z klienta');
-  const url = `/lol-item-sets/v1/item-sets/${me.summonerId}/sets`;
+  const { me, url } = await itemSetsUrl();
   const current = (await lcu.get(url)) || {};
   const others = (current.itemSets || []).filter((s) => !String(s.title || '').startsWith(RUNE_PREFIX));
   const body = { ...current, accountId: current.accountId || me.accountId, timestamp: Date.now(), itemSets: [...others, { ...set, uid: crypto.randomUUID() }] };
   const res = await lcu.request('PUT', url, body);
   if (!res.ok) {
-    log(`zestaw przedmiotów: ${res.status} ${JSON.stringify(res.data).slice(0, 300)}`);
-    throw new Error((res.data && res.data.message) || `Klient odrzucił zestaw przedmiotów (${res.status})`);
+    const message = (res.data && res.data.message) || '';
+    log(`zestaw przedmiotów: ${res.status} ${message} (${others.length} innych zestawów, ${Buffer.byteLength(JSON.stringify(body))} B)`);
+    // Klient ma limit rozmiaru wszystkich zestawów razem. Nie usuwamy niczego sami: gracz wybiera, które zestawy skasować.
+    if (res.status === 413 || /too large/i.test(message)) {
+      const err = new Error(`W kliencie jest za dużo zestawów przedmiotów (${others.length}, razem ${Math.ceil(Buffer.byteLength(JSON.stringify(current)) / 1024)} KB), więc nie przyjmuje nowego. Usuń część z nich poniżej.`);
+      err.extra = { itemSetGroups: itemSetGroups(others) };
+      throw err;
+    }
+    throw new Error(message || `Klient odrzucił zestaw przedmiotów (${res.status})`);
   }
   return { ok: true, name: set.title };
 }
@@ -413,7 +458,7 @@ async function exportItemSet(alias, state = lastSelectState) {
 // Automatyczny zestaw w sklepie: po zablokowaniu wszystkich (na ARAM-ie po każdej zamianie championa).
 let autoItemSet = { key: '', done: '', error: '' };
 const statsKey = (alias) => (settings.stats && stats.analyses[alias] ? stats.analyses[alias]._key : '');
-const autoItemSetView = () => ({ enabled: settings.autoItemSet, done: autoItemSet.done, error: autoItemSet.error });
+const autoItemSetView = () => ({ enabled: settings.autoItemSet, done: autoItemSet.done, error: autoItemSet.error, groups: autoItemSet.groups || null });
 async function runAutoItemSet(alias, state, key) {
   if (!alias || key === autoItemSet.key) return;
   autoItemSet = { key, done: '', error: '' };
@@ -421,6 +466,7 @@ async function runAutoItemSet(alias, state, key) {
     autoItemSet.done = (await exportItemSet(alias, state)).name;
   } catch (err) {
     autoItemSet.error = String(err && err.message || err);
+    autoItemSet.groups = (err.extra && err.extra.itemSetGroups) || null;
     log(`auto-zestaw: ${autoItemSet.error}`);
   }
   if (lastState && lastState.status === 'champselect') send({ ...lastState, autoItemSet: autoItemSetView() });
@@ -442,8 +488,23 @@ function autoExportItemSetForLoading() {
 }
 
 const wrap = (fn) => async (_e, ...args) => {
-  try { return await fn(...args); } catch (err) { return { ok: false, error: String(err.message || err) }; }
+  try { return await fn(...args); } catch (err) { return { ok: false, error: String(err.message || err), ...(err.extra || {}) }; }
 };
+
+// Usuwa zestawy z wybranej grupy (tylko na kliknięcie gracza), żeby zrobić miejsce na zestaw aplikacji.
+async function cleanItemSets(group) {
+  if (!lcu) throw new Error('Brak połączenia z klientem');
+  const { url } = await itemSetsUrl();
+  const current = (await lcu.get(url)) || {};
+  const sets = current.itemSets || [];
+  const keep = sets.filter((x) => itemSetGroup(x.title) !== group);
+  const res = await lcu.request('PUT', url, { ...current, timestamp: Date.now(), itemSets: keep });
+  if (!res.ok) throw new Error((res.data && res.data.message) || `Klient odrzucił zmianę (${res.status})`);
+  log(`usunięto ${sets.length - keep.length} zestawów „${group}”`);
+  autoItemSet.key = '';
+  return { ok: true, removed: sets.length - keep.length };
+}
+ipcMain.handle('clean-item-sets', wrap(cleanItemSets));
 ipcMain.handle('import-runes', wrap(importRunes));
 ipcMain.handle('set-spells', wrap(setSpells));
 ipcMain.handle('export-item-set', wrap(exportItemSet));
@@ -492,6 +553,21 @@ ipcMain.handle('toggle-auto-runes', wrap(async () => {
   lastSessionJson = '';
   return { ok: true, enabled: settings.autoRunes };
 }));
+// Skąd brać grafiki championów (Cho'Gath jako przykład): status każdej ścieżki.
+async function tileDiagnostics(id) {
+  const status = (p) => (p ? lcu.raw('GET', p).then((r) => r.status).catch((e) => String(e.message)) : null);
+  const tilePath = await tilePathFor(id, id * 1000).catch(() => '');
+  return { tilePath, viaJson: await status(tilePath), legacy: await status(`/lol-game-data/assets/v1/champion-tiles/${id}/${id * 1000}.jpg`), icon: await status(`/lol-game-data/assets/v1/champion-icons/${id}.png`) };
+}
+// Zestawy przedmiotów: ile ich jest i ile zajmują (bez treści), żeby zobaczyć, czemu klient ich nie przyjmuje.
+async function itemSetDiagnostics() {
+  const me = await lcu.get('/lol-summoner/v1/current-summoner').catch(() => null);
+  if (!me || !me.summonerId) return null;
+  const current = await lcu.get(`/lol-item-sets/v1/item-sets/${me.summonerId}/sets`).catch(() => null);
+  const sets = (current && current.itemSets) || [];
+  return { count: sets.length, bytes: Buffer.byteLength(JSON.stringify(current || {})), groups: itemSetGroups(sets) };
+}
+
 // Surowe odpowiedzi maestrii z każdego endpointu (Twoje konto), żeby sprawdzić, skąd brakuje championów.
 async function masteryDiagnostics() {
   const me = await lcu.get('/lol-summoner/v1/current-summoner').catch(() => null);
@@ -533,6 +609,8 @@ ipcMain.handle('stats-diagnostics', wrap(async () => {
       } : null,
       mastery: mastery ? { counts: mastery.raw, champions: mastery.map.size } : null,
       masteryRaw: await masteryDiagnostics(),
+      tiles: await tileDiagnostics(31),
+      itemSets: await itemSetDiagnostics(),
     };
   }
   const file = path.join(app.getPath('documents'), 'champ-select-diagnostyka-opgg.json');
@@ -554,10 +632,21 @@ app.whenReady().then(() => {
     if (hit) return new Response(hit.body, { status: 200, headers: { 'Content-Type': hit.type } });
     if (!lcu) return new Response(null, { status: 503 });
     try {
-      let res = await lcu.raw('GET', url.pathname);
-      // Brak kafelka skina w kliencie: zwykła ikona championa.
-      const tile = /^\/lol-game-data\/assets\/v1\/champion-tiles\/(\d+)\//.exec(url.pathname);
-      if (tile && res.status !== 200) res = await lcu.raw('GET', `/lol-game-data/assets/v1/champion-icons/${tile[1]}.png`);
+      // Kafelek skina: ścieżka z danych championa (tilePath, np. ASSETS/Characters/.../*_tile_*.jpg), potem stara ścieżka
+      // champion-tiles, a na końcu zwykła ikona championa.
+      const tile = /^\/lol-game-data\/assets\/v1\/champion-tiles\/(\d+)\/(\d+)\.jpg$/.exec(url.pathname);
+      let res = null;
+      if (tile) {
+        const tilePath = await tilePathFor(Number(tile[1]), Number(tile[2]));
+        if (tilePath) res = await lcu.raw('GET', tilePath);
+        if (!res || res.status !== 200) res = await lcu.raw('GET', url.pathname);
+        if (res.status !== 200) {
+          if (!tileFailLogged) { tileFailLogged = true; log(`kafelek championa ${url.pathname} (${tilePath || 'brak tilePath'}): ${res.status}, używam ikony`); }
+          res = await lcu.raw('GET', `/lol-game-data/assets/v1/champion-icons/${tile[1]}.png`);
+        }
+      } else {
+        res = await lcu.raw('GET', url.pathname);
+      }
       if (res.status === 200) {
         if (assetCache.size > 600) assetCache.delete(assetCache.keys().next().value);
         assetCache.set(url.pathname, { body: res.body, type: res.headers['content-type'] || 'image/png' });

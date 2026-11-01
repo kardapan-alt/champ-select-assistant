@@ -578,7 +578,20 @@ function spellsFor(alias, state, game, data) {
     why = reason;
   };
   if (ctx.position === 'aram') return aramSpells(ctx, has) || { ids: [SPELL.flash, SPELL.heal], why: 'ARAM' };
-  if (ctx.position === 'jungle' || ids.includes(SPELL.smite)) return { ids, why };
+  if (ctx.position === 'jungle') {
+    // Champion grany zwykle na innej roli (np. Cho'Gath z topa) ma w danych Teleport: w jungli zawsze Smite.
+    if (!ids.includes(SPELL.smite)) {
+      ids[ids[0] === SPELL.flash ? 1 : 0] = SPELL.smite;
+      if (!ids.includes(SPELL.flash)) ids[1] = SPELL.flash;
+      why = 'Porażenie (Smite): grasz w jungli';
+    }
+    return { ids, why };
+  }
+  if (ids.includes(SPELL.smite)) {
+    // Smite poza jungle (np. dane junglera grającego na linii): zamiana na czar tej roli.
+    ids[ids.indexOf(SPELL.smite)] = ctx.position === 'top' ? SPELL.tp : ctx.position === 'support' ? SPELL.exhaust : SPELL.ignite;
+    why = 'Bez Porażenia: nie grasz w jungli';
+  }
   const { enemy, lane, champ } = ctx;
   const laneName = lane && nameOf(lane.alias, game);
   const divers = enemy.burst + enemy.dive;
@@ -596,10 +609,22 @@ function spellsFor(alias, state, game, data) {
   return { ids, why };
 }
 
+// Champion grany poza swoją rolą bez statystyk OP.GG dla tej roli: runy od championa tej samej klasy,
+// dla którego ta rola jest główna (np. Cho'Gath w jungli dostaje runy tanka-junglera zamiast topowych).
+function offRoleRunesSource(champ, ctx, data) {
+  const role = ctx.position;
+  if (champ.statsBuild || !role || role === 'aram' || (champ.roles || [])[0] === role) return champ;
+  const donor = Object.entries(data.champions).find(([, c]) => (c.roles || [])[0] === role && c.class === champ.class && c.runes)
+    || Object.entries(data.champions).find(([, c]) => (c.roles || [])[0] === role && c.runes);
+  return donor ? { ...champ, runes: donor[1].runes, runesFrom: donor[0] } : champ;
+}
+
 function runePageFor(alias, game, data, state = null) {
   const champ = champInfo(alias, game, data);
   const ctx = matchContext(alias, state, game, data);
-  const { page, changes } = adaptRunes(normalizeRunes(resolveRunes(champ, data), game), ctx, game);
+  const source = offRoleRunesSource(champ, ctx, data);
+  const { page, changes } = adaptRunes(normalizeRunes(resolveRunes(source, data), game), ctx, game);
+  if (source.runesFrom) changes.unshift(`Runy pod rolę ${POSITION_LABELS[ctx.position === 'support' ? 'utility' : ctx.position === 'middle' ? 'middle' : ctx.position] || ctx.position} jak u ${nameOf(source.runesFrom, game)}: ${nameOf(alias, game)} gra zwykle na innej roli`);
   const name = game.championsByAlias.get(alias)?.name || alias;
   const describe = (id) => ({ id, name: game.perks.get(id)?.name || String(id), icon: game.perks.get(id)?.iconPath || '' });
   const spells = spellsFor(alias, state, game, data);

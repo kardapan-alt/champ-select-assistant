@@ -136,7 +136,10 @@ const server = http.createServer((req, res) => {
         return json(page);
       }
       case 'GET /lol-item-sets/v1/item-sets/1001/sets': return json(itemSets);
-      case 'PUT /lol-item-sets/v1/item-sets/1001/sets': itemSets = JSON.parse(body); return json({});
+      // Jak w prawdziwym kliencie: wszystkie zestawy razem mają limit rozmiaru.
+      case 'PUT /lol-item-sets/v1/item-sets/1001/sets':
+        if (Buffer.byteLength(body) > Number(process.env.ITEMSET_LIMIT || 200000)) return json({ errorCode: 'RPC_ERROR', httpStatus: 400, message: 'Content length is too large' }, 400);
+        itemSets = JSON.parse(body); return json({});
       case 'PATCH /lol-champ-select/v1/session/my-selection': mySpells = JSON.parse(body); return json({});
       default:
         if (req.method === 'DELETE' && p.startsWith('/lol-perks/v1/pages/')) {

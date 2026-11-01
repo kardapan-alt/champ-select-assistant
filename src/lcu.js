@@ -71,7 +71,15 @@ class LcuClient {
     this.auth = 'Basic ' + Buffer.from('riot:' + creds.password).toString('base64');
   }
 
-  raw(method, urlPath, body) {
+  // Zasoby gry bywają przekierowane (np. na ścieżki ASSETS/...): jedno przekierowanie w obrębie klienta.
+  async raw(method, urlPath, body) {
+    const res = await this.rawOnce(method, urlPath, body);
+    const loc = res.headers && res.headers.location;
+    if (method === 'GET' && res.status >= 300 && res.status < 400 && loc && loc.startsWith('/')) return this.rawOnce(method, loc);
+    return res;
+  }
+
+  rawOnce(method, urlPath, body) {
     const { protocol, host, port } = this.creds;
     const lib = protocol === 'https' ? https : http;
     const payload = body === undefined ? undefined : JSON.stringify(body);

@@ -61,7 +61,7 @@ const SITUATIONS = [
     answer: 'Quicksilver Sash / Mercurial Scimitar zdejmuje supresję, Banshee\'s Veil blokuje pierwszy czar.',
     items: { adc: [3139, 3140], mage: [3102], support: [3222], fighter: [], assassin: [], tank: [] },
     general: 3139,
-    owner: 'strzelec',
+    owner: 'strzelec; mag: Banshee\'s Veil',
   },
   {
     key: 'apburst',
@@ -96,7 +96,7 @@ const SITUATIONS = [
     answer: 'Przebicie pancerza / odporności na magię (Void Staff, Lord Dominik\'s, Black Cleaver) albo procentowe obrażenia (Liandry\'s, Blade of the Ruined King).',
     items: { mage: [3135, 6653], adc: [3036, 3153], fighter: [3071, 3153], assassin: [], tank: [], support: [] },
     general: 3036,
-    owner: 'strzelec i mag',
+    owner: 'strzelec; mag: Void Staff, bruiser: Black Cleaver',
   },
   {
     key: 'stealth',
