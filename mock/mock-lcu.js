@@ -28,7 +28,7 @@ const perkstyles = { styles: [
 const perks = perkstyles.styles.flatMap((s) => s.slots.flatMap((sl) => sl.perks)).map((pid) => ({ id: pid, name: names.perks[pid] || `Runa ${pid}`, iconPath: `/lol-game-data/assets/v1/perk-images/${pid}.png` }));
 const itemIds = new Set(JSON.stringify([data, require('../src/situational').SITUATIONS]).match(/\b[1-9]\d{3}\b/g).map(Number));
 const items = [...itemIds].map((iid) => ({ id: iid, name: names.items[iid] || `Item ${iid}`, iconPath: `/lol-game-data/assets/ASSETS/Items/Icons2D/${iid}.png` }));
-const spells = [[4, 'Błysk'], [14, 'Podpalenie'], [12, 'Teleportacja'], [7, 'Uzdrowienie'], [3, 'Wyczerpanie'], [11, 'Porażenie'], [6, 'Duch'], [21, 'Bariera'], [1, 'Oczyszczenie']]
+const spells = [[4, 'Błysk'], [14, 'Podpalenie'], [12, 'Teleportacja'], [7, 'Uzdrowienie'], [3, 'Wyczerpanie'], [11, 'Porażenie'], [6, 'Duch'], [21, 'Bariera'], [1, 'Oczyszczenie'], [32, 'Śnieżka'], [13, 'Klarowność']]
   .map(([sid, name]) => ({ id: sid, name, iconPath: `/lol-game-data/assets/DATA/Spells/Icons2D/${sid}.png` }));
 
 let step = Number(process.env.STEP || 0);
@@ -37,6 +37,13 @@ let mySpells = { spell1Id: 4, spell2Id: 14 };
 let itemSets = { accountId: 42, timestamp: 0, itemSets: [{ uid: 'own-1', title: 'Mój zestaw', type: 'custom', blocks: [] }] };
 
 function session() {
+  if (step === 7) {
+    // ARAM: championy przydzielone od razu, ławka, bez ról i bez widocznych przeciwników.
+    const myTeam = [['Darius', 0], ['LeeSin', 1], ['Ahri', 2], ['Jinx', 3], ['Thresh', 4]]
+      .map(([alias, cellId]) => ({ cellId, assignedPosition: '', championId: id(alias), championPickIntent: 0, ...(cellId === 2 ? mySpells : {}) }));
+    return { localPlayerCellId: 2, myTeam, theirTeam: [], actions: [], bans: { myTeamBans: [], theirTeamBans: [] }, timer: { phase: 'BAN_PICK' },
+      benchEnabled: true, benchChampions: ['Malphite', 'Lux', 'Ornn'].map((a) => ({ championId: id(a), isPriority: false })) };
+  }
   const ally = (cellId, pos, alias, locked) => ({ cellId, assignedPosition: pos, championId: alias && locked ? id(alias) : 0, championPickIntent: alias && !locked ? id(alias) : 0, ...(cellId === 2 ? mySpells : {}) });
   const s = step;
   const myTeam = [
@@ -76,7 +83,8 @@ function gameflowSession() {
   const team = (list) => list.map(([gameName, tagLine, alias, pos]) => ({
     puuid: gameName === 'Daniel' ? 'puuid-me' : `puuid-${gameName}`, gameName, tagLine, championId: id(alias), selectedPosition: pos,
   }));
-  return { phase: 'InProgress', gameData: { gameId: 777, teamOne: team(LOADING.teamOne), teamTwo: team(LOADING.teamTwo) } };
+  const aram = step >= 7;
+  return { phase: step === 7 ? 'ChampSelect' : 'InProgress', map: { id: aram ? 12 : 11 }, gameData: { gameId: 777, queue: { id: aram ? 450 : 420, gameMode: aram ? 'ARAM' : 'CLASSIC' }, teamOne: team(LOADING.teamOne), teamTwo: team(LOADING.teamTwo) } };
 }
 
 function svgIcon(label) {
@@ -103,7 +111,7 @@ const server = http.createServer((req, res) => {
       return res.end(svgIcon(label));
     }
     switch (`${req.method} ${p}`) {
-      case 'GET /lol-gameflow/v1/gameflow-phase': return json(step < 0 ? 'Lobby' : step === 6 ? 'InProgress' : 'ChampSelect');
+      case 'GET /lol-gameflow/v1/gameflow-phase': return json(step < 0 ? 'Lobby' : step === 6 || step === 8 ? 'InProgress' : 'ChampSelect');
       case 'GET /lol-gameflow/v1/session': return json(gameflowSession());
       case 'GET /lol-summoner/v1/current-summoner': return json({ puuid: 'puuid-me', gameName: 'Daniel', tagLine: 'EUNE', summonerId: 1001, accountId: 42 });
       case 'GET /riotclient/region-locale': return json({ region: 'EUNE', locale: 'pl_PL', webRegion: 'eune' });
@@ -128,7 +136,10 @@ const server = http.createServer((req, res) => {
         return json(page);
       }
       case 'GET /lol-item-sets/v1/item-sets/1001/sets': return json(itemSets);
-      case 'PUT /lol-item-sets/v1/item-sets/1001/sets': itemSets = JSON.parse(body); return json({});
+      // Jak w prawdziwym kliencie: wszystkie zestawy razem mają limit rozmiaru.
+      case 'PUT /lol-item-sets/v1/item-sets/1001/sets':
+        if (Buffer.byteLength(body) > Number(process.env.ITEMSET_LIMIT || 200000)) return json({ errorCode: 'RPC_ERROR', httpStatus: 400, message: 'Content length is too large' }, 400);
+        itemSets = JSON.parse(body); return json({});
       case 'PATCH /lol-champ-select/v1/session/my-selection': mySpells = JSON.parse(body); return json({});
       default:
         if (req.method === 'DELETE' && p.startsWith('/lol-perks/v1/pages/')) {

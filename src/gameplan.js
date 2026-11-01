@@ -27,6 +27,24 @@ const VS_STYLE = {
   split: (who) => `${who || 'Ich splitpusher'} będzie na bocznej linii: niech pilnuje go jedna osoba, nie walczcie 4 na 5 bez powodu.`,
 };
 
+// ARAM: jedna linia, walki od pierwszej minuty, apteczki zamiast powrotów do bazy.
+const ARAM_OWN = {
+  dive: (who) => `Wchodźcie razem na ich carry${who ? ` (inicjuje ${who})` : ''}, najlepiej Śnieżką; nie wchodźcie po jednym.`,
+  engage: (who) => `Wygrywacie walki 5 na 5: szukajcie walki, gdy stoją blisko siebie${who ? `, engage od ${who}` : ''}.`,
+  poke: () => 'Macie poke: zbijajcie im HP z dystansu, a walczcie dopiero, gdy są osłabieni. Nie wchodźcie pierwsi.',
+  protect: (who) => `Grajcie wokół ${who || 'swojego carry'}: stójcie przy nim i odbijajcie tych, którzy na niego wskakują.`,
+  pick: () => 'Łapcie pojedynczych przeciwników, którzy idą po apteczkę albo wychodzą przed falę.',
+  split: () => 'Na ARAM-ie nie ma bocznych linii: grajcie razem i pushujcie falę po każdej wygranej walce.',
+};
+const ARAM_VS = {
+  dive: (who) => `Wróg wskakuje na tyły${who ? ` (${who})` : ''}: carry stoi za drużyną, CC zostawcie na wchodzących.`,
+  engage: (who) => `Wróg ma mocny engage${who ? ` (${who})` : ''}: nie stójcie w kupie i walczcie, gdy jego engage jest zużyty.`,
+  poke: () => 'Wróg pokuje: nie stójcie w zasięgu ich umiejętności, walczcie szybko albo cofnijcie się pod wieżę po apteczkę.',
+  protect: (who) => `Wróg chroni ${who || 'swojego carry'}: najpierw zabijcie obrońców albo łapcie go, gdy się wysunie.`,
+  pick: () => 'Wróg łapie pojedynczych graczy: chodźcie razem, zwłaszcza po apteczki.',
+  split: () => '',
+};
+
 function teamOf(players, game, data) {
   return players.filter((p) => p.championId).map((p) => {
     const alias = game.championsById.get(p.championId)?.alias;
@@ -86,12 +104,14 @@ function playersToWatch(enemies, cardFor, game) {
   return { threats: threats.slice(0, 2).map(({ who, why }) => ({ who, why })), targets: targets.slice(0, 2) };
 }
 
-function gamePlan(allies, enemies, cardFor, game, data) {
+function gamePlan(allies, enemies, cardFor, game, data, mode = 'classic') {
   const ours = teamOf(allies, game, data);
   const theirs = teamOf(enemies, game, data);
   if (!ours.length || !theirs.length) return null;
   const ourStyle = engine.archetypeOf(ours.map((m) => m.info));
   const theirStyle = engine.archetypeOf(theirs.map((m) => m.info));
+
+  if (mode === 'aram') return aramPlan(ours, theirs, ourStyle, theirStyle, enemies, cardFor, game);
 
   // Początek gry: kto jest mocniejszy wcześnie i jungle.
   const early = [];
@@ -124,9 +144,7 @@ function gamePlan(allies, enemies, cardFor, game, data) {
   // Leczenie, kryty, supresję itp. opisują konkretne sytuacje poniżej (z nazwami championów).
 
   // Konkretne zagrożenia w składzie wroga z odpowiedzią dla drużyny (np. Yasuo + Jhin → Randuin's Omen).
-  const exists = (id) => !game.items.size || game.items.has(id);
-  const situations = detectSituations(theirs.map((m) => ({ alias: m.info.alias, championId: m.player.championId, name: m.name, traits: m.info.traits || [] })), null, exists)
-    .map((s) => situationView(s, game));
+  const situations = situationsFor(theirs, game, false);
 
   return {
     situations,
@@ -136,6 +154,47 @@ function gamePlan(allies, enemies, cardFor, game, data) {
       { title: 'Początek gry', tips: early.slice(0, 3) },
       { title: 'Środek gry', tips: mid.slice(0, 2) },
       { title: 'Walki drużynowe', tips: late.slice(0, 3) },
+    ].filter((p) => p.tips.length),
+    ...playersToWatch(enemies, cardFor, game),
+  };
+}
+
+function situationsFor(theirs, game, aram) {
+  const exists = (id) => !game.items.size || game.items.has(id);
+  return detectSituations(theirs.map((m) => ({ alias: m.info.alias, championId: m.player.championId, name: m.name, traits: m.info.traits || [] })), null, exists)
+    .filter((s) => !(aram && s.vision))
+    .map((s) => situationView(s, game));
+}
+
+function aramPlan(ours, theirs, ourStyle, theirStyle, enemies, cardFor, game) {
+  const early = [];
+  const diff = tempo(ours) - tempo(theirs);
+  if (diff >= 2) early.push('Jesteście mocniejsi na początku: walczcie od pierwszych poziomów i zabierzcie pierwszą wieżę.');
+  else if (diff <= -2) early.push('Przeciwnicy są mocniejsi na początku: nie dajcie się złapać przed 6. poziomem, czyśćcie falę spod wieży.');
+  else early.push('Siła na początku jest wyrównana: pierwsza walka zależy od tego, kto lepiej trafi Śnieżkę i engage.');
+  early.push('Apteczki: bierze je ten, kto ma najmniej HP. Po wygranej walce zabierajcie też te po stronie wroga.');
+
+  const mid = [];
+  if (ourStyle) mid.push(ARAM_OWN[ourStyle.primary](whoFor(ourStyle.primary, ours)));
+  const lateDiff = count(ours, 'scaling') - count(theirs, 'scaling');
+  if (lateDiff >= 2) mid.push('Skalujecie lepiej: przetrwajcie pierwsze walki, po 3 itemach wygrywacie.');
+  else if (lateDiff <= -2) mid.push('Wróg skaluje lepiej: grajcie agresywnie teraz i kończcie, zanim skompletują buildy.');
+
+  const late = [];
+  if (theirStyle) late.push(ARAM_VS[theirStyle.primary](whoFor(theirStyle.primary, theirs)));
+  const profile = engine.describeEnemy(engine.teamProfile(theirs.map((m) => m.info)));
+  if (profile.apPercent >= 65) late.push(`Wróg zadaje głównie obrażenia magiczne (${profile.apPercent}%): odporność na magię opłaca się bardziej niż pancerz.`);
+  else if (profile.adPercent >= 65) late.push(`Wróg zadaje głównie obrażenia fizyczne (${profile.adPercent}%): pancerz opłaca się bardziej niż odporność na magię.`);
+
+  return {
+    mode: 'aram',
+    situations: situationsFor(theirs, game, true),
+    ourStyle: ourStyle ? ourStyle.labels : [],
+    theirStyle: theirStyle ? theirStyle.labels : [],
+    phases: [
+      { title: 'Pierwsze walki', tips: early.slice(0, 3) },
+      { title: 'Wasz styl', tips: mid.filter(Boolean).slice(0, 2) },
+      { title: 'Walki drużynowe', tips: late.filter(Boolean).slice(0, 3) },
     ].filter((p) => p.tips.length),
     ...playersToWatch(enemies, cardFor, game),
   };

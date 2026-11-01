@@ -637,7 +637,7 @@ function enumMatch(values, wanted) {
 }
 
 // Uzupełnia argumenty narzędzia według nazw i dozwolonych wartości z jego schematu.
-function buildArgs(tool, { champion, championName, position, region, gameName, tagLine }) {
+function buildArgs(tool, { champion, championName, position, region, gameName, tagLine, mode }) {
   const props = (tool.inputSchema && tool.inputSchema.properties) || {};
   const args = {};
   for (const [key, schema] of Object.entries(props)) {
@@ -652,7 +652,8 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
     } else if (k.includes('position') || k === 'lane' || k === 'role') {
       if (position) v = values ? enumMatch(values, [OPGG_POSITION[position] || position]) : (OPGG_POSITION[position] || position);
     } else if (k.includes('game_mode') || k === 'mode' || k === 'queue') {
-      v = values ? enumMatch(values, ['ranked', 'rank', 'solo']) || values[0] : 'ranked';
+      const wanted = mode === 'aram' ? ['aram'] : ['ranked', 'rank', 'solo'];
+      v = values ? enumMatch(values, wanted) || values[0] : wanted[0];
     } else if (k === 'lang' || k.includes('locale') || k.includes('language')) {
       v = values ? enumMatch(values, ['en_US', 'en']) || values[0] : 'en_US';
     } else if (k === 'game_name' || k === 'gamename' || k === 'summoner_name') {
@@ -743,13 +744,14 @@ class OpggProvider {
     });
   }
 
-  async analysis(alias, position, game) {
+  async analysis(alias, position, game, mode = 'classic') {
     const name = game.championsByAlias.get(alias)?.name || alias;
-    return this.cached(`analysis:${alias}:${position || 'any'}`, async () => {
+    const modeKey = mode === 'aram' ? ':aram' : '';
+    return this.cached(`analysis:${alias}:${position || 'any'}${modeKey}`, async () => {
       const tools = await this.tools();
       const tool = findTool(tools, [/champion[-_]?analysis/i, /get_?champion_?analysis/i]);
       if (!tool) throw new Error('brak narzędzia z analizą championa');
-      return interpretAnalysis(await this.client.call(tool.name, buildArgs(tool, { champion: alias, championName: name, position })), game);
+      return interpretAnalysis(await this.client.call(tool.name, buildArgs(tool, { champion: alias, championName: name, position, mode })), game);
     });
   }
 

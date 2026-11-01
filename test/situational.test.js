@@ -91,3 +91,25 @@ test('plan na grę: sytuacje dla całej drużyny z ogólnym itemem', () => {
   assert.equal(crit.item.mine, false);
   assert.ok(plan.situations.some((s) => s.key === 'heal' && s.level === 2));
 });
+
+test('jungle: Smite zamiast Teleportu i runy junglera dla championa z topa (Shen)', () => {
+  const g = (a) => game.championsByAlias.get(a).id;
+  const state = { me: { position: 'jungle', championId: g('Shen'), isMe: true }, allies: [], enemies: [], bans: new Set() };
+  const { ids, why } = engine.spellsFor('Shen', state, game, data);
+  assert.ok(ids.includes(engine.SPELL.smite) && ids.includes(engine.SPELL.flash) && !ids.includes(engine.SPELL.tp), String(ids));
+  assert.match(why, /Smite/);
+  const page = engine.runePageFor('Shen', game, data, state);
+  assert.match(page.adaptations[0], /^Runy pod rolę Jungle jak u /);
+  // Na topie zostaje Teleport i własne runy.
+  const top = { ...state, me: { ...state.me, position: 'top' } };
+  assert.ok(engine.spellsFor('Shen', top, game, data).ids.includes(engine.SPELL.tp));
+  assert.ok(!engine.runePageFor('Shen', game, data, top).adaptations.some((a) => a.startsWith('Runy pod rolę')));
+});
+
+test('tanki: ogólna odpowiedź mówi, co kupuje mag', () => {
+  const plan = require('../src/gameplan').gamePlan(
+    ['Shen', 'LeeSin', 'Ahri', 'Jinx', 'Thresh'].map((a) => ({ championId: game.championsByAlias.get(a).id, position: '' })),
+    ['Malphite', 'Ornn', 'Ahri', 'Jinx', 'Leona'].map((a) => ({ championId: game.championsByAlias.get(a).id, position: '' })), null, game, data);
+  const tanks = plan.situations.find((s) => s.key === 'tanks');
+  assert.match(tanks.item.owner, /mag: Void Staff/);
+});
