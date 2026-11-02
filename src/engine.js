@@ -799,7 +799,7 @@ function itemSetFor(build, alias, state, game, data) {
 
   const aram = ctx.position === 'aram';
   if (!aram) block(laneName ? `Start (vs ${laneName})` : 'Start', [...(ctx.champ.starters || (data.starters || {})[startKey] || []), trinkets.start]);
-  if (ctx.lane && data.earlyDefense) {
+  if (ctx.lane && data.earlyDefense && ctx.position !== 'support') {
     const comp = ctx.lane.dmg === 'ap' ? data.earlyDefense.ap : ctx.lane.dmg === 'ad' ? data.earlyDefense.ad : null;
     if (comp) block(`Pierwszy powrót, gdy przegrywasz wymiany z ${laneName}`, [comp, 2055]);
   }
