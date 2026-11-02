@@ -97,13 +97,13 @@ test('jungle: Smite zamiast Teleportu i runy junglera dla championa z topa (Shen
   const state = { me: { position: 'jungle', championId: g('Shen'), isMe: true }, allies: [], enemies: [], bans: new Set() };
   const { ids, why } = engine.spellsFor('Shen', state, game, data);
   assert.ok(ids.includes(engine.SPELL.smite) && ids.includes(engine.SPELL.flash) && !ids.includes(engine.SPELL.tp), String(ids));
-  assert.match(why, /Smite/);
+  assert.match(why, /Smite|czary typowe dla tej roli/);
   const page = engine.runePageFor('Shen', game, data, state);
-  assert.match(page.adaptations[0], /^Runy pod rolę Jungle jak u /);
+  assert.match(page.adaptations[0], /^Runy, czary i build pod rolę Jungle jak u /);
   // Na topie zostaje Teleport i własne runy.
   const top = { ...state, me: { ...state.me, position: 'top' } };
   assert.ok(engine.spellsFor('Shen', top, game, data).ids.includes(engine.SPELL.tp));
-  assert.ok(!engine.runePageFor('Shen', game, data, top).adaptations.some((a) => a.startsWith('Runy pod rolę')));
+  assert.ok(!engine.runePageFor('Shen', game, data, top).adaptations.some((a) => a.startsWith('Runy, czary i build pod rolę')));
 });
 
 test('tanki: ogólna odpowiedź mówi, co kupuje mag', () => {
@@ -112,4 +112,17 @@ test('tanki: ogólna odpowiedź mówi, co kupuje mag', () => {
     ['Malphite', 'Ornn', 'Ahri', 'Jinx', 'Leona'].map((a) => ({ championId: game.championsByAlias.get(a).id, position: '' })), null, game, data);
   const tanks = plan.situations.find((s) => s.key === 'tanks');
   assert.match(tanks.item.owner, /mag: Void Staff/);
+});
+
+test('support spoza danych (tank): czary, build i runy supporta, nie topa', () => {
+  // Zoe jest w mocku, ale nie w danych: udajemy tanka bez ról, jak Alistar bez statystyk OP.GG.
+  const d = { ...data, champions: { ...data.champions } };
+  const g = (a) => game.championsByAlias.get(a).id;
+  const state = { me: { position: 'utility', championId: g('Zoe'), isMe: true }, allies: [], enemies: [], bans: new Set() };
+  const tankData = { ...d, championTraits: { ...d.championTraits, tank: [...(d.championTraits.tank || []), 'Zoe'], ap: (d.championTraits.ap || []).filter((a) => a !== 'Zoe') } };
+  const { ids } = engine.spellsFor('Zoe', state, game, tankData);
+  assert.ok(!ids.includes(engine.SPELL.tp), String(ids));
+  const build = engine.buildFor('Zoe', state, game, tankData);
+  assert.ok(build.items.some((i) => [3190, 3109, 3050].includes(i.id)), build.items.map((i) => i.id).join(','));
+  assert.match(engine.runePageFor('Zoe', game, tankData, state).adaptations[0], /pod rolę Support jak u .*brak danych o/);
 });

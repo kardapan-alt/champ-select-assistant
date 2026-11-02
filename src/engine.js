@@ -477,10 +477,27 @@ function matchupVerdict(champ, lane) {
   return 'even';
 }
 
+// Champion grany poza swoją rolą bez statystyk OP.GG dla tej roli (np. Alistar na supporcie, Cho'Gath w jungli):
+// runy, czary, itemy, buty i start od championa tej samej klasy, dla którego ta rola jest główna.
+// Umiejętności, cechy i matchupy zostają własne.
+function roleAdjusted(champ, role, data) {
+  // Champion spoza danych (albo znany tylko z mety OP.GG) nie ma własnych run i itemów, tylko szablon klasy:
+  // też bierze je od championa tej roli.
+  const ownBuild = !champ.unknown && !champ.fromStats;
+  if (champ.statsBuild || !role || role === 'aram' || ((champ.roles || [])[0] === role && ownBuild)) return champ;
+  const main = Object.entries(data.champions).filter(([, c]) => (c.roles || [])[0] === role);
+  const donor = main.find(([, c]) => c.class === champ.class) || main.find(([, c]) => c.dmg === champ.dmg) || main[0];
+  if (!donor) return champ;
+  const [from, d] = donor;
+  const pick = (k) => (d[k] !== undefined ? d[k] : undefined);
+  return { ...champ, runes: pick('runes'), spells: pick('spells'), items: pick('items'), boots: pick('boots'), starters: pick('starters'), roleFrom: from };
+}
+
 function matchContext(alias, state, game, data) {
-  const champ = champInfo(alias, game, data);
+  const base = champInfo(alias, game, data);
   const aram = !!state && state.mode === 'aram';
-  const position = aram ? 'aram' : toDataRole(state && state.me ? state.me.position : '') || (champ.roles || [])[0] || '';
+  const position = aram ? 'aram' : toDataRole(state && state.me ? state.me.position : '') || (base.roles || [])[0] || '';
+  const champ = roleAdjusted(base, position, data);
   const enemyInfos = state ? teamInfos(state.enemies || [], game, data) : [];
   const lane = position === 'jungle' || aram ? null : laneOpponentOf(state, game, data);
   return { champ, position, lane, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
@@ -569,7 +586,7 @@ function spellsFor(alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
   const tpl = data.classTemplates[ctx.champ.class] || data.classTemplates.fighter;
   const ids = [...(ctx.champ.spells || tpl.spells)];
-  let why = '';
+  let why = ctx.champ.roleFrom ? `czary typowe dla tej roli (jak u ${nameOf(ctx.champ.roleFrom, game)})` : '';
   const has = (id) => !game.spells.size || game.spells.has(id);
   const other = () => ids.find((id) => id !== SPELL.flash);
   const setOther = (to, reason) => {
@@ -609,22 +626,16 @@ function spellsFor(alias, state, game, data) {
   return { ids, why };
 }
 
-// Champion grany poza swoją rolą bez statystyk OP.GG dla tej roli: runy od championa tej samej klasy,
-// dla którego ta rola jest główna (np. Cho'Gath w jungli dostaje runy tanka-junglera zamiast topowych).
-function offRoleRunesSource(champ, ctx, data) {
-  const role = ctx.position;
-  if (champ.statsBuild || !role || role === 'aram' || (champ.roles || [])[0] === role) return champ;
-  const donor = Object.entries(data.champions).find(([, c]) => (c.roles || [])[0] === role && c.class === champ.class && c.runes)
-    || Object.entries(data.champions).find(([, c]) => (c.roles || [])[0] === role && c.runes);
-  return donor ? { ...champ, runes: donor[1].runes, runesFrom: donor[0] } : champ;
-}
 
 function runePageFor(alias, game, data, state = null) {
   const champ = champInfo(alias, game, data);
   const ctx = matchContext(alias, state, game, data);
-  const source = offRoleRunesSource(champ, ctx, data);
+  const source = ctx.champ;
   const { page, changes } = adaptRunes(normalizeRunes(resolveRunes(source, data), game), ctx, game);
-  if (source.runesFrom) changes.unshift(`Runy pod rolę ${POSITION_LABELS[ctx.position === 'support' ? 'utility' : ctx.position === 'middle' ? 'middle' : ctx.position] || ctx.position} jak u ${nameOf(source.runesFrom, game)}: ${nameOf(alias, game)} gra zwykle na innej roli`);
+  if (source.roleFrom) {
+    const role = POSITION_LABELS[ctx.position === 'support' ? 'utility' : ctx.position] || ctx.position;
+    changes.unshift(`Runy, czary i build pod rolę ${role} jak u ${nameOf(source.roleFrom, game)}: ${(source.roles || [])[0] && source.roles[0] !== ctx.position ? `${nameOf(alias, game)} gra zwykle na innej roli` : `brak danych o ${nameOf(alias, game)} na tej roli`}`);
+  }
   const name = game.championsByAlias.get(alias)?.name || alias;
   const describe = (id) => ({ id, name: game.perks.get(id)?.name || String(id), icon: game.perks.get(id)?.iconPath || '' });
   const spells = spellsFor(alias, state, game, data);
@@ -660,7 +671,7 @@ const FIXED_CORE = 2; // pierwsze itemy championa zostają zawsze, reszta konkur
 // Po wybraniu itemu dane zagrożenie słabnie, więc przy skrajnym składzie (np. 4 AP) wejdzie kilka itemów na MR,
 // a przy zbalansowanym tylko jeden.
 function buildFor(alias, state, game, data) {
-  const champ = champInfo(alias, game, data);
+  const champ = matchContext(alias, state, game, data).champ;
   const tpl = data.classTemplates[champ.class] || data.classTemplates.fighter;
   const aliasOf = (id) => game.championsById.get(id)?.alias;
   const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
