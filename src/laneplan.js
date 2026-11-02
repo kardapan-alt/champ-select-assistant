@@ -81,7 +81,8 @@ function lanePlan(me, enemies, cardFor, game, data) {
 
   // Pierwszy item obronny pod typ obrażeń przeciwnika z linii.
   const early = data.earlyDefense || {};
-  const firstBackId = lane.dmg === 'ap' ? early.ap : lane.dmg === 'ad' ? early.ad : null;
+  // Support nie kupuje komponentów obronnych na pierwszym powrocie (Control Ward i przedmiot supporta), jungler nie ma linii.
+  const firstBackId = ['support', 'jungle'].includes(found.role) ? null : lane.dmg === 'ap' ? early.ap : lane.dmg === 'ad' ? early.ad : null;
   const it = firstBackId && game.items.get(firstBackId);
   const firstBack = firstBackId ? { id: firstBackId, name: it ? it.name : String(firstBackId), icon: it ? it.iconPath : '' } : null;
 

@@ -100,6 +100,11 @@ test('plan na linię: przeciwnik z pozycji, wskazówki z cech i statystyk gracza
   // Bez pozycji w sesji: przeciwnik zgadnięty po roli championa.
   const noPos = lanePlan({ ...me, position: '' }, players.enemies.map((p) => ({ ...p, position: '' })), null, game, data);
   assert.equal(noPos.opponent.name, 'Zed');
+  // Support (Thresh vs Soraka): bez komponentu obronnego na pierwszy powrót.
+  const sup = players.allies.find((p) => p.position === 'UTILITY' || p.position === 'utility');
+  const supPlan = lanePlan(sup, players.enemies, null, game, data);
+  assert.equal(supPlan.opponent.name, 'Soraka');
+  assert.equal(supPlan.firstBack, null);
   console.log('plan:', plan.tips);
 });
 
