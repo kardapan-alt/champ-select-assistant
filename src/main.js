@@ -150,6 +150,8 @@ let tileFailLogged = false;
 async function tilePathFor(championId, skinId) {
   if (!champJson.has(championId)) champJson.set(championId, lcu.get(`/lol-game-data/assets/v1/champions/${championId}.json`).catch(() => null));
   const c = await champJson.get(championId);
+  // Nieudane pobranie (np. klient jeszcze się ładuje) nie może na stałe zostawić starej ikony.
+  if (!c) champJson.delete(championId);
   const skins = (c && c.skins) || [];
   const skin = skins.find((x) => x.id === skinId)
     || skins.find((x) => (x.chromas || []).some((ch) => ch.id === skinId))
@@ -206,7 +208,13 @@ async function tick() {
     }
     const session = await lcu.get('/lol-champ-select/v1/session');
     if (!session) return;
-    const json = JSON.stringify([session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase, session.benchChampions]);
+    // Bany i dostępność z osobnych list klienta: akcje w sesji nie zawsze pokazują ban od razu.
+    const [pickable, disabled] = await Promise.all([
+      lcu.get('/lol-champ-select/v1/pickable-champion-ids').catch(() => null),
+      lcu.get('/lol-champ-select/v1/disabled-champion-ids').catch(() => null),
+    ]);
+    session.extra = { pickable: Array.isArray(pickable) ? pickable : [], disabled: Array.isArray(disabled) ? disabled : [] };
+    const json = JSON.stringify([session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase, session.benchChampions, session.extra]);
     if (json === lastSessionJson) return;
     if (!lastSessionJson) {
       await detectMode();
@@ -304,7 +312,7 @@ function finalWithEnemies(me) {
 }
 
 function buildView(session) {
-  const state = engine.readSession(session, currentMode);
+  const state = engine.readSession(session, currentMode, session.extra);
   lastSelectState = state;
   const me = state.me;
   const myAlias = me && me.championId ? game.championsById.get(me.championId)?.alias : null;
@@ -559,6 +567,12 @@ async function tileDiagnostics(id) {
   const tilePath = await tilePathFor(id, id * 1000).catch(() => '');
   return { tilePath, viaJson: await status(tilePath), legacy: await status(`/lol-game-data/assets/v1/champion-tiles/${id}/${id * 1000}.jpg`), icon: await status(`/lol-game-data/assets/v1/champion-icons/${id}.png`) };
 }
+// Skórka wybrana w champ select: czy klient ma jej kafelek (diagnostyka "starych" ikon).
+async function skinDiagnostics(championId, skinId) {
+  const tilePath = await tilePathFor(championId, skinId).catch(() => '');
+  const status = tilePath ? await lcu.raw('GET', tilePath).then((r) => r.status).catch((e) => String(e.message)) : null;
+  return { championId, skinId, tilePath, status };
+}
 // Zestawy przedmiotów: ile ich jest i ile zajmują (bez treści), żeby zobaczyć, czemu klient ich nie przyjmuje.
 async function itemSetDiagnostics() {
   const me = await lcu.get('/lol-summoner/v1/current-summoner').catch(() => null);
@@ -606,6 +620,10 @@ ipcMain.handle('stats-diagnostics', wrap(async () => {
       champSelect: session ? {
         localPlayerCellId: session.localPlayerCellId, myTeam: team(session.myTeam), theirTeam: team(session.theirTeam),
         actions: session.actions, bans: session.bans, phase: session.timer && session.timer.phase,
+        pickable: await lcu.get('/lol-champ-select/v1/pickable-champion-ids').catch((e) => String(e.message)),
+        disabled: await lcu.get('/lol-champ-select/v1/disabled-champion-ids').catch((e) => String(e.message)),
+        skins: await Promise.all([...(session.myTeam || []), ...(session.theirTeam || [])].filter((p) => p.championId > 0)
+          .map((p) => skinDiagnostics(p.championId, p.selectedSkinId || p.championId * 1000))),
       } : null,
       mastery: mastery ? { counts: mastery.raw, champions: mastery.map.size } : null,
       masteryRaw: await masteryDiagnostics(),
@@ -636,6 +654,7 @@ app.whenReady().then(() => {
       // champion-tiles, a na końcu zwykła ikona championa.
       const tile = /^\/lol-game-data\/assets\/v1\/champion-tiles\/(\d+)\/(\d+)\.jpg$/.exec(url.pathname);
       let res = null;
+      let fallback = false;
       if (tile) {
         const tilePath = await tilePathFor(Number(tile[1]), Number(tile[2]));
         if (tilePath) res = await lcu.raw('GET', tilePath);
@@ -643,15 +662,17 @@ app.whenReady().then(() => {
         if (res.status !== 200) {
           if (!tileFailLogged) { tileFailLogged = true; log(`kafelek championa ${url.pathname} (${tilePath || 'brak tilePath'}): ${res.status}, używam ikony`); }
           res = await lcu.raw('GET', `/lol-game-data/assets/v1/champion-icons/${tile[1]}.png`);
+          fallback = true;
         }
       } else {
         res = await lcu.raw('GET', url.pathname);
       }
-      if (res.status === 200) {
+      // Zastępczej ikony nie zapamiętujemy: przy następnym odświeżeniu spróbujemy znowu pobrać kafelek skina.
+      if (res.status === 200 && !fallback) {
         if (assetCache.size > 600) assetCache.delete(assetCache.keys().next().value);
         assetCache.set(url.pathname, { body: res.body, type: res.headers['content-type'] || 'image/png' });
       }
-      return new Response(res.body, { status: res.status, headers: { 'Content-Type': res.headers['content-type'] || 'image/png', 'Cache-Control': 'max-age=86400' } });
+      return new Response(res.body, { status: res.status, headers: { 'Content-Type': res.headers['content-type'] || 'image/png', 'Cache-Control': fallback ? 'no-store' : 'max-age=86400' } });
     } catch {
       return new Response(null, { status: 502 });
     }

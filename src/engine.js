@@ -12,7 +12,8 @@ const toDataRole = (pos) => (pos === 'utility' ? 'support' : pos);
 // ---------- stan wyboru postaci ----------
 
 // mode: 'aram' (Howling Abyss: losowe championy, ławka, brak linii) albo 'classic'.
-function readSession(session, mode = 'classic') {
+// extra: listy z klienta, niezależne od akcji w sesji: pickable (kogo możesz teraz wybrać) i disabled (zbanowani).
+function readSession(session, mode = 'classic', extra = {}) {
   const actions = (session.actions || []).flat();
   const pickActions = actions.filter((a) => a.type === 'pick');
   const lockedCells = new Set(pickActions.filter((a) => a.completed).map((a) => a.actorCellId));
@@ -50,7 +51,10 @@ function readSession(session, mode = 'classic') {
     ...((session.bans && session.bans.myTeamBans) || []),
     ...((session.bans && session.bans.theirTeamBans) || []),
     ...actions.filter((a) => a.type === 'ban' && (a.completed || a.isAllyAction || myCells.has(a.actorCellId))).map((a) => a.championId),
+    ...(extra.disabled || []),
   ].map(Number).filter((id) => id > 0));
+  // Klient sam wie, kogo możesz wybrać (bez banów, cudzych picków i nieposiadanych). Pusta lista = brak danych.
+  const pickable = extra.pickable && extra.pickable.length ? new Set(extra.pickable.map(Number)) : null;
 
   const phase = (session.timer && session.timer.phase) || '';
   const aram = mode === 'aram' || !!session.benchEnabled;
@@ -66,7 +70,7 @@ function readSession(session, mode = 'classic') {
   const banPhase = phase === 'PLANNING' || banActions.some((a) => a.isInProgress && !a.completed);
   const myBanTurn = banActions.some((a) => a.actorCellId === me && a.isInProgress && !a.completed);
 
-  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, phase, allLocked, banPhase, myBanTurn, mode: aram ? 'aram' : 'classic', bench };
+  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, pickable, phase, allLocked, banPhase, myBanTurn, mode: aram ? 'aram' : 'classic', bench };
 }
 
 // ---------- informacje o championach ----------
@@ -281,6 +285,7 @@ function suggestPicks(state, game, data, options = {}) {
     const summary = game.championsByAlias.get(alias);
     if (!summary || (!options.only && (taken.has(summary.id) || allyAliases.has(alias)))) continue;
     if (!options.only && game.owned && game.owned.size > 0 && !game.owned.has(summary.id)) continue;
+    if (!options.only && state.pickable && !state.pickable.has(summary.id) && summary.id !== (state.me && state.me.championId)) continue;
     if (position && !champ.roles.includes(position)) continue;
 
     let score = 50;
@@ -786,6 +791,10 @@ function buildFor(alias, state, game, data) {
   };
 }
 
+const SET_TITLE = 24;
+const SET_ROW = 6;
+const shortTitle = (t) => { const x = String(t).replace(/\s+/g, ' ').trim(); return x.length <= SET_TITLE ? x : `${x.slice(0, SET_TITLE - 1).trimEnd()}…`; };
+
 // Zestaw przedmiotów do sklepu w grze (format /lol-item-sets). Nazwy bloków tłumaczą, skąd wziął się item.
 function itemSetFor(build, alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
@@ -795,26 +804,34 @@ function itemSetFor(build, alias, state, game, data) {
   const startKey = ctx.position === 'jungle' ? 'jungle' : ctx.position === 'support' ? 'support' : itemPoolKey(ctx.champ);
   const trinkets = data.trinkets || {};
   const blocks = [];
-  const block = (type, ids) => { const items = list(ids); if (items.length) blocks.push({ type: type.slice(0, 60), items, showIfSummonerSpell: '', hideIfSummonerSpell: '' }); };
+  // Sklep w grze ma wąską kolumnę: długie nazwy bloków i długie rzędy przesuwają cały zestaw i ucinają lewą krawędź.
+  // Dlatego nazwy mają do SET_TITLE znaków, a blok najwyżej SET_ROW itemów (dłuższy idzie w dwa rzędy).
+  const block = (type, ids) => {
+    const items = list(ids);
+    for (let i = 0; i < items.length; i += SET_ROW) {
+      const title = i === 0 ? type : `${type.replace(/\s*\(.*\)$/, '')} cd.`;
+      blocks.push({ type: shortTitle(title), items: items.slice(i, i + SET_ROW), showIfSummonerSpell: '', hideIfSummonerSpell: '' });
+    }
+  };
 
   const aram = ctx.position === 'aram';
-  if (!aram) block(laneName ? `Start (vs ${laneName})` : 'Start', [...(ctx.champ.starters || (data.starters || {})[startKey] || []), trinkets.start]);
+  if (!aram) block(laneName ? `Start vs ${laneName}` : 'Start', [...(ctx.champ.starters || (data.starters || {})[startKey] || []), trinkets.start]);
   if (ctx.lane && data.earlyDefense && ctx.position !== 'support') {
     const comp = ctx.lane.dmg === 'ap' ? data.earlyDefense.ap : ctx.lane.dmg === 'ad' ? data.earlyDefense.ad : null;
-    if (comp) block(`Pierwszy powrót, gdy przegrywasz wymiany z ${laneName}`, [comp, 2055]);
+    if (comp) block('Gdy przegrywasz linię', [comp, 2055]);
   }
   const [first, ...rest] = build.items;
-  block('Build pod ten skład (kolejność)', [first && first.id, build.boots.id, ...rest.map((i) => i.id)]);
-  // Każdy powód osobnym blokiem, np. "Dlaczego: dużo obrażeń magicznych".
+  block('Build (kolejno)', [first && first.id, build.boots.id, ...rest.map((i) => i.id)]);
+  // Każdy powód osobnym blokiem, np. "kryty: Yasuo, Jhin".
   const reasons = new Map();
   for (const it of [build.boots, ...build.items]) {
     if (!it.why || ['rdzeń championa', 'standardowe'].includes(it.why)) continue;
     reasons.set(it.why, [...(reasons.get(it.why) || []), it.id]);
   }
-  for (const [why, ids] of reasons) block(`Dlaczego: ${why}`, ids);
-  if (build.alternatives.length) block('Alternatywy sytuacyjne', build.alternatives.map((a) => a.id));
+  for (const [why, ids] of reasons) block(why, ids);
+  if (build.alternatives.length) block('Sytuacyjne', build.alternatives.map((a) => a.id));
   const stealth = (build.situations || []).find((s) => s.key === 'stealth');
-  if (!aram) block(stealth ? `Wizja: ${stealth.champions.map((c) => c.name).join(', ')} bywają niewidzialni` : 'Wizja i mikstury', [...(data.consumables || []), ctx.position === 'support' ? trinkets.support : trinkets.later]);
+  if (!aram) block(stealth ? `Wizja: ${stealth.champions.map((c) => c.name).join(', ')}` : 'Wizja i mikstury', [...(data.consumables || []), ctx.position === 'support' ? trinkets.support : trinkets.later]);
 
   return {
     title: `CS Assist${aram ? ' ARAM' : ''}: ${build.name}${laneName ? ` vs ${laneName}` : ''}`.slice(0, 75),

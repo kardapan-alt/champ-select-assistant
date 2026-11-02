@@ -116,6 +116,14 @@ const server = http.createServer((req, res) => {
       case 'GET /lol-summoner/v1/current-summoner': return json({ puuid: 'puuid-me', gameName: 'Daniel', tagLine: 'EUNE', summonerId: 1001, accountId: 42 });
       case 'GET /riotclient/region-locale': return json({ region: 'EUNE', locale: 'pl_PL', webRegion: 'eune' });
       case 'GET /lol-champ-select/v1/session': return json(session());
+      // Jak w kliencie: zbanowani oraz kogo gracz może teraz wybrać (posiadani bez banów i cudzych picków).
+      case 'GET /lol-champ-select/v1/disabled-champion-ids': return json(session().actions.flat().filter((a) => a.type === 'ban' && a.completed).map((a) => a.championId));
+      case 'GET /lol-champ-select/v1/pickable-champion-ids': {
+        const s = session();
+        const gone = new Set([...s.actions.flat().filter((a) => a.type === 'ban' && a.completed).map((a) => a.championId),
+          ...[...s.myTeam, ...s.theirTeam].filter((x) => x.cellId !== s.localPlayerCellId).map((x) => x.championId)]);
+        return json(champions.filter((c) => c.alias !== 'Lux' && !gone.has(c.id)).map((c) => c.id));
+      }
       case 'GET /lol-game-data/assets/v1/champion-summary.json': return json([{ id: -1, alias: 'None', name: 'None' }, ...champions]);
       case 'GET /lol-game-data/assets/v1/perkstyles.json': return json(perkstyles);
       case 'GET /lol-game-data/assets/v1/perks.json': return json(perks);

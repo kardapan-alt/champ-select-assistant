@@ -52,6 +52,21 @@ test('odczyt sesji i sugestie dla mida', async () => {
   console.log('sugestie:', list.map((s) => `${s.name} ${s.score} [${s.reasons.map((r) => r.text).join('; ')}]`));
 });
 
+test('ban widoczny tylko w listach klienta (pickable/disabled) wyklucza championa z sugestii', async () => {
+  await step(0);
+  const session = await lcu.get('/lol-champ-select/v1/session');
+  const before = engine.suggestPicks(engine.readSession(session), game, data).list;
+  const top = before[0];
+  // Akcje sesji jeszcze nie pokazują banu, ale klient wie, że championa nie da się wybrać.
+  const disabled = engine.readSession(session, 'classic', { disabled: [top.championId] });
+  assert.ok(!engine.suggestPicks(disabled, game, data).list.some((s) => s.championId === top.championId));
+  assert.ok(!engine.suggestBans({ ...disabled, banPhase: true }, game, data).some((b) => b.championId === top.championId));
+  const owned = [...game.owned].filter((id) => id !== before[1].championId);
+  const pickable = engine.readSession(session, 'classic', { pickable: owned });
+  assert.ok(!engine.suggestPicks(pickable, game, data).list.some((s) => s.championId === before[1].championId));
+  assert.equal(engine.readSession(session, 'classic', { pickable: [] }).pickable, null, 'pusta lista = brak danych');
+});
+
 test('kontra na widocznego przeciwnika z linii podnosi wynik', async () => {
   await step(1);
   const state = engine.readSession(await lcu.get('/lol-champ-select/v1/session'));
