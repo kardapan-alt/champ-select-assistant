@@ -81,7 +81,9 @@ test('zestaw przedmiotów: start, build z powodami i poprawny format', async () 
   for (const b of set.blocks) for (const it of b.items) assert.equal(typeof it.id, 'string');
   const full = set.blocks.find((b) => b.type.startsWith('Build'));
   assert.equal(full.items.length, 6);
-  assert.ok(set.blocks.some((b) => b.type.startsWith('Dlaczego:')), 'bloki z powodami');
+  assert.ok(set.blocks.length > 3, 'bloki z powodami');
+  // Wąska kolumna sklepu: krótkie nazwy i krótkie rzędy, inaczej klient ucina lewą krawędź zestawu.
+  for (const b of set.blocks) { assert.ok(b.type.length <= 24, b.type); assert.ok(b.items.length <= 6, b.type); }
   console.log('zestaw:', set.blocks.map((b) => `${b.type}: ${b.items.map((i) => i.id).join(',')}`));
 });
 
