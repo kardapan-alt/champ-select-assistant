@@ -4,9 +4,11 @@ function mayhemPanel(b) {
   const selected = m.hints || [];
   const live = m.live;
   const liveText = { live:'Ekwipunek wykrywany automatycznie', waiting:'Czekam na dane ekwipunku z gry', stale:'Brak połączenia z grą — ostatni odczyt ekwipunku', manual:'Ekwipunek ustawiany ręcznie' };
+  const screenText={off:'OCR augmentów wyłączony',waiting:'Czekam na obraz gry / OCR',reading:'Czytam nazwę · zapis po 3 zgodnych odczytach',ambiguous:'Kilka nazw w obszarze — popraw ustawienie OCR',unreadable:'Najedź na własny augment na około 3 sekundy',layout:'Rozdzielczość się zmieniła — ustaw OCR ponownie',conflict:'Niejednoznaczny zestaw — sprawdź augmenty ręcznie',language:'Brak polskiego lub angielskiego OCR w Windows'};
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
-    ${live ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)} · augmenty wybierasz ręcznie</p>` : ''}
-    <div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Augmenty zaznaczysz ręcznie po rozpoczęciu gry.</span>'}</div>
+    ${live ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)}</p>` : ''}
+    ${m.screen && !labActive ? `<div class="augment-screen-controls"><span>${esc(screenText[m.screen.status] || screenText.waiting)}</span><button data-augment-screen>Ustaw OCR</button>${m.screen.config?`<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button>`:''}</div>` : ''}
+    <div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Wybierz augmenty ręcznie lub skonfiguruj OCR podczas gry.</span>'}</div>
     ${m.nextItem ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b>${m.nextItem.components ? ` · masz komponenty za ${m.nextItem.components.credit} złota, do ukończenia ${m.nextItem.components.remaining}` : ''}</p>` : ''}
     ${live?.auto && live.inventory ? disclosure('live-inventory', 'Odczytany ekwipunek · '+live.inventory.items.length+' zajętych slotów', live.inventory.items.length ? `<div class="live-items">${live.inventory.items.map(i=>`<span class="tag" title="${esc(i.name)}">${i.icon?`<img src="${esc(i.icon)}" alt="">`:''}${esc(i.name)}${i.count>1?' ×'+i.count:''}${i.kind==='component'?' · komponent':i.kind==='unknown'?' · poza katalogiem':''}</span>`).join('')}</div><p class="note">Gotowe przedmioty zostają w buildzie. Komponenty i mikstury są śledzone osobno.</p>` : '<p class="note">Ekwipunek jest pusty.</p>') : ''}
     ${live?.auto && live.inventory?.items.some(i=>i.kind==='unknown') ? '<p class="note">Przedmiot spoza katalogu: widoczny w odczycie, ale jeszcze nieuwzględniony w planie zakupów.</p>' : ''}
@@ -91,7 +93,7 @@ async function openMayhemEditor() {
         if(!result.ok)throw Error(result.error);
         labInput=next;labView=result;renderLabResults();
       }else{
-        const result=await window.assist.setMayhem({matchKey:context.matchKey,selection,autoInventory:values.has('auto-inventory')});if(!result.ok)throw Error(result.error);
+        const result=await window.assist.setMayhem({matchKey:context.matchKey,selection,autoInventory:values.has('auto-inventory'),knownScreenAugments:context.screenAugments || []});if(!result.ok)throw Error(result.error);
       }
       dialog.close();toast('Build dopasowany do augmentów i posiadanych przedmiotów');
     }catch(err){error(err.message);}finally{button.disabled=false;}

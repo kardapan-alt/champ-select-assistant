@@ -1,6 +1,6 @@
 {
   "name": "champ-select-assistant",
-  "version": "0.6.18",
+  "version": "0.6.19",
   "description": "Asystent wyboru postaci do League of Legends",
   "main": "src/main.js",
   "scripts": {
@@ -12,7 +12,9 @@
     "test:ui": "electron test/ui-smoke.cjs",
     "test:desktop": "electron test/desktop-smoke.cjs",
     "test:offline": "electron test/offline-lab.cjs",
-    "test:mayhem": "electron test/mayhem-smoke.cjs"
+    "test:mayhem": "electron test/mayhem-smoke.cjs",
+    "test:ocr": "electron test/ocr-smoke.cjs",
+    "test:screen": "electron test/augment-screen-smoke.cjs"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,9 @@
   "build": {
     "appId": "pl.daniel.champselectassistant",
     "productName": "Champ Select Assistant",
+    "asarUnpack": [
+      "src/windows-ocr.ps1"
+    ],
     "files": [
       "src/**",
       "data/**",

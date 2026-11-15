@@ -10,6 +10,7 @@ app.setPath('userData', profile); app.disableHardwareAcceleration();
 fs.writeFileSync(path.join(profile,'settings.json'), JSON.stringify({ stats:false, autoRunes:true, autoItemSet:false, autoPopup:false, launchAtLogin:false, keyboardShortcut:'' }));
 fs.writeFileSync(path.join(profile,'choices.json'), '{}');
 fs.writeFileSync(path.join(profile,'mayhem-session.json'), 'null');
+fs.writeFileSync(path.join(profile,'augment-screen.json'), 'null');
 process.argv.push('--background');
 process.env.PORT='0'; process.env.STEP='8';
 const server = require('../mock/mock-lcu');

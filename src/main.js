@@ -17,6 +17,13 @@ const draftlab = require('./draftlab');
 const mayhem = require('./mayhem');
 const { LiveClient, componentCredit } = require('./liveclient');
 const liveClient = new LiveClient();
+const augmentVision = require('./augment-vision');
+const augmentScreen = require('./augment-screen');
+const {WindowsOcr}=require('./windows-ocr');
+const windowsOcr=new WindowsOcr();
+const visionCatalog=require('../data/mayhem-augments.json').augments;
+const visionConsensus = new augmentVision.Consensus();
+let visionConfig = null, visionRevision = 0, visionToken = '', visionLastFrame = 0;
 const { isAram, modeFromFlow } = require('./modes');
 const offlineGame = require('./gamedata').buildGameData(require('../data/catalog.json'));
 const choiceWrites = serialQueue();
@@ -100,6 +107,7 @@ function scheduleRefresh() {
 }
 
 function initStats() {
+  try { visionConfig=augmentVision.validateConfig(readJson(userFile('augment-screen.json'),null)); } catch { visionConfig=null; }
   choicesStore = new ChoiceStore(readJson(userFile('choices.json'), {}), value => {
     const file = userFile('choices.json');
     fs.writeFileSync(file + '.tmp', JSON.stringify(value));
@@ -388,7 +396,9 @@ function finalWithEnemies(me) {
         if (credit > 0) next.components = { credit, remaining:Math.max(0,(game.items.get(next.id)?.priceTotal || 0)-credit) };
       }
       build.mayhem = { ...build.mayhem, matchKey:s.mayhemKey, pool:s.mayhemPool,
-        live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null } };
+        live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null },
+        screen:{ enabled:!!visionConfig?.enabled, config:visionConfig, revision:visionRevision,
+          status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off' } };
     }
     return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
@@ -691,6 +701,7 @@ ipcMain.handle('get-mayhem', wrap(() => {
   const state = mayhemContext(), alias = game.championsById.get(state.me.championId).alias;
   return { ok:true, matchKey:state.mayhemKey, alias, selection:mayhemSession.value.selection,
     autoInventory:mayhemSession.value.autoInventory !== false,
+    screenAugments:mayhemSession.value.screenSlots || [],
     ...mayhem.choicesCatalog(state.mayhemPool), items:draftlab.catalog(game,baseData,state,alias) };
 }));
 ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
@@ -699,12 +710,86 @@ ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
   if (input.autoInventory !== undefined && typeof input.autoInventory !== 'boolean') throw Error('Nieprawidłowy tryb odczytu ekwipunku.');
   const automatic = input.autoInventory ?? mayhemSession.value.autoInventory !== false;
   // Formularz otwarty przed zakupem nie może cofnąć świeżego odczytu z gry.
-  const selection = mayhem.validateSelection(automatic ? { ...input.selection, owned:[], ownedBoots:null } : input.selection,game,alias,state.mayhemPool);
+  const merged=augmentScreen.manualSelection(mayhemSession.value,input.selection,
+    Array.isArray(input.knownScreenAugments)?input.knownScreenAugments:[]);
+  const selection = mayhem.validateSelection(automatic ? { ...merged.selection, owned:[], ownedBoots:null } : merged.selection,game,alias,state.mayhemPool);
   mayhemSession.set(state.mayhemKey,selection);
+  mayhemSession.patch(state.mayhemKey,{screenIgnored:merged.screenIgnored});
   mayhemSession.setAutoInventory(state.mayhemKey,automatic);
   loadingDirty = true; send(buildLoadingView());
   return { ok:true };
 })));
+
+function visionStatus(status) {
+  if(!loading || loading.visionStatus===status)return;
+  loading.visionStatus=status;send(buildLoadingView());
+}
+ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
+  const state=mayhemContext(matchKey);
+  if(await lcu.get('/lol-gameflow/v1/gameflow-phase')!=='InProgress')throw Error('Odczyt obrazu działa podczas meczu Mayhem.');
+  const handle=await augmentScreen.gameWindowHandle();
+  if(!handle)throw Error('Nie widzę okna gry. Użyj okna bez ramek i pokaż pasek swoich augmentów.');
+  const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0},fetchWindowIcons:false});
+  const source=augmentScreen.sourceForHandle(sources,handle);
+  mayhemContext(matchKey);
+  if(!source)throw Error('Nie mogę odczytać okna gry. Użyj trybu okna bez ramek.');
+  visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();
+  win.webContents.setBackgroundThrottling(false);
+  return {ok:true,sourceId:source.id,token:visionToken,pool:state.mayhemPool};
+}));
+ipcMain.handle('stop-augment-capture',()=>{
+  visionToken='';visionConsensus.reset();
+  windowsOcr.stop();
+  if(win&&!win.isDestroyed())win.webContents.setBackgroundThrottling(true);
+});
+ipcMain.handle('set-augment-screen',wrap(input=>choiceWrites(async()=>{
+  const state=mayhemContext(input?.matchKey);
+  const config=augmentVision.validateConfig(input.config);
+  writeJson(userFile('augment-screen.json'),config);visionConfig=config;visionRevision++;visionConsensus.reset();
+  loading.visionStatus=config.enabled?'waiting':'off';send(buildLoadingView());
+  return {ok:true,matchKey:state.mayhemKey};
+})));
+ipcMain.handle('augment-screen-problem',wrap(input=>{
+  mayhemContext(input?.matchKey);visionConsensus.reset();visionStatus('waiting');return {ok:true};
+}));
+ipcMain.handle('augment-screen-preview',wrap(async input=>{
+  const state=mayhemContext(input?.matchKey);
+  if(!visionToken || input.token!==visionToken)throw Error('Otwórz odczyt ekranu ponownie.');
+  const result=await windowsOcr.read(input.png);
+  mayhemContext(input.matchKey);
+  if(result?.error==='language')throw Error('Windows nie ma OCR po polsku ani angielsku. Dodaj odpowiedni język OCR w ustawieniach Windows.');
+  if(!result?.readings)throw Error('OCR nie odczytał obrazu. Sprawdź, czy w zaznaczonym obszarze widać nazwę.');
+  const detected=augmentVision.recognizeText(result.readings,visionCatalog,state.mayhemPool);
+  return {ok:true,...detected,name:visionCatalog.find(a=>a.id===detected.id)?.name};
+}));
+ipcMain.handle('augment-screen-frame',wrap(async input=>{
+  const state=mayhemContext(input?.matchKey);
+  if(!visionConfig?.enabled || !visionToken || input.token!==visionToken || input.revision!==visionRevision
+    || !Number.isSafeInteger(input.frame) || input.frame<=visionLastFrame)return {ok:false,error:'Nieaktualny odczyt obrazu.'};
+  visionLastFrame=input.frame;
+  if(!augmentVision.sameLayout(visionConfig,input.width,input.height)){visionConsensus.reset();visionStatus('layout');return {ok:true};}
+  const result=await windowsOcr.read(input.png);
+  return choiceWrites(async()=>{
+  mayhemContext(input.matchKey);
+  if(!visionConfig?.enabled || input.token!==visionToken || input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
+  if(!result?.readings){visionConsensus.reset();visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+  const matches=[augmentVision.recognizeText(result.readings,visionCatalog,state.mayhemPool)];
+  const stable=visionConsensus.observe(`${state.mayhemKey}:${visionRevision}:${visionToken}`,matches);
+  if(stable.some(Boolean)){
+    try{
+      const known=mayhemSession.value.screenSlots || [];
+      const next=augmentScreen.reconcile(mayhemSession.value,[...known,...stable.filter(id=>id&&!known.includes(id))],game,state.mayhemPool);
+      if(JSON.stringify(next)!==JSON.stringify(mayhemSession.value)){
+        mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots});loadingDirty=true;
+      }
+    }catch{visionStatus('conflict');return {ok:true};}
+  }
+  visionStatus(matches.some(m=>m.status==='ambiguous')?'ambiguous':matches.some(m=>m.status==='match')?'reading':'unreadable');
+  if(loadingDirty){loadingDirty=false;send(buildLoadingView());}
+  return {ok:true};
+  });
+}));
+app.on('before-quit',()=>windowsOcr.stop());
 
 // ---------- aktualizacje ----------
 

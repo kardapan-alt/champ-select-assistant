@@ -161,6 +161,10 @@ class MayhemSession {
     const next = { ...this.value, inventory };
     this.save(next); this.value = next; return true;
   }
+  patch(key, changes) {
+    if(!key || this.value?.key!==key)throw Error('Mecz się zmienił. Otwórz augmenty ponownie.');
+    const next={...this.value,...changes};this.save(next);this.value=next;return next;
+  }
   setAutoInventory(key, enabled) {
     if (!key || this.value?.key !== key) throw Error('Mecz się zmienił. Otwórz ekwipunek ponownie.');
     const next = { ...this.value, autoInventory:enabled };

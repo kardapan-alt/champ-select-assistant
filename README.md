@@ -2,12 +2,22 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.19
+
+- **Lokalny OCR augmentów bez Overwolfa (wersja eksperymentalna).** Po jednorazowej kalibracji odczytuje polskie i angielskie nazwy z dymka własnego, już posiadanego augmentu. Trzy kolejne odczyty tej samej dokładnej nazwy dopisują augment i przeliczają build. Wymaga pokazania dymka przez około 3 sekundy; nie jest całkowicie bezobsługowy.
+- W meczu Mayhem wybierz **Ustaw OCR → Zdjęcie za 5 sekund**, wróć do gry i najedź na ikonę własnego augmentu. Po wykonaniu zdjęcia wróć do asystenta i zaznacz prostokątem samą nazwę w dymku, bez opisu. **Sprawdź odczyt**, potem **Włącz OCR**. Kolejne nazwy muszą pojawiać się w tym samym obszarze; po zmianie HUD lub rozdzielczości ustaw go ponownie. Obszar nie może obejmować proponowanych augmentów ani danych innych graczy.
+- Przechwytywane jest tylko okno procesu gry, bez dźwięku. Do systemowego OCR Windows trafia wyłącznie wycięty tytuł. Obraz nie jest zapisywany na dysk ani wysyłany do sieci; zapamiętywane są współrzędne obszaru i rozpoznane identyfikatory. Zamknięcie meczu lub wyłączenie OCR zatrzymuje strumień i pomocniczy proces.
+- OCR używa zainstalowanego w Windows języka polskiego lub angielskiego. Czarne/niewidoczne okno może wymagać przełączenia LoL-a na okno bez ramek. Brak obrazu, brak języka OCR, nieczytelna nazwa i kilka pasujących nazw mają osobne komunikaty. Pusty dymek nie usuwa wcześniejszych wyborów.
+- Ręczna korekta jest dostępna w **Augmenty i ekwipunek**. Usunięty tam augment nie zostanie ponownie dopisany przez OCR w tym meczu; nowy mecz resetuje wyjątki. Ukończenie questów pozostaje ręczne. Kalibracja OCR jest wyłączona do pierwszego skonfigurowania.
+
+Weryfikacja: `npm test`, `npm run test:ocr` (prawdziwy OCR Windows na wygenerowanych tytułach) oraz `npm run test:screen` (kalibracja, symulowany obraz gry, prawdziwy OCR i aktualizacja buildu). Testy OCR wymagają Windows i języka PL/EN; źródło obrazu w teście integracyjnym jest symulowane.
+
 ## Wersja 0.6.18
 
 - Mayhem automatycznie odczytuje własny ekwipunek z lokalnego Live Client Data API co około 2 sekundy. Zakup, sprzedaż, ulepszenie i nagroda aktualizują build; gotowe przedmioty pozostają na swoich miejscach, a dalsze zakupy uwzględniają wybrane augmenty.
 - Komponenty i mikstury są widoczne w rozwijanym odczycie. Komponenty nie zajmują slotów gotowych itemów; przy następnym zakupie aplikacja odejmuje ich wartość od kosztu ukończenia. Obsługiwany jest też pełny ekwipunek sześciu itemów po sprzedaży butów.
 - Status rozróżnia aktywny odczyt, oczekiwanie i przerwę połączenia. Brak danych nie zeruje ekwipunku. Można przełączyć na ręczne ustawianie w **Augmenty i ekwipunek → Odczyt ekwipunku**; wybór dotyczy tego meczu. Tester draftów pozostaje ręczny i odizolowany od gry.
-- **Wybór augmentów oraz ukończenie ich questów nadal zaznaczasz ręcznie.** Lokalny interfejs Riot nie udostępnia potwierdzonego odczytu wybranych augmentów Mayhem. Ta wersja nie rozpoznaje ich z ekranu i nie wymaga Overwolf. Reguły wpływu zaznaczonych augmentów na zakupy działają automatycznie.
+- W 0.6.18 wybór augmentów oraz ukończenie ich questów były ręczne. Od 0.6.19 wybory można uzupełniać opcjonalnym OCR opisanym powyżej. Lokalny interfejs Riot nie udostępnia potwierdzonego odczytu wybranych augmentów Mayhem.
 
 Źródło odczytu: [Live Client Data API Riot](https://developer.riotgames.com/docs/lol#game-client-api_live-client-data-api). Połączenie wyłącznie z `127.0.0.1:2999`, tylko żądania GET. Dane pozostałych graczy z odpowiedzi nie są zapisywane. Zapisany ekwipunek jest przypisany do meczu, championa i wariantu Mayhem.
 
@@ -122,7 +132,7 @@ Kroki scenariusza w symulatorze: `http://127.0.0.1:2999/__step?n=0` … `n=3`.
 - Od **0.6.17 każdy z 283 augmentów** katalogu ma jawną, automatyczną regułę (241 w KIWI, 188 w KIWI_JADE; część wspólna). Wybierasz nazwę augmentu, bez przypisywania efektu. Dla KIWI 191 reguł może zmieniać priorytety przedmiotów, a 50 objaśnia brak wymuszonej zmiany zakupów — np. złoto, losowa nagroda czy zmiana Flasha. Opcjonalne własne korekty są schowane w szczegółach. To heurystyki synergii, bez deklarowania winrate lub optymalnego buildu dla każdej kombinacji.
 - Reguły uwzględniają m.in. krytyczne czary, on-hit, AP/AD, manę, leczenie, odporności, ruch, spowolnienia, ulepszenia itemów i questy. Sprzeczne mechaniki są rozstrzygane razem: Back To Basics wyłącza zakupy pod R, Vampirism wyklucza Warmoga, a konwersja HP nie jest traktowana jako dodatkowa obrona.
 - Posiadane automatyczne ulepszenia i nagrody (np. Seraph, Jarvan I's) pozostają w ekwipunku. Reguły rozróżniają darmowy Heartsteel, buty z questu, ulepszanie Hex Core i kopie przedmiotów dopuszczone przez odpowiedni augment. Kolejne kopie konkurują z odpowiedziami na przeciwników; planner nie zapełnia automatycznie całego buildu jednym itemem.
-- Augmenty i ukończenie questów zaznaczasz ręcznie. Od 0.6.18 ekwipunek jest odczytywany automatycznie, z możliwością ręcznej korekty po wyłączeniu odczytu. Dane zapisują się lokalnie dla danego meczu i championa, odtwarzają po restarcie oraz resetują w następnym meczu.
+- Augmenty wybierasz ręcznie lub uzupełniasz lokalnym OCR; ukończenie questów zaznaczasz ręcznie. Od 0.6.18 ekwipunek jest odczytywany automatycznie, z możliwością ręcznej korekty po wyłączeniu odczytu. Dane zapisują się lokalnie dla danego meczu i championa, odtwarzają po restarcie oraz resetują w następnym meczu.
 - Build w aplikacji aktualizuje się od razu. Zapis zestawu do klienta po zmianie augmentów uruchamia osobny przycisk; klient może nie odświeżyć już otwartego sklepu w trakcie meczu.
 - Mayhem jest również dostępny w **Testerze draftów**. Symulacja nie zmienia wyborów trwającego meczu.
 - ARAM i Mayhem nie pokazują porad o linii, jungli i wardach ani statystyk/rang graczy z soloQ. Mayhem skupia główny ekran na buildzie i augmentach; zwykły ARAM zachowuje porady o walkach drużynowych.
