@@ -29,6 +29,10 @@ const {compareAugments}=require('./mayhem-compare');
 const {headlinerView}=require('./headliners');
 const {synergies}=require('./augment-synergies');
 const {MatchReview}=require('./match-review');
+const {ownerKey,ResultResolver}=require('./match-result');
+const resultResolver=new ResultResolver();
+const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
+const headlinerConsensus=new HeadlinerConsensus();
 let matchReview;
 const offerTracker=new augmentOffers.OfferTracker();
 const visionCatalog=require('../data/mayhem-augments.json').augments;
@@ -271,6 +275,9 @@ async function tick() {
     else matchReview?.gap();
     loading = null;
     if (phase !== 'ChampSelect') {
+      resultResolver.poll(matchReview,lcu).then(changed=>{
+        if(changed&&lastState?.status==='idle')send({...lastState});
+      }).catch(()=>{});
       lastSessionJson = '';
       lastImportedRunes = null; lastObservedRunes = null;
       autoRunes = { key: '', done: '', error: '' };
@@ -440,6 +447,8 @@ function finalWithEnemies(me) {
       }
       build.mayhem = { ...build.mayhem, matchKey:s.mayhemKey, pool:s.mayhemPool,
         headliner:headlinerView(s.mayhem?.headliner,s.mayhem),synergies:synergies(s.mayhem),
+        headlinerDetection:{auto:automaticHeadliner(mayhemSession.value),source:mayhemSession.value.headlinerSource||'manual',
+          available:!!visionConfig?.enabled&&visionConfig.mode==='auto'},
         live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null },
         screen:{ enabled:!!visionConfig?.enabled, config:visionConfig, revision:visionRevision,
           status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off' } };
@@ -453,7 +462,8 @@ function finalWithEnemies(me) {
       }
     }
     if(liveStatus==='live')matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
-      alias,name:game.championsById.get(me.championId)?.name||alias,mode:currentMode,snapshot:loading.liveSnapshot,build});
+      alias,name:game.championsById.get(me.championId)?.name||alias,mode:currentMode,snapshot:loading.liveSnapshot,build,
+      gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid)});
     return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
@@ -757,6 +767,7 @@ function mayhemContext(key) {
 ipcMain.handle('get-mayhem', wrap(() => {
   const state = mayhemContext(), alias = game.championsById.get(state.me.championId).alias;
   return { ok:true, matchKey:state.mayhemKey, alias, selection:mayhemSession.value.selection,
+    autoHeadliner:automaticHeadliner(mayhemSession.value),headlinerSource:mayhemSession.value.headlinerSource||'manual',
     autoInventory:mayhemSession.value.autoInventory !== false,
     screenAugments:mayhemSession.value.screenSlots || [],
     screenUndoRevision:mayhemSession.value.screenUndoRevision || 0,
@@ -771,10 +782,14 @@ ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
   // Formularz otwarty przed zakupem nie może cofnąć świeżego odczytu z gry.
   const merged=augmentScreen.manualSelection(mayhemSession.value,input.selection,
     Array.isArray(input.knownScreenAugments)?input.knownScreenAugments:[]);
+  if(input.headlinerEdited!==true)merged.selection.headliner=mayhemSession.value.selection.headliner;
+  if(input.headlinerEdited===true&&typeof input.autoHeadliner!=='boolean')throw Error('Nieprawidłowy tryb wykrywania Headlinera.');
+  if(input.headlinerEdited===true&&input.autoHeadliner)delete merged.selection.headliner;
   const selection = mayhem.validateSelection(automatic ? { ...merged.selection, owned:[], ownedBoots:null } : merged.selection,game,alias,state.mayhemPool);
   mayhemSession.set(state.mayhemKey,selection);
   mayhemSession.patch(state.mayhemKey,{screenIgnored:merged.screenIgnored,screenHistory:merged.screenHistory});
   mayhemSession.setAutoInventory(state.mayhemKey,automatic);
+  if(input.headlinerEdited===true){mayhemSession.patch(state.mayhemKey,{autoHeadliner:input.autoHeadliner,headlinerSource:'manual'});headlinerConsensus.reset();}
   loadingDirty = true; send(buildLoadingView());
   return { ok:true };
 })));
@@ -807,12 +822,12 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   const source=augmentScreen.sourceForHandle(sources,handle);
   mayhemContext(matchKey);
   if(!source)throw Error('Nie mogę odczytać okna gry. Użyj trybu okna bez ramek.');
-  visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();
+  visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();headlinerConsensus.reset();
   offerTracker.reset();
   if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>{
     offerTracker.input(event);
     if(event.type==='down'||event.type==='cancel')updateVisionOffer(null,event.at);
-    if(event.type==='focus'&&!event.focused)visionStatus('paused');
+    if(event.type==='focus'&&!event.focused){headlinerConsensus.reset();visionStatus('paused');}
     else if(loadingDirty)visionStatus(loading?.visionStatus||'scanning');
   });
   win.webContents.setBackgroundThrottling(false);
@@ -820,7 +835,7 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
 }));
 function stopVisionWorkers(){
   updateVisionOffer(null);
-  visionToken='';visionConsensus.reset();
+  visionToken='';visionConsensus.reset();headlinerConsensus.reset();
   windowsOcr.stop();augmentClicks.stop();offerTracker.reset();
   if(win&&!win.isDestroyed())win.webContents.setBackgroundThrottling(true);
 }
@@ -879,15 +894,20 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
 async function readAutomaticAugment(input,state){
   if(loading?.visionOffer&&Date.now()-loading.visionOffer.at>=30000)updateVisionOffer(null);
   if(!augmentClicks.child)return {ok:false,error:'Ponawiam odczyt okna gry.'};
-  if(!augmentClicks.active()){offerTracker.reset();visionStatus('paused');return {ok:true};}
+  if(!augmentClicks.active()){offerTracker.reset();headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
   const grid=augmentOffers.readGrid(input.grid);
   if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
-    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){offerTracker.reset();updateVisionOffer(null);visionStatus('waiting');return {ok:true};}
+    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus('waiting');return {ok:true};}
   const result=await windowsOcr.read(input.png);
   return choiceWrites(async()=>{
     mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
-    if(!result?.layouts){offerTracker.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    if(augmentClicks.active()&&automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
+      const headliner=headlinerConsensus.observe(`${state.mayhemKey}:${visionToken}:${visionRevision}`,result,input.at);
+      const patch=headliner&&applyHeadliner(mayhemSession.value,headliner);
+      if(patch){mayhemSession.patch(state.mayhemKey,patch);loadingDirty=true;}
+    }
     const cropWidth=Math.min(1,input.height*16/9/input.width);
     const detected=augmentOffers.detectOffer({...result,crop:{x:(1-cropWidth)/2,y:0,w:cropWidth,h:1}},grid,visionCatalog,state.mayhemPool);
     const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:augmentClicks.active()});

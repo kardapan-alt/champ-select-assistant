@@ -1,0 +1,123 @@
+{
+  "fetched": "2026-11-15",
+  "sources": [
+    {
+      "locale": "en_us",
+      "url": "https://raw.communitydragon.org/latest/game/en_us/data/menu/en_us/lol.stringtable.json"
+    },
+    {
+      "locale": "pl_pl",
+      "url": "https://raw.communitydragon.org/latest/game/pl_pl/data/menu/en_us/lol.stringtable.json"
+    }
+  ],
+  "texts": [
+    {
+      "id": "kda",
+      "locale": "en_us",
+      "title": "K/DA",
+      "description": "Collect all 4 Cards to gain an Augment!"
+    },
+    {
+      "id": "heartsteel",
+      "locale": "en_us",
+      "title": "HEARTSTEEL",
+      "description": "Some Augments are enhanced by the Band!"
+    },
+    {
+      "id": "true-damage",
+      "locale": "en_us",
+      "title": "True Damage",
+      "description": "Hype the crowd to be showered with Anvils!"
+    },
+    {
+      "id": "pentakill",
+      "locale": "en_us",
+      "title": "Pentakill",
+      "description": "Empower your Abilities!"
+    },
+    {
+      "id": "disco",
+      "locale": "en_us",
+      "title": "Space Groove",
+      "description": "Boogie down on the Dance Floor!"
+    },
+    {
+      "id": "cafe-cuties",
+      "locale": "en_us",
+      "title": "Cafe Cuties",
+      "description": "Healing Relics are empowered!"
+    },
+    {
+      "id": "bees",
+      "locale": "en_us",
+      "title": "The Bee Band",
+      "description": "Grab the Honey, avoid the Bees!"
+    },
+    {
+      "id": "command-line",
+      "locale": "en_us",
+      "title": "Command Line",
+      "description": "Hacked Rerolls improve your Augments!"
+    },
+    {
+      "id": "superfans",
+      "locale": "en_us",
+      "title": "Superfans",
+      "description": "Extra Augment at Level 21!"
+    },
+    {
+      "id": "kda",
+      "locale": "pl_pl",
+      "title": "K/DA",
+      "description": "Zbierz wszystkie 4 karty, aby zyskać ulepszenie!"
+    },
+    {
+      "id": "heartsteel",
+      "locale": "pl_pl",
+      "title": "HEARTSTEEL",
+      "description": "Niektóre ulepszenia mogą zostać wzmocnione przez zespół!"
+    },
+    {
+      "id": "true-damage",
+      "locale": "pl_pl",
+      "title": "True Damage",
+      "description": "Rozgrzej tłum, aby posypały się Kowadła!"
+    },
+    {
+      "id": "pentakill",
+      "locale": "pl_pl",
+      "title": "Pentakill",
+      "description": "Wzmocnij swoje umiejętności!"
+    },
+    {
+      "id": "disco",
+      "locale": "pl_pl",
+      "title": "Kosmofaza",
+      "description": "Daj czadu na parkiecie!"
+    },
+    {
+      "id": "cafe-cuties",
+      "locale": "pl_pl",
+      "title": "Kawiarniane Cukiereczki",
+      "description": "Relikty Zdrowia są wzmocnione!"
+    },
+    {
+      "id": "bees",
+      "locale": "pl_pl",
+      "title": "Pszczelaści",
+      "description": "Łap miodek, ale unikaj pszczół!"
+    },
+    {
+      "id": "command-line",
+      "locale": "pl_pl",
+      "title": "Wiersz Poleceń",
+      "description": "Zhakowane wymiany ulepszają ulepszenia!"
+    },
+    {
+      "id": "superfans",
+      "locale": "pl_pl",
+      "title": "Superfani",
+      "description": "Dodatkowe ulepszenie na 21. poziomie!"
+    }
+  ]
+}

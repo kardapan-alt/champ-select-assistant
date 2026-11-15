@@ -9,13 +9,15 @@ const server=require('../mock/mock-lcu');
 const {LcuClient}=require('../src/lcu'),{LiveClient}=require('../src/liveclient');
 const catalog=require('../data/catalog.json');
 let win,mode='KIWI',gameId=870,gold=1000,ownItems=[6655,3020,1026],enemyItems=[4401,3111],connected=true,pending=null,requests=0;
-let flow,champions=[],flowFailure=false,phaseOverride=null;
+let flow,champions=[],flowFailure=false,phaseOverride=null,endReady=false,currentSummoner;
 const originalGet=LcuClient.prototype.get,readInventory=LiveClient.prototype.inventory;
 LcuClient.prototype.get=async function(url){
+  if(url==='/lol-end-of-game/v1/eog-stats-block')return endReady?{gameId,localPlayer:{puuid:currentSummoner.puuid,championId:flow.gameData.teamOne.find(p=>p.puuid===currentSummoner.puuid).championId,stats:{WIN:1}}}:null;
   if(phaseOverride&&url==='/lol-gameflow/v1/gameflow-phase')return phaseOverride;
   if(flowFailure && url==='/lol-gameflow/v1/session')return null;
   if(url.endsWith('/items.json'))return catalog.items;
   const value=await originalGet.call(this,url);
+  if(url==='/lol-summoner/v1/current-summoner')currentSummoner=value;
   if(url.endsWith('/champion-summary.json'))champions=value;
   if(url==='/lol-gameflow/v1/session'&&value){value.gameData.queue.gameMode=mode;value.map.id=mode==='CLASSIC'?11:12;value.gameData.queue.id=mode==='CLASSIC'?420:450;value.gameData.gameId=gameId;flow=value;}
   return value;
@@ -106,10 +108,15 @@ server.once('listening',async()=>{
     await evaluate('openMatchReviews()');
     assert.ok(await evaluate('document.getElementById("review-dialog").open'));
     assert.ok(await evaluate('document.querySelectorAll(".review-timeline li").length>1'));
+    assert.equal((await state()).recentMatch.outcome,undefined,'Brak wyniku nie może być porażką');
+    endReady=true;
+    await waitFor(async()=> (await state()).recentMatch?.outcome?.result==='win','Automatyczny wynik nie dotarł');
+    await waitFor(()=>evaluate('document.querySelector("#review-outcome").textContent.includes("automatycznie")'),'Otwarty panel nie pokazał automatycznego wyniku');
     await evaluate(`document.querySelector('#review-feedback [name=result]').value='win';document.querySelector('#review-feedback [name=rating]').value='helpful';document.querySelector('#review-feedback').requestSubmit();void 0`);
     await waitFor(async()=> (await evaluate('window.assist.matchReviews()')).matches[0].feedback?.rating==='helpful','Ocena nie zapisana');
     const disk=JSON.parse(fs.readFileSync(path.join(profile,'match-review.json'),'utf8'));
     assert.equal(disk.matches[0].feedback.result,'win');assert.equal(disk.active,null);
+    assert.equal(disk.matches[0].outcome.result,'win');assert.equal(disk.matches[0].outcome.source,'client');
     assert.ok(disk.matches.find(m=>m.mode==='mayhem')?.events.some(e=>e.type==='augments'&&e.augments.length===6));
     assert.equal(JSON.stringify(disk).includes('Daniel#EUNE'),false);
     await evaluate(`document.querySelector('.review-timeline').open=true;void 0`);

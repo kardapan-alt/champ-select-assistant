@@ -5,9 +5,10 @@ const catalog=[
   {id:'heartsteel',name:'HEARTSTEEL',tip:'Augmenty mogą otrzymać dodatkowe modyfikatory. Porównanie ocenia bazowy efekt; sprawdź w grze modyfikator każdej karty przed wyborem.'},
   {id:'true-damage',name:'True Damage',tip:'Eliminacje i zniszczenie wież mogą dać drużynie kowadła. Ich bonusów do statystyk nie odczytuję; sam Headliner nie wymusza zmiany przedmiotów.'},
   {id:'pentakill',name:'Pentakill',tip:'Wzmocnienie umiejętności na początku gry i na poziomie 18. Zapisz wzmacnianą umiejętność; sprawdzę konflikt z augmentami wyłączającymi R.'},
-  {id:'disco',name:'Disco',tip:'Taniec pod kulą daje wszystkim złoto. Kup teraz korzysta z faktycznie odczytanego złota, bez doliczania przewidywanych nagród.'},
+  {id:'disco',name:'Kosmofaza / Space Groove',tip:'Taniec pod kulą daje wszystkim złoto. Kup teraz korzysta z faktycznie odczytanego złota, bez doliczania przewidywanych nagród.'},
   {id:'cafe-cuties',name:'Cafe Cuties',tip:'Relikty zdrowia mają silniejszy efekt. Korzystaj z nich z drużyną; nie traktuję ich jako stałego źródła leczenia z przedmiotów.'},
-  {id:'bees',name:'Bees',tip:'Zbieraj miód i unikaj pszczół na mapie. Sam ten Headliner nie uzasadnia zmiany buildu.'},
+  {id:'bees',name:'Pszczelaści / The Bee Band',tip:'Zbieraj miód i unikaj pszczół na mapie. Sam ten Headliner nie uzasadnia zmiany buildu.'},
+  {id:'superfans',name:'Superfani / Superfans',tip:'Dodatkowy augment na poziomie 21. Po wyborze uwzględnię go w porównaniu i buildzie; nie doliczam nagrody przed jej otrzymaniem.'},
   {id:'command-line',name:'Command Line',tip:'W każdej selekcji możesz przerzucić jeden augment na wyższy poziom. Po przerzucie poczekaj na ponowne rozpoznanie trzech kart.'},
   {id:'other',name:'Inny / nowy Headliner',tip:'Brak potwierdzonej reguły dla tego Headlinera. Build nadal uwzględnia zapisane augmenty i odczytany ekwipunek.'},
 ];

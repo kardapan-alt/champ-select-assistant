@@ -4,12 +4,12 @@ const item=i=>({id:i.id,name:i.name,icon:i.icon||'',count:i.count||1});
 class MatchReview {
   constructor(value={},save=()=>{}){this.value=value&&Array.isArray(value.matches)?value:{matches:[],active:null};this.save=save;}
   persist(){this.save(clone(this.value));}
-  observe({key,alias,name,mode,snapshot,build}){
+  observe({key,alias,name,mode,snapshot,build,gameId,championId,owner}){
     if(!key||snapshot?.status!=='live'||!snapshot.inventory||!Number.isFinite(snapshot.gameTime))return;
     if(this.value.matches.some(m=>m.key===key))return;
     if(this.value.active?.key!==key){
       this.finish('interrupted');
-      this.value.active={key,alias,name,mode,startedAt:Date.now(),duration:0,events:[],items:[],augments:[],headliner:null,firstRead:snapshot.gameTime};
+      this.value.active={key,alias,name,mode,gameId,championId,owner,startedAt:Date.now(),duration:0,events:[],items:[],augments:[],headliner:null,firstRead:snapshot.gameTime};
     }
     const a=this.value.active,time=Math.floor(snapshot.gameTime);
     if(time<a.duration)return; // Delayed snapshots cannot rewrite the timeline.
@@ -21,12 +21,14 @@ class MatchReview {
     if(JSON.stringify(augments)!==JSON.stringify(a.augments)||JSON.stringify(headliner)!==JSON.stringify(a.headliner))events.push({type:'augments',time,augments,headliner});
     const target=build.shop?.target?{id:build.shop.target.id,name:build.shop.target.name,why:build.shop.target.why}:null;
     if(JSON.stringify(target)!==JSON.stringify(a.target||null))events.push({type:'plan',time,target});
-    const dirty=events.length||time-a.duration>=15||a.gap;
+    const hasOutcome=require('./match-result').gameId(a.gameId)&&['win','loss'].includes(snapshot.outcome)&&!a.outcome;
+    const dirty=events.length||time-a.duration>=15||a.gap||hasOutcome;
     if(!dirty)return;
     if(a.gap){events.unshift({type:'gap',time});a.gap=false;}
     a.events.push(...events);if(a.events.length>200){a.events=a.events.slice(-200);a.trimmed=true;}
     Object.assign(a,{duration:time,items:snapshot.inventory.items.map(item),augments,headliner,target,
       build:build.items.map(item),synergies:build.mayhem?.synergies||[]});
+    if(hasOutcome)a.outcome={result:snapshot.outcome,source:'live',gameId:String(a.gameId),detectedAt:Date.now()};
     this.persist();
   }
   gap(){if(this.value.active&&!this.value.active.gap){this.value.active.gap=true;this.persist();}}
@@ -37,9 +39,14 @@ class MatchReview {
   }
   feedback(key,input){
     const m=this.value.matches.find(m=>m.key===key);if(!m)throw Error('Nie znaleziono tego podsumowania.');
-    if(!['unknown','win','loss'].includes(input?.result)||!['none','helpful','mixed','unhelpful'].includes(input?.rating))throw Error('Nieprawidłowa ocena meczu.');
+    if(!['auto','unknown','win','loss'].includes(input?.result)||!['none','helpful','mixed','unhelpful'].includes(input?.rating))throw Error('Nieprawidłowa ocena meczu.');
     m.feedback={result:input.result,rating:input.rating};this.persist();return clone(m);
   }
   list(){return clone(this.value.matches);}
+  setOutcome(key,outcome){
+    const m=this.value.matches.find(m=>m.key===key);
+    if(!m||m.outcome||String(m.gameId)!==outcome?.gameId||!['win','loss'].includes(outcome.result)||!['client','history'].includes(outcome.source))return false;
+    m.outcome={result:outcome.result,source:outcome.source,gameId:outcome.gameId,detectedAt:Date.now()};this.persist();return true;
+  }
 }
 module.exports={MatchReview};

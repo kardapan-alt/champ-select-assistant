@@ -7,6 +7,11 @@ const engine=require('../src/engine');
 const data=require('../data/champions.json');
 const item=(itemID,slot=0,extra={})=>({itemID,slot,count:1,consumable:false,...extra});
 const me={gameName:'Gracz',tagLine:'EUNE'};
+test('wynik Live Client jest odczytywany dopiero po weryfikacji własnego gracza',async()=>{
+  const f=fixture();f.events={Events:[{EventName:'GameEnd',EventTime:f.gameData.gameTime,Result:'Win'}]};
+  assert.equal((await read(f)).outcome,'win');
+  f.activePlayer.riotId='Wróg#EUNE';assert.equal((await read(f)).outcome,undefined);
+});
 function fixture(items=[]) {
   return {activePlayer:{riotId:'Gracz#EUNE',currentGold:1234.8},
     allPlayers:[{riotId:'Wróg#EUNE',team:'CHAOS',rawChampionName:'game_character_displayname_Ahri',items:[item(3031)]},

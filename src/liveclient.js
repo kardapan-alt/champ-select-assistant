@@ -73,7 +73,8 @@ class LiveClient {
     if (!inventory) return { status:'invalid' };
     const gold = Number.isFinite(active.currentGold) && active.currentGold >= 0 ? Math.floor(active.currentGold) : null;
     const enemies = enemyInventories(players,own,options.enemies,game,mode);
-    return { status:'live', inventory, gold, enemies, gameTime:stats.gameTime };
+    const outcome=require('./match-result').fromLiveEvents(snapshot.events,stats.gameTime);
+    return { status:'live', inventory, gold, enemies, gameTime:stats.gameTime, ...(outcome?{outcome}:{}) };
   }
 }
 

@@ -1,11 +1,10 @@
-## Champ Select Assistant 0.6.23
+## Champ Select Assistant 0.6.24
 
-- Porównanie trzech ścieżek zakupów: plan, wcześniejszy zakup i alternatywa. Osobne koszty po odjęciu komponentów, dostępne złoto i wyjaśnienie kompromisu.
-- Synergie augmentów oraz osobne uzasadnienie dopasowania do postaci, ekwipunku i pozostałych augmentów.
-- Ręczny wybór Headlinera, dodatkowe augmenty z wydarzenia, ostrzeżenia Pentakill / Back To Basics i ograniczenia oceny modyfikatorów HEARTSTEEL.
-- Podsumowanie po meczu z lokalną historią ekwipunku, augmentów i porad. Ostatnie 10 meczów, oznaczanie luk w odczycie oraz własna ocena przydatności porad. Wynik wpisujesz ręcznie.
-- Widoczna informacja o Riot i odnośnik do zasad. Aplikacja nie deklaruje zatwierdzenia przez Riot ani gwarancji braku sankcji.
+- Automatyczne wykrywanie Headlinera z widocznej nazwy i opisu wydarzenia. Dziewięć Headlinerów, polskie i angielskie teksty, trzy zgodne odczyty Windows OCR. Bez Overwolfa, najeżdżania i kalibracji.
+- Ręczna korekta ma pierwszeństwo; wykryty Headliner nie znika po zapisaniu starszego formularza augmentów. Ustawienia są ograniczone do jednego meczu.
+- Automatyczny wynik z komunikatu końca gry lub danych klienta, z ponawianiem odczytu i sprawdzeniem historii tego samego meczu. Brak danych pozostaje nieznanym wynikiem.
+- Otwarty panel podsumowania aktualizuje wynik po nadejściu danych. Opcjonalna ręczna korekta i powrót do automatycznego wyniku.
 
-Walidacja: 178 testów logiki oraz testy interfejsu, Mayhem, OCR ofert i całego przepływu zakupów / podsumowania na symulowanych meczach. Bez testu nowych funkcji w rzeczywistym meczu.
+Headliner wymaga czytelnego komunikatu wydarzenia i włączonego automatycznego OCR. Wzmocniona umiejętność Pentakill oraz modyfikatory HEARTSTEEL nadal wymagają osobnej oceny. Odczyt Headlinera jest eksperymentalny; nie był jeszcze testowany w rzeczywistym meczu.
 
-Instalator zachowuje ustawienia. Aktualizacje aplikacja pobiera z wydań GitHub.
+Walidacja: 186 testów logiki, testy całej aplikacji na symulowanych meczach i prawdziwy OCR Windows na testowych komunikatach. Format wyniku sprawdzono na danych historii w lokalnym kliencie.

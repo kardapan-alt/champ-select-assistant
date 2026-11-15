@@ -2,6 +2,18 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.24
+
+- **Automatyczny Headliner z obrazu gry:** istniejący OCR odczytuje nazwę wraz z właściwym opisem wydarzenia w centralnej części okna gry. Wymagane są trzy zgodne odczyty. Obsługiwane są polskie i angielskie komunikaty dziewięciu Headlinerów, w tym Superfans. Sama nazwa przedmiotu/skina, nazwa bez opisu lub niejednoznaczny zestaw nie wystarczają.
+- Nie wymaga najeżdżania ani kalibracji. Działa, gdy w grze widać czytelny komunikat wydarzenia i włączony jest **automatyczny OCR**. Pominięty lub nieczytelny komunikat pozostawia Headlinera nieustalonego. Funkcja jest eksperymentalna. Wzmacniane Q/W/E/R Pentakill i dodatkowe modyfikatory HEARTSTEEL nie są rozpoznawane automatycznie.
+- **Ręczna korekta ma pierwszeństwo.** W „Augmenty i ekwipunek” ręczny wybór wyłącza odczyt Headlinera w bieżącym meczu. Zaznaczenie automatycznego wykrywania rozpoczyna nowy odczyt. Formularz otwarty przed automatycznym wykryciem nie kasuje nowego Headlinera przy zmianie samych augmentów. Ustawienie i rozpoznanie dotyczą tylko bieżącego meczu.
+- **Automatyczny wynik:** komunikat GameEnd z Live Client lub wynik konkretnego meczu z klienta LoL. Po opóźnieniu danych aplikacja ponawia odczyt i sprawdza historię tego samego meczu. Numer meczu, własny gracz i champion są weryfikowani; brak danych nigdy nie oznacza porażki. Wynik pojawia się także w już otwartym podsumowaniu. Można go ręcznie skorygować albo wrócić do ustawienia „Automatycznie z gry”.
+- Nowe zapisy historii zawierają numer meczu, championa i skrót identyfikatora właściciela do kontroli zgodności konta. Nie zapisują surowego PUUID ani nazw kont innych graczy. Stare zapisy bez tych danych zachowują opcję ręcznego wyniku.
+
+Teksty OCR pochodzą z danych gry publikowanych przez CommunityDragon: dokładne źródła i data znajdują się w `data/headliner-texts.json`. Nie pobieramy ich ani nie wysyłamy obrazów w czasie meczu. Wyniki wykorzystują `/liveclientdata/allgamedata`, `/lol-end-of-game/v1/eog-stats-block` oraz `/lol-match-history/v1/games/{gameId}`. Zasady Riot i brak deklaracji zatwierdzenia pozostają opisane przyciskiem w aplikacji.
+
+Walidacja: 186 testów logiki, testy Mayhem, test pełnego przepływu z opóźnionym wynikiem oraz prawdziwy OCR Windows na symulowanych komunikatach Headlinerów i kart augmentów. Format danych wyniku zweryfikowano również na historii meczu dostępnej w lokalnym kliencie. Automatycznego Headlinera nie testowano jeszcze podczas rzeczywistego meczu.
+
 ## Wersja 0.6.23
 
 - **Porównanie zakupów:** bieżący plan, wcześniejszy zakup późniejszego itemu i sytuacyjna alternatywa. Każda ścieżka ma osobno policzone komponenty, dostępne złoto, wolne sloty, uzasadnienie i koszt odłożenia obecnego celu. Rozwinięcie „Porównaj ścieżki zakupów” nie zmienia przypiętych wyborów.

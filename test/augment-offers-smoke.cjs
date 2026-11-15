@@ -43,6 +43,29 @@ server.once('listening',async()=>{
     assert.ok(await evaluate('lastState.final.build.mayhem.screen.config.mode==="auto"'));
     assert.ok(await evaluate('!document.querySelector("#augment-calibration[open]")'));
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);
+    await evaluate(`window.drawHeadliner=(title,description)=>{
+      drawOffer(null);const x=offerFixture.getContext('2d');x.fillStyle='#101923';x.fillRect(370,150,1180,330);
+      x.textAlign='center';x.fillStyle='#ecd9ab';x.font='bold 44px Segoe UI';x.fillText(title,960,270);
+      x.fillStyle='#eeeeee';x.font='28px Segoe UI';x.fillText(description,960,350);
+    };void 0`);
+    // A form opened before automatic detection must not erase the new Headliner.
+    await evaluate('openMayhemEditor()');
+    await evaluate(`drawHeadliner('K/DA','Collect all 4 Cards to gain an Augment!')`);
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.headliner?.id==="kda"'),'Headliner z prawdziwego OCR');
+    assert.equal(await evaluate('lastState.final.build.mayhem.headlinerDetection.source'),'screen');
+    await evaluate('document.querySelector("#mayhem-form").requestSubmit();void 0');
+    await waitFor(()=>evaluate('!document.getElementById("mayhem-dialog").open'),'Zapis starego formularza');
+    assert.equal(await evaluate('lastState.final.build.mayhem.headliner.id'),'kda');
+    await evaluate('openMayhemEditor()');
+    await evaluate(`document.querySelector('[name=headliner]').value='pentakill';document.querySelector('[name=headliner]').dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#mayhem-form').requestSubmit();void 0`);
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.headliner?.id==="pentakill"'),'Ręczna korekta Headlinera');
+    await new Promise(r=>setTimeout(r,2400));
+    assert.equal(await evaluate('lastState.final.build.mayhem.headliner.id'),'pentakill');
+    await evaluate('openMayhemEditor()');
+    await evaluate(`const auto=document.querySelector('[name=auto-headliner]');auto.checked=true;auto.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#mayhem-form').requestSubmit();void 0`);
+    await evaluate(`drawHeadliner('Wiersz Poleceń','Zhakowane wymiany ulepszają ulepszenia!')`);
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.headliner?.id==="command-line"'),'Polski Headliner z OCR');
+    await evaluate('drawOffer()');
     await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards.length===3'),'Brak porównania kart');
     assert.equal(await evaluate('document.querySelectorAll("[data-offer-id]").length'),3);
     for(const [width,height] of [[1100,720],[820,640]]){
@@ -106,6 +129,7 @@ server.once('listening',async()=>{
     await waitFor(()=>evaluate('lastState.final?.build?.mayhem?.matchKey.startsWith("778:")'),'Nowy mecz');
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);
     assert.ok(await evaluate('!lastState.final.build.mayhem.undo&&!lastState.final.build.mayhem.comparison'));
+    assert.equal(await evaluate('lastState.final.build.mayhem.headliner'),null);
     assert.ok(!(await evaluate('window.assist.undoAugmentRecognition({matchKey:beforeUndo.matchKey,token:oldUndo.token})')).ok);
     console.log('PASS: rzeczywisty OCR, porównanie, zmiana ofert, zatrzymany podgląd, wybór i build, cofanie, stary formularz/przycisk, ponowny odczyt, ręczne przywrócenie i izolacja nowego meczu.');
     server.close();win.destroy();app.quit();
