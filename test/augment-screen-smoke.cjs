@@ -23,7 +23,7 @@ server.once('listening',async()=>{
     await evaluate(`navigator.mediaDevices.getUserMedia=async constraints=>{
       if(constraints.audio!==false||constraints.video.mandatory.chromeMediaSourceId!=='window:1234:0')throw Error('wrong capture');
       const c=document.createElement('canvas');c.width=1920;c.height=1080;const x=c.getContext('2d');x.fillStyle='#101923';x.fillRect(0,0,c.width,c.height);x.fillStyle='#ecdbb6';x.font='bold 32px Segoe UI';x.fillText('Apex Inventor',100,850);window.ocrFixture=c;return c.captureStream(2);
-    };document.querySelector('[data-augment-screen]').click();`);
+    };openAugmentCalibration();`);
     await waitFor(()=>evaluate('!!document.querySelector("#augment-calibration[open]")'),'Kalibracja nie otworzyła się');
     await evaluate(`(()=>{const c=document.querySelector('#augment-calibration canvas'),r=c.getBoundingClientRect();c.setPointerCapture=()=>{};
       c.dispatchEvent(new PointerEvent('pointerdown',{clientX:r.left+r.width*80/1920,clientY:r.top+r.height*805/1080,pointerId:1}));

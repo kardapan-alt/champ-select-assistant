@@ -17,7 +17,7 @@ while($null -ne ($line=[Console]::In.ReadLine())){
   $stream=$null;$writer=$null;$bitmap=$null
   try{
     if(!$engines.Count){[Console]::Out.WriteLine('{"error":"language"}');continue}
-    if($line.Length -gt 1500000){throw 'size'}
+    if($line.Length -gt 7000000){throw 'size'}
     $bytes=[Convert]::FromBase64String($line)
     $stream=New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
     $writer=New-Object Windows.Storage.Streams.DataWriter($stream)
@@ -26,14 +26,17 @@ while($null -ne ($line=[Console]::In.ReadLine())){
     $null=$writer.DetachStream();$writer.Dispose();$writer=$null
     $stream.Seek(0)
     $decoder=Await-Result ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
-    if($decoder.PixelWidth -gt 2000 -or $decoder.PixelHeight -gt 500){throw 'size'}
+    if($decoder.PixelWidth -gt 2000 -or $decoder.PixelHeight -gt 1500){throw 'size'}
     $bitmap=Await-Result ($decoder.GetSoftwareBitmapAsync()) ([Windows.Graphics.Imaging.SoftwareBitmap])
-    $readings=@()
+    $readings=@();$layouts=@()
     foreach($engine in $engines){
       $result=Await-Result ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
       $readings+=,@($result.Lines | ForEach-Object {$_.Text})
+      $layouts+=,@($result.Lines | ForEach-Object {
+        @{words=@($_.Words | ForEach-Object {$r=$_.BoundingRect;@{text=$_.Text;x=$r.X;y=$r.Y;w=$r.Width;h=$r.Height}})}
+      })
     }
-    [Console]::Out.WriteLine((@{readings=$readings} | ConvertTo-Json -Depth 5 -Compress))
+    [Console]::Out.WriteLine((@{readings=$readings;layouts=$layouts;width=$decoder.PixelWidth;height=$decoder.PixelHeight} | ConvertTo-Json -Depth 8 -Compress))
   }catch{[Console]::Out.WriteLine('{"error":"ocr"}')}
   finally{if($bitmap){$bitmap.Dispose()};if($writer){$writer.Dispose()};if($stream){$stream.Dispose()}}
 }

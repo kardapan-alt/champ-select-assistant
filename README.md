@@ -2,7 +2,17 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
-## Wersja 0.6.19
+## Wersja 0.6.20
+
+- **Automatyczne rozpoznawanie wybranego augmentu bez Overwolfa, najeżdżania i kalibracji (eksperymentalne).** W meczu Mayhem asystent odczytuje polskie/angielskie nazwy trzech kart, odnajduje ich ramki i rozpoznaje klikniętą kartę. Dopisuje augment i przelicza build dopiero po zniknięciu kart na dwóch czytelnych obrazach. Zwykle zajmuje to około 1–2 sekund po kliknięciu; wolniejszy komputer może potrzebować więcej czasu.
+- Tryb uruchamia się automatycznie z meczem. Przycisk **Wyłącz/Włącz** steruje odczytem; wcześniejsze świadome wyłączenie jest zachowane. Stara kalibracja nie jest wymagana. Obszar odczytu, kontrast i skala dopasowują się do obrazu, również na monitorze ultrawide.
+- Samo najechanie, przerzut pod kartą, przeciągnięcie między kartami, Escape, Alt-Tab i czarny obraz nie potwierdzają wyboru. Do odczytu wymagane są dwa zgodne obrazy ofert przed kliknięciem oraz znane, dokładnie odczytane nazwy wszystkich trzech kart. Bardzo szybki wybór, nieczytelna nazwa, zasłonięta ramka lub nowy augment spoza katalogu mogą zostać pominięte. Kliknięcie samego ozdobnego brzegu karty także może zostać pominięte.
+- **Augmenty i ekwipunek** nadal pozwalają poprawić wybór ręcznie. Odczyt nie odtwarza wyborów dokonanych przed uruchomieniem asystenta i nie rozpoznaje losowo przyznanych augmentów bez ekranu wyboru. Ukończenie questów pozostaje ręczne. Brak odczytu nie usuwa już zapisanych augmentów.
+- Obraz pochodzi wyłącznie z okna procesu gry, bez dźwięku; pozostaje w pamięci tego komputera. Systemowy OCR Windows musi mieć język polski lub angielski. W razie czarnego obrazu użyj okna bez ramek. Pomocnik odczytuje stan głównego przycisku myszy i Escape tylko w aktywnym oknie LoL-a; nie przechwytuje wpisywanego tekstu, nie generuje wejścia i nie odczytuje pamięci gry. Obrazy, tekst OCR i kliknięcia nie są zapisywane na dysk ani wysyłane do sieci. Zamknięcie meczu lub wyłączenie funkcji zatrzymuje pomocników.
+
+Weryfikacja: `npm test`, `npm run test:offers` (pełny przepływ aplikacji, symulowane karty i kliknięcia, prawdziwy OCR Windows), `npm run test:ocr`, `node_modules/.bin/electron test/clicks-smoke.cjs` (prawdziwy pomocnik Windows na ukrytym oknie testowym), testy Mayhem i interfejsu. Opcjonalny `test/offers-reference-smoke.cjs` używa publicznego obrazu trzech rzeczywistych kart wskazanego w `OFFER_REFERENCE`, sprawdzając 720p, 1080p i ultrawide; sam obraz nie jest częścią repozytorium. Nie zastępuje to weryfikacji przechwytywania podczas żywego meczu na danej konfiguracji LoL-a.
+
+## Wersja 0.6.19 (poprzedni odczyt z dymka)
 
 - **Lokalny OCR augmentów bez Overwolfa (wersja eksperymentalna).** Po jednorazowej kalibracji odczytuje polskie i angielskie nazwy z dymka własnego, już posiadanego augmentu. Trzy kolejne odczyty tej samej dokładnej nazwy dopisują augment i przeliczają build. Wymaga pokazania dymka przez około 3 sekundy; nie jest całkowicie bezobsługowy.
 - W meczu Mayhem wybierz **Ustaw OCR → Zdjęcie za 5 sekund**, wróć do gry i najedź na ikonę własnego augmentu. Po wykonaniu zdjęcia wróć do asystenta i zaznacz prostokątem samą nazwę w dymku, bez opisu. **Sprawdź odczyt**, potem **Włącz OCR**. Kolejne nazwy muszą pojawiać się w tym samym obszarze; po zmianie HUD lub rozdzielczości ustaw go ponownie. Obszar nie może obejmować proponowanych augmentów ani danych innych graczy.

@@ -21,6 +21,7 @@
   }
   function validateConfig(value){
     if(!value || typeof value.enabled!=='boolean')throw Error('Nieprawidłowe ustawienia odczytu obrazu.');
+    if(value.mode==='auto')return {enabled:value.enabled,mode:'auto'};
     const {width,height,regions}=value;
     if(!Number.isInteger(width)||!Number.isInteger(height)||width<640||height<400||width>10000||height>10000
       || !Array.isArray(regions)||regions.length!==1)throw Error('Wskaż obszar nazwy w dymku własnego augmentu.');
@@ -31,6 +32,8 @@
     return {enabled:value.enabled,width,height,regions:[{x:r.x,y:r.y,w:r.w,h:r.h}]};
   }
   const sameLayout=(config,width,height)=>config?.width===width&&config?.height===height;
+  // Dawna kalibracja nie jest potrzebna do odczytu kart. Zachowaj wyłączenie.
+  const migrateConfig=value=>validateConfig(value?.mode?value:{enabled:value?.enabled!==false,mode:'auto'});
   class Consensus {
     constructor(){this.reset();}
     reset(){this.key='';this.slots=[];}
@@ -44,5 +47,5 @@
       });
     }
   }
-  return {normalize,recognizeText,validateConfig,sameLayout,Consensus};
+  return {normalize,recognizeText,validateConfig,migrateConfig,sameLayout,Consensus};
 });

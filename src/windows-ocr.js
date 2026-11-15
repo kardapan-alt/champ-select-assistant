@@ -7,7 +7,7 @@ class WindowsOcr {
   stop(){this.pending?.(null);this.pending=null;this.child?.kill();this.child=null;}
   async read(base64){
     if(this.pending)throw Error('Odczyt OCR jest zajęty.');
-    if(typeof base64!=='string'||base64.length>1500000||!/^iVBORw0KGgo[A-Za-z0-9+/=\r\n]+$/.test(base64))throw Error('Nieprawidłowy obraz OCR.');
+    if(typeof base64!=='string'||base64.length>7000000||!/^iVBORw0KGgo[A-Za-z0-9+/=\r\n]+$/.test(base64))throw Error('Nieprawidłowy obraz OCR.');
     if(!this.child){
       const exe=path.join(process.env.SystemRoot||'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
       const script=path.join(__dirname,'windows-ocr.ps1').replace('app.asar'+path.sep,'app.asar.unpacked'+path.sep);

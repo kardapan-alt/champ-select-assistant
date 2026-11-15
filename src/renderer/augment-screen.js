@@ -1,5 +1,5 @@
 // Tylko okno procesu gry. Pełna klatka pozostaje w rendererze, do lokalnego
-// Windows OCR trafia wyłącznie wskazany obszar tytułu. Bez plików i sieci.
+// Windows OCR trafia obraz gry lub wskazany tytuł. Bez plików i sieci.
 let augmentStream=null,augmentVideo=null,augmentCaptureKey='',augmentReaderBusy=false,augmentCalibrationOpen=false;
 let augmentScreenContext=null,augmentFrame=0,augmentGeneration=0,augmentStarting=null;
 function stopAugmentCapture(){
@@ -15,7 +15,7 @@ async function startAugmentCapture(matchKey){
   augmentStarting=(async()=>{
     const context=await window.assist.augmentScreenSource(matchKey);
     if(!context.ok)throw Error(context.error);
-    const media=await navigator.mediaDevices.getUserMedia({audio:false,video:{mandatory:{chromeMediaSource:'desktop',chromeMediaSourceId:context.sourceId,maxFrameRate:2}}});
+    const media=await navigator.mediaDevices.getUserMedia({audio:false,video:{mandatory:{chromeMediaSource:'desktop',chromeMediaSourceId:context.sourceId,maxFrameRate:5}}});
     if(generation!==augmentGeneration || lastState?.final?.build?.mayhem?.matchKey!==matchKey){media.getTracks().forEach(t=>t.stop());throw Error('Mecz się zmienił.');}
     augmentStream=media;augmentCaptureKey=matchKey;augmentScreenContext=context;
     augmentVideo=document.createElement('video');augmentVideo.muted=true;augmentVideo.srcObject=media;
@@ -41,16 +41,34 @@ async function pollAugmentScreen(){
   if(lastState?.status!=='loading-screen'||!m?.screen?.enabled){if(augmentStream)stopAugmentCapture();return;}
   augmentReaderBusy=true;
   try{
-    const context=await startAugmentCapture(m.matchKey),frame=augmentFrameCanvas(),config=m.screen.config;
+    const context=await startAugmentCapture(m.matchKey),frame=augmentFrameCanvas(),config=m.screen.config,at=Date.now();
+    const automatic=config?.mode==='auto'?augmentOfferFrame(frame):null;
     const result=await window.assist.augmentScreenFrame({matchKey:m.matchKey,token:context.token,revision:m.screen.revision,frame:++augmentFrame,
-      width:frame.width,height:frame.height,png:AugmentVision.sameLayout(config,frame.width,frame.height)?augmentTitlePng(frame,config.regions[0]):null});
+      at,width:frame.width,height:frame.height,grid:automatic?.grid,
+      png:automatic?.png || (AugmentVision.sameLayout(config,frame.width,frame.height)?augmentTitlePng(frame,config.regions[0]):null)});
     frame.width=0;frame.height=0;
     if(!result.ok)stopAugmentCapture();
   }catch{
     stopAugmentCapture();await window.assist.augmentScreenProblem({matchKey:m.matchKey}).catch(()=>{});
   }finally{augmentReaderBusy=false;}
 }
-setInterval(pollAugmentScreen,1000);
+function augmentOfferFrame(frame){
+  const c=document.createElement('canvas'),sourceWidth=Math.min(frame.width,frame.height*16/9),sourceX=(frame.width-sourceWidth)/2;
+  const crop={x:sourceX/frame.width,y:0,w:sourceWidth/frame.width,h:1},ratio=Math.min(2000/sourceWidth,1500/frame.height);
+  c.width=Math.round(sourceWidth*ratio);c.height=Math.round(frame.height*ratio);
+  c.getContext('2d').drawImage(frame,sourceX,0,sourceWidth,frame.height,0,0,c.width,c.height);
+  // Jasne litery gry na ciemnej karcie: OCR lepiej odczytuje ciemny tekst na bieli.
+  const ocrContext=c.getContext('2d'),ocrPixels=ocrContext.getImageData(0,0,c.width,c.height);
+  for(let i=0;i<ocrPixels.data.length;i+=4){const d=ocrPixels.data,v=255-Math.min(255,Math.max(0,(d[i]*.299+d[i+1]*.587+d[i+2]*.114-50)*1.7));d[i]=d[i+1]=d[i+2]=v;}
+  ocrContext.putImageData(ocrPixels,0,0);
+  const png=c.toDataURL('image/png').split(',')[1];
+  const scale=Math.min(640/frame.width,640/frame.height);c.width=Math.round(frame.width*scale);c.height=Math.round(frame.height*scale);
+  const ctx=c.getContext('2d');ctx.drawImage(frame,0,0,c.width,c.height);
+  const data=ctx.getImageData(0,0,c.width,c.height).data,parts=[];
+  for(let i=0;i<data.length;i+=4)parts.push(String.fromCharCode(Math.round(data[i]*.299+data[i+1]*.587+data[i+2]*.114)));
+  const grid={width:c.width,height:c.height,pixels:btoa(parts.join(''))};c.width=0;c.height=0;return {png,grid,crop};
+}
+setInterval(pollAugmentScreen,700);
 window.assist.onState(state=>{
   if(augmentCaptureKey && (state?.status!=='loading-screen'||state?.final?.build?.mayhem?.matchKey!==augmentCaptureKey)){
     document.getElementById('augment-calibration')?.close();stopAugmentCapture();
@@ -115,10 +133,11 @@ async function openAugmentCalibration(){
   }catch(err){augmentCalibrationOpen=false;stopAugmentCapture();throw err;}
 }
 document.getElementById('app').addEventListener('click',async e=>{
-  const button=e.target.closest('[data-augment-screen],[data-augment-screen-toggle]');if(!button)return;
+  const button=e.target.closest('[data-augment-screen],[data-augment-screen-toggle],[data-augment-auto]');if(!button)return;
   e.stopImmediatePropagation();button.disabled=true;
   try{
     if(button.hasAttribute('data-augment-screen'))await openAugmentCalibration();
-    else{const m=lastState.final.build.mayhem,result=await window.assist.setAugmentScreen({matchKey:m.matchKey,config:{...m.screen.config,enabled:!m.screen.enabled}});if(!result.ok)throw Error(result.error);}
+    else{const m=lastState.final.build.mayhem,config=button.hasAttribute('data-augment-auto')?{enabled:true,mode:'auto'}:{...m.screen.config,enabled:!m.screen.enabled};
+      const result=await window.assist.setAugmentScreen({matchKey:m.matchKey,config});if(!result.ok)throw Error(result.error);stopAugmentCapture();}
   }catch(err){toast(err.message,true);}finally{button.disabled=false;}
 });

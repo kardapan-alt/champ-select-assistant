@@ -21,6 +21,10 @@ const augmentVision = require('./augment-vision');
 const augmentScreen = require('./augment-screen');
 const {WindowsOcr}=require('./windows-ocr');
 const windowsOcr=new WindowsOcr();
+const {AugmentClicks}=require('./augment-clicks');
+const augmentClicks=new AugmentClicks();
+const augmentOffers=require('./augment-offers');
+const offerTracker=new augmentOffers.OfferTracker();
 const visionCatalog=require('../data/mayhem-augments.json').augments;
 const visionConsensus = new augmentVision.Consensus();
 let visionConfig = null, visionRevision = 0, visionToken = '', visionLastFrame = 0;
@@ -107,7 +111,8 @@ function scheduleRefresh() {
 }
 
 function initStats() {
-  try { visionConfig=augmentVision.validateConfig(readJson(userFile('augment-screen.json'),null)); } catch { visionConfig=null; }
+  try { visionConfig=augmentVision.migrateConfig(readJson(userFile('augment-screen.json'),null)); }
+  catch { visionConfig={enabled:true,mode:'auto'}; }
   choicesStore = new ChoiceStore(readJson(userFile('choices.json'), {}), value => {
     const file = userFile('choices.json');
     fs.writeFileSync(file + '.tmp', JSON.stringify(value));
@@ -180,6 +185,8 @@ function requestNeeded(state, picks) {
 }
 
 function send(state) {
+  if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
+    ||state.final.build.mayhem.matchKey!==lastState?.final?.build?.mayhem?.matchKey))stopVisionWorkers();
   lastState = state;
   if (win && !win.isDestroyed()) win.webContents.send('state', state);
 }
@@ -220,6 +227,7 @@ async function tick() {
     }
     const phase = await lcu.get('/lol-gameflow/v1/gameflow-phase').catch(() => undefined);
     if (phase === undefined) { lcu = null; return send({ status: 'no-client' }); }
+    if(visionToken && phase!=='InProgress')stopVisionWorkers();
     // Przejścia faz są niezależne od odświeżania statystyk i zawartości draftu.
     desktop?.observePhase(phase);
     if (!game) {
@@ -728,29 +736,35 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   const state=mayhemContext(matchKey);
   if(await lcu.get('/lol-gameflow/v1/gameflow-phase')!=='InProgress')throw Error('Odczyt obrazu działa podczas meczu Mayhem.');
   const handle=await augmentScreen.gameWindowHandle();
-  if(!handle)throw Error('Nie widzę okna gry. Użyj okna bez ramek i pokaż pasek swoich augmentów.');
+  if(!handle)throw Error('Nie widzę okna gry. Użyj okna bez ramek.');
   const sources=await require('electron').desktopCapturer.getSources({types:['window'],thumbnailSize:{width:0,height:0},fetchWindowIcons:false});
   const source=augmentScreen.sourceForHandle(sources,handle);
   mayhemContext(matchKey);
   if(!source)throw Error('Nie mogę odczytać okna gry. Użyj trybu okna bez ramek.');
   visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();
+  offerTracker.reset();
+  if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>offerTracker.input(event));
   win.webContents.setBackgroundThrottling(false);
   return {ok:true,sourceId:source.id,token:visionToken,pool:state.mayhemPool};
 }));
-ipcMain.handle('stop-augment-capture',()=>{
+function stopVisionWorkers(){
   visionToken='';visionConsensus.reset();
-  windowsOcr.stop();
+  windowsOcr.stop();augmentClicks.stop();offerTracker.reset();
   if(win&&!win.isDestroyed())win.webContents.setBackgroundThrottling(true);
-});
+}
+ipcMain.handle('stop-augment-capture',stopVisionWorkers);
 ipcMain.handle('set-augment-screen',wrap(input=>choiceWrites(async()=>{
   const state=mayhemContext(input?.matchKey);
   const config=augmentVision.validateConfig(input.config);
   writeJson(userFile('augment-screen.json'),config);visionConfig=config;visionRevision++;visionConsensus.reset();
+  offerTracker.reset();
+  if(!config.enabled)stopVisionWorkers();
+  else if(config.mode!=='auto')augmentClicks.stop();
   loading.visionStatus=config.enabled?'waiting':'off';send(buildLoadingView());
   return {ok:true,matchKey:state.mayhemKey};
 })));
 ipcMain.handle('augment-screen-problem',wrap(input=>{
-  mayhemContext(input?.matchKey);visionConsensus.reset();visionStatus('waiting');return {ok:true};
+  mayhemContext(input?.matchKey);visionConsensus.reset();offerTracker.reset();visionStatus('waiting');return {ok:true};
 }));
 ipcMain.handle('augment-screen-preview',wrap(async input=>{
   const state=mayhemContext(input?.matchKey);
@@ -767,6 +781,7 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
   if(!visionConfig?.enabled || !visionToken || input.token!==visionToken || input.revision!==visionRevision
     || !Number.isSafeInteger(input.frame) || input.frame<=visionLastFrame)return {ok:false,error:'Nieaktualny odczyt obrazu.'};
   visionLastFrame=input.frame;
+  if(visionConfig.mode==='auto')return readAutomaticAugment(input,state);
   if(!augmentVision.sameLayout(visionConfig,input.width,input.height)){visionConsensus.reset();visionStatus('layout');return {ok:true};}
   const result=await windowsOcr.read(input.png);
   return choiceWrites(async()=>{
@@ -789,7 +804,35 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
   return {ok:true};
   });
 }));
-app.on('before-quit',()=>windowsOcr.stop());
+async function readAutomaticAugment(input,state){
+  if(!augmentClicks.child)return {ok:false,error:'Ponawiam odczyt okna gry.'};
+  if(!augmentClicks.active()){offerTracker.reset();visionStatus('paused');return {ok:true};}
+  const grid=augmentOffers.readGrid(input.grid);
+  if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
+    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){offerTracker.reset();visionStatus('waiting');return {ok:true};}
+  const result=await windowsOcr.read(input.png);
+  return choiceWrites(async()=>{
+    mayhemContext(input.matchKey);
+    if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
+    if(!result?.layouts){offerTracker.reset();visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    const cropWidth=Math.min(1,input.height*16/9/input.width);
+    const detected=augmentOffers.detectOffer({...result,crop:{x:(1-cropWidth)/2,y:0,w:cropWidth,h:1}},grid,visionCatalog,state.mayhemPool);
+    const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:augmentClicks.active()});
+    if(id){
+      try{
+        const known=mayhemSession.value.screenSlots||[];
+        const next=augmentScreen.reconcile(mayhemSession.value,[...new Set([...known,id])],game,state.mayhemPool);
+        if(JSON.stringify(next)!==JSON.stringify(mayhemSession.value)){
+          mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots});loadingDirty=true;
+        }
+      }catch{visionStatus('conflict');return {ok:true};}
+    }
+    visionStatus(id?'detected':offerTracker.pending?'confirming':detected.cards?'offers':'scanning');
+    if(loadingDirty){loadingDirty=false;send(buildLoadingView());}
+    return {ok:true};
+  });
+}
+app.on('before-quit',stopVisionWorkers);
 
 // ---------- aktualizacje ----------
 
