@@ -4,7 +4,7 @@ function mayhemPanel(b) {
   const selected = m.hints || [];
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
     <div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Augmenty zaznaczysz ręcznie po rozpoczęciu gry.</span>'}</div>
-    ${m.nextItem && selected.length ? `<p class="next-purchase">Następny przedmiot: <b>${esc(m.nextItem.name)}</b></p>` : ''}
+    ${m.nextItem && selected.length ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b></p>` : ''}
     ${m.unknown.length ? `<p class="note">${m.unknown.length} augmentów bez reguły zakupów — możesz wskazać ich efekt w edytorze.</p>` : ''}
     ${selected.length ? disclosure('augment-reasons', 'Wpływ augmentów na zakupy', selected.map(a => `<p><b>${esc(a.name)}:</b> ${esc(a.summary)}${!a.supported ? ' Automatyczna kolejność pozostaje bez zmian dla tego augmentu.' : ''}</p>`).join('')) : ''}
   </section>`;
@@ -25,13 +25,13 @@ async function openMayhemEditor() {
   if (!dialog) { dialog=document.createElement('dialog');dialog.id='mayhem-dialog';document.body.appendChild(dialog); }
   const options = (list,id) => '<option value="0">Brak / jeszcze nie kupiony</option>' + list.map(i => `<option value="${i.id}" ${i.id === id ? 'selected' : ''}>${esc(i.name)}</option>`).join('');
   dialog.innerHTML = `<form id="mayhem-form"><div class="panel-head"><h2>Mayhem · ${esc(build.name)}</h2><button type="button" data-mayhem-cancel>Zamknij</button></div>
-    <p class="muted">${wasLab ? 'Symulacja — wybory nie zmienią trwającego meczu.' : 'Wybory dotyczą tylko tego meczu. Zaznacz augmenty otrzymane w grze.'}</p>
+    <p class="muted">${wasLab ? 'Symulacja — wybory nie zmienią trwającego meczu.' : 'Wybory dotyczą tylko tego meczu. Zaznacz augmenty otrzymane w grze.'} Wpływ na zakupy dobieram automatycznie.</p>
     <div id="mayhem-selected"></div><label class="augment-search">Szukaj augmentu po polskiej lub angielskiej nazwie<input type="search" id="augment-search" placeholder="np. Goliath, Apex Inventor…" autocomplete="off"></label>
     <div id="augment-results" class="augment-results"></div>
     <details class="owned-editor"><summary>Już kupione przedmioty · ${selection.owned.length} + buty</summary>
       <p class="muted">Zaznacz ukończone przedmioty, bez komponentów. Zostaną w buildzie; pozostałe miejsca dopasują się do augmentów. Po sprzedaży lub połączeniu w nagrodę zaktualizuj tę listę.</p>
-      <div class="choice-grid">${Array.from({length:5},(_,i) => `<label>Posiadany przedmiot ${i+1}<select name="owned-${i}">${options(context.items.items,selection.owned[i])}</select></label>`).join('')}
-      <label>Posiadane buty<select name="owned-boots">${options(context.items.boots,selection.ownedBoots)}</select></label></div></details>
+      <div class="choice-grid">${Array.from({length:5},(_,i) => `<label>Posiadany przedmiot ${i+1}<select name="owned-${i}">${options(context.items.ownedItems || context.items.items,selection.owned[i])}</select></label>`).join('')}
+      <label>Posiadane buty<select name="owned-boots">${options(context.items.ownedBoots || context.items.boots,selection.ownedBoots)}</select></label></div></details>
     <p class="form-error" role="alert"></p><div class="actions"><button class="primary" type="submit">Zastosuj i przelicz build</button><span class="muted">${context.augments.length} augmentów · katalog ${esc(context.fetched)}</span></div></form>`;
   const error = message => { dialog.querySelector('.form-error').textContent=message; };
   const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/ł/g,'l');
@@ -41,7 +41,7 @@ async function openMayhemEditor() {
       const manual=Object.hasOwn(selection.effects,id), value=manual ? selection.effects[id][0] || 'none' : 'auto';
       return `<div class="selected-augment"><div><b>${esc(a.name)}</b> <span class="muted">${esc(a.english)}</span><button type="button" data-remove-augment="${id}" aria-label="Usuń ${esc(a.name)}">×</button></div>
         <p class="note">${esc(a.summary)}</p>${a.quest ? `<label><input type="checkbox" data-quest-completed="${id}" ${selection.completed.includes(id) ? 'checked' : ''}> Zadanie ukończone — nie proponuj ponownie składników nagrody</label>` : ''}
-        <label>Wpływ na zakupy<select data-augment-effect="${id}"><option value="auto" ${value==='auto'?'selected':''}>${a.supported ? 'Automatycznie z reguły augmentu' : 'Bez reguły — zachowaj bazowy build'}</option><option value="none" ${value==='none'?'selected':''}>Bez dodatkowego priorytetu</option>${Object.entries(context.effects).map(([k,v]) => `<option value="${k}" ${value===k?'selected':''}>Ręcznie: ${esc(v)}</option>`).join('')}</select></label></div>`;
+        <details ${manual?'open':''}><summary>${manual?'Własna korekta aktywna':'Automatyczna reguła · opcjonalna własna korekta'}</summary><label>Wpływ na zakupy<select data-augment-effect="${id}"><option value="auto" ${value==='auto'?'selected':''}>${a.supported ? 'Automatycznie z reguły augmentu' : 'Bez reguły — zachowaj bazowy build'}</option><option value="none" ${value==='none'?'selected':''}>Bez dodatkowego priorytetu</option>${Object.entries(context.effects).map(([k,v]) => `<option value="${k}" ${value===k?'selected':''}>Ręcznie: ${esc(v)}</option>`).join('')}</select></label></details></div>`;
     }).join('')}`;
   };
   const renderResults = () => {

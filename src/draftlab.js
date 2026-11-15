@@ -14,6 +14,10 @@ function catalog(game, data, state = { mode: 'classic' }, alias = '') {
     items: items.filter(i => !isBootItem(i.id, game) && (known.has(i.id) || i.priceTotal >= 1800)
       && !(i.categories || []).some(c => ['Consumable', 'Trinket'].includes(c))).map(i => ({ id: i.id, name: i.name })).sort((a,b) => a.name.localeCompare(b.name)),
     boots: items.filter(i => isBootItem(i.id, game) && baseBoots(i.id) === i.id && i.id !== 2422).map(i => ({ id: i.id, name: i.name })),
+    ...(state.mode==='mayhem' ? {
+      ownedItems:[...game.items.values()].filter(i=>mayhem.ownedAvailable(i.id,game,alias) && !isBootItem(i.id,game)).map(i=>({id:i.id,name:i.name})).sort((a,b)=>a.name.localeCompare(b.name)),
+      ownedBoots:[...game.items.values()].filter(i=>mayhem.ownedAvailable(i.id,game,alias) && isBootItem(i.id,game)).map(i=>({id:i.id,name:i.name})),
+    } : {}),
   };
 }
 

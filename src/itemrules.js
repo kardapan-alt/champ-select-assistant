@@ -19,9 +19,10 @@ const EXCLUSIVE = [
   [3033, 3036, 6694, 3302],
   [3135, 3137],
   [3053, 3156, 6673],
+  [3003, 3040], [3004, 3042], [3119, 3121],
 ];
-function itemsCompatible(id, selected) {
-  return !selected.includes(id) && !EXCLUSIVE.some((group) => group.includes(id) && selected.some((x) => group.includes(x)));
+function itemsCompatible(id, selected, repeat = new Set()) {
+  return (!selected.includes(id) || repeat.has(id)) && !EXCLUSIVE.some((group) => group.includes(id) && selected.some((x) => group.includes(x)));
 }
 
 module.exports = { itemAvailable, itemsCompatible };

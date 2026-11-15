@@ -21,12 +21,12 @@ function validateRunes(page, game) {
   return savedRunes(page);
 }
 
-function normalizePins(choices, slots, valid) {
+function normalizePins(choices, slots, valid, repeat = new Set()) {
   const pins = [], warnings = [];
   for (const p of Array.isArray(choices?.items) ? choices.items.slice(0, 6) : []) {
     const id = Number(p.id), slot = Number(p.slot);
     if (!Number.isInteger(slot) || slot < 0 || slot >= slots || pins.some(x => x.slot === slot)
-      || !valid(id) || !itemsCompatible(id, pins.map(x => x.id))) {
+      || !valid(id) || !itemsCompatible(id, pins.map(x => x.id),repeat)) {
       warnings.push(`Nie można zachować przypiętego przedmiotu ${id} w slocie ${slot + 1}. Sprawdź własne wybory.`);
     } else pins.push({ id, slot });
   }
@@ -37,7 +37,7 @@ function validateChoices(choices, build, alias, state, game) {
   if (choices.items !== undefined && !Array.isArray(choices.items)) throw new Error('Nieprawidłowa lista przypiętych przedmiotów.');
   const valid = (id) => itemAvailable(id, game, state.mode, alias) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(id)
     && !(game.items.get(id)?.categories || []).some(c => ['Consumable', 'Trinket'].includes(c));
-  const { pins, warnings } = normalizePins(choices, build.inventory.itemSlots, valid);
+  const { pins, warnings } = normalizePins(choices, build.inventory.itemSlots, valid, new Set(build.mayhem?.repeat || []));
   if ((choices.items || []).length > 6 || warnings.length) throw new Error(warnings[0] || 'Za dużo przypiętych przedmiotów.');
   let boots = null;
   if (choices.boots) {

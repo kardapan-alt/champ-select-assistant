@@ -59,9 +59,9 @@ test('quest priorytetyzuje składniki, ukończenie nie każe kupować ich drugi 
   const done=build('Ahri',{augments:[id],completed:[id],owned:[228002]});
   assert.equal(done.items[0].id,228002);assert.ok(!done.items.some(i=>[3089,3157].includes(i.id)));
 });
-test('nieznany efekt pozostaje neutralny, ręczny profil działa i daje się usunąć', () => {
-  const a=catalog.find(a=>!a.supported);const baseline=build('Ahri',{});
-  const neutral=build('Ahri',{augments:[a.id]});assert.deepEqual(neutral.items.map(i=>i.id),baseline.items.map(i=>i.id));assert.equal(neutral.mayhem.unknown.length,1);
+test('ekonomiczny augment zachowuje build, opcjonalna korekta nadal działa i daje się usunąć', () => {
+  const a=catalog.find(a=>a.api==='Donation');const baseline=build('Ahri',{});
+  const neutral=build('Ahri',{augments:[a.id]});assert.deepEqual(neutral.items.map(i=>i.id),baseline.items.map(i=>i.id));assert.equal(neutral.mayhem.unknown.length,0);
   const custom=build('Ahri',{augments:[a.id],effects:{[a.id]:['onhit']}});assert.equal(custom.items[0].id,3115);assert.equal(custom.mayhem.unknown.length,0);
   assert.deepEqual(build('Ahri',{}).items.map(i=>i.id),baseline.items.map(i=>i.id));
 });

@@ -719,28 +719,29 @@ const FIXED_CORE = 2; // spokojny draft: 2 itemy bazowe; mocne zagrożenie: pier
 function buildFor(alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
   let champ = ctx.champ;
-  const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ) : null;
+  const aliasOf = (id) => game.championsById.get(id)?.alias;
+  const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
+  const enemy = teamProfile(enemyInfos);
+  const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ, { enemy }) : null;
+  const compatible = (id,ids) => itemsCompatible(id,ids,augmentation?.repeat);
   if (augmentation?.conversion) {
     const kind = augmentation.conversion === 'ap' ? 'mage' : 'fighter';
     champ = { ...champ, ...data.classTemplates[kind], class:kind, dmg:augmentation.conversion, statsBuild:false, lateItems:[] };
   }
   const tpl = data.classTemplates[champ.class] || data.classTemplates.fighter;
-  const aliasOf = (id) => game.championsById.get(id)?.alias;
-  const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
-  const enemy = teamProfile(enemyInfos);
   const threats = threatWeights(enemy);
   const exists = (id) => itemAvailable(id, game, state.mode, alias);
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
   const reservedSlots = !isAram(state.mode) && ctx.position === 'support' ? 1 : 0;
   const fullBuild = 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
-  const isBuildItem = (id) => exists(id) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || augmentation.owned.includes(id));
+  const isBuildItem = (id) => (exists(id) || (augmentation?.owned.includes(id) && mayhem.ownedAvailable(id,game,alias))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || augmentation.owned.includes(id));
   const purchased = (augmentation?.owned || []).filter(isBuildItem);
   const ownChoices = purchased.length ? { ...state.choices, items: [
     ...purchased.map((id, slot) => ({ id, slot })),
     ...(state.choices?.items || []).filter(p => p.slot >= purchased.length && !purchased.includes(p.id)),
   ] } : state.choices;
-  const { pins, warnings } = normalizePins(ownChoices, fullBuild, isBuildItem);
+  const { pins, warnings } = normalizePins(ownChoices, fullBuild, isBuildItem, augmentation?.repeat);
   const pinIds = pins.map(p => p.id);
 
   // Buty
@@ -754,7 +755,7 @@ function buildFor(alias, state, game, data) {
   if (!exists(boots)) boots = [tpl.boots, data.boots.vsAd, data.boots.vsAp].find(exists);
   const bootsPinned = !!state.choices?.boots && exists(state.choices.boots) && isBootItem(state.choices.boots, game);
   if (bootsPinned) { boots = baseBoots(state.choices.boots); bootsWhy = 'Twój przypięty wybór'; }
-  if (augmentation?.ownedBoots && exists(augmentation.ownedBoots)) { boots = augmentation.ownedBoots; bootsWhy = 'Już posiadane buty'; }
+  if (augmentation?.ownedBoots && mayhem.ownedAvailable(augmentation.ownedBoots,game,alias)) { boots = augmentation.ownedBoots; bootsWhy = 'Już posiadane buty'; }
   const core = (champ.items || tpl.items).filter(isBuildItem).filter((id, i, all) => itemsCompatible(id, all.slice(0, i)));
   const pooledTags = (id) => (Object.values(data.itemPools || {}).flat().find((it) => it.id === id) || {}).tags || {};
   const lateStats = (champ.lateItems || []).filter((it) => isBuildItem(it.id));
@@ -777,7 +778,7 @@ function buildFor(alias, state, game, data) {
   const urgent = situations.filter((s) => s.level === 2 && s.myItem);
   // Zachowujemy pierwszy zakup definiujący championa. Mocne zagrożenia mogą
   // przesunąć drugi i trzeci przedmiot rdzenia, również przy danych OP.GG.
-  const fixed = core.filter(id => itemsCompatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active ? 0 : urgent.length ? 1 : FIXED_CORE));
+  const fixed = core.filter(id => compatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active ? 0 : urgent.length ? 1 : FIXED_CORE));
   const situationByTag = new Map();
   const situational = new Map();
   let forced = 0;
@@ -792,7 +793,7 @@ function buildFor(alias, state, game, data) {
     situational.set(s.myItem, { id: s.myItem, tags: { ...(prev ? prev.tags : pooledTags(s.myItem)), [tag]: 1 } });
   }
   const reasonOf = (tag) => (situationByTag.has(tag) ? reasonFor(situationByTag.get(tag)) : THREAT_REASONS[tag]);
-  const coreRest = core.filter(id => !fixed.includes(id) && itemsCompatible(id, pinIds));
+  const coreRest = core.filter(id => !fixed.includes(id) && compatible(id, pinIds));
   const candidates = [
     ...[...situational.values()].map((it) => (coreRest.includes(it.id) ? { ...it, tags: { ...it.tags, late: 1.6 }, core: true } : it)),
     ...coreRest.map((id) => ({ id, tags: { ...pooledTags(id), late: 1.6 }, core: true })),
@@ -810,10 +811,10 @@ function buildFor(alias, state, game, data) {
   const augmentScore = id => Math.min(30,(augmentation?.bonuses.get(id)?.contributions || []).reduce((sum,c)=>sum+c.score*(c.direct?1:Math.pow(0.4,usedAugmentGroups.get(c.group)||0)),0));
   const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0) + augmentScore(it.id);
   const chosen = [];
-  const pool = [...candidates];
+  const pool = candidates.flatMap(it=>augmentation?.repeat.has(it.id) ? [it,{...it}] : [it]);
   while (chosen.length < fullBuild - fixed.length - pins.length && pool.length) {
     const selected = [...pinIds, ...fixed, ...chosen.map((x) => x.id)];
-    for (let i = pool.length - 1; i >= 0; i--) if (!itemsCompatible(pool[i].id, selected)) pool.splice(i, 1);
+    for (let i = pool.length - 1; i >= 0; i--) if (!compatible(pool[i].id, selected) || (augmentation?.repeat.has(pool[i].id) && selected.filter(id=>id===pool[i].id).length>=2)) pool.splice(i, 1);
     if (!pool.length) break;
     pool.sort((a, b) => scoreOf(b) - scoreOf(a));
     const best = pool.shift();
@@ -878,8 +879,8 @@ function buildFor(alias, state, game, data) {
   return {
     alias,
     mode: state.mode || 'classic',
-    mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {},
-      nextItem:finalItems.find(it => !it.owned) || null } : null,
+    mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...augmentation.repeat],
+      nextItem:augmentation.upgrades.find(u=>exists(u.to)) ? { ...item(augmentation.upgrades.find(u=>exists(u.to)).to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
     inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: bootsInQuest ? 'quest' : 'inventory' },
     quest: quest ? { ...quest, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
@@ -891,7 +892,8 @@ function buildFor(alias, state, game, data) {
     spells: spells.ids.map(spell),
     spellsWhy: spells.why,
     reservedSlot: reservedSlots ? 'Przedmiot wsparcia' : null,
-    boots: { ...item(boots), why: bootsWhy, pinned: bootsPinned, owned:!!augmentation?.ownedBoots, slot: 'boots' },
+    boots: augmentation?.freeBoots && !augmentation.ownedBoots ? { id:null,name:'Buty z augmentu',icon:'',why:'Darmowe — zaznacz otrzymane',owned:true,slot:'boots' }
+      : { ...item(boots), why: bootsWhy, pinned: bootsPinned, owned:!!augmentation?.ownedBoots, slot: 'boots' },
     items: finalItems,
     alternatives: alternatives.map((a) => ({ ...item(a.id), why: reasonOf(Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]) })),
     situations: situations.map((s) => situationView(s, game, finalIds)),
@@ -908,7 +910,8 @@ const shortTitle = (t) => { const x = String(t).replace(/\s+/g, ' ').trim(); ret
 function itemSetFor(build, alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
   const exists = (id) => itemAvailable(id, game, state.mode, alias);
-  const list = (ids) => [...new Set(ids)].filter(exists).map((id) => ({ id: String(id), count: 1 }));
+  const repeat = new Set(build.mayhem?.repeat || []);
+  const list = (ids) => [...new Set(ids)].filter(exists).map((id) => ({ id: String(id), count: repeat.has(id) ? ids.filter(x=>x===id).length : 1 }));
   const laneName = ctx.lane ? nameOf(ctx.lane.alias, game) : '';
   const startKey = ctx.position === 'jungle' ? 'jungle' : ctx.position === 'support' ? 'support' : itemPoolKey(ctx.champ);
   const trinkets = data.trinkets || {};

@@ -1,0 +1,1709 @@
+{
+  "patch": "16.22",
+  "reviewed": "2026-11-15",
+  "sources": {
+    "KIWI": "https://raw.communitydragon.org/16.22/game/maps/modespecificdata/kiwi.bin.json",
+    "KIWI_JADE": "https://raw.communitydragon.org/16.22/game/maps/modespecificdata/kiwi_jade.bin.json",
+    "strings": "https://raw.communitydragon.org/16.22/game/en_us/data/menu/en_us/lol.stringtable.json"
+  },
+  "augments": {
+    "ARAM_ImTheJuggernaut": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ImTheJuggernaut",
+      "description": "Kiwi_Augment_ImTheJuggernaut_Summary",
+      "source": "KIWI",
+      "sha256": "7295cf9e4bee2d7d5f473a711af4f3e3e3712a0640cf8f4aabda68ac95fa16f5"
+    },
+    "ARAM_ApexInventor": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ApexInventor",
+      "description": "Cherry_ApexInventor_Tooltip",
+      "source": "KIWI",
+      "sha256": "d3b0ae20dd2de97f4130606ef4e775f298651acb4d1a8babe22bfb6fa3921ccf"
+    },
+    "ARAM_BacktoBasics": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BacktoBasics",
+      "description": "Cherry_BacktoBasics_Summary",
+      "source": "KIWI",
+      "sha256": "07626760fae62970841b264ce7fd9f91b596325ff8fb821329eb85af7efa8db1"
+    },
+    "ARAM_WeeWooWeeWoo": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_WeeWooWeeWoo",
+      "description": "Kiwi_Augment_WeeeWooWeeWoo_Summary",
+      "source": "KIWI",
+      "sha256": "304968a270196380991273c0671fde2ad6a3d591a1005b6fa4f1e7e13a675524"
+    },
+    "ARAM_BladeWaltz": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BladeWaltz",
+      "description": "Kiwi_BladeWaltz_Summary",
+      "source": "KIWI",
+      "sha256": "e3c417735b3e75a72f1fa0af20a951bc27942be3b909f585dd72100fc048054e"
+    },
+    "ARAM_BluntForce": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BluntForce",
+      "description": "Cherry_BluntForce_Summary",
+      "source": "KIWI",
+      "sha256": "c8c7fbaef4fe6682439cbca4a37ea4d89d5708f5299229f0bc240b99516ba478"
+    },
+    "ARAM_CantTouchThis": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_CantTouchThis",
+      "description": "Cherry_CantTouchThis_Summary",
+      "source": "KIWI",
+      "sha256": "bd58b5843b894ff2c80c0cfa81487629da7f03c2243ba6c2f83ec46201b9be09"
+    },
+    "ARAM_CelestialBody": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_CelestialBody",
+      "description": "Cherry_CelestialBody_Tooltip",
+      "source": "KIWI",
+      "sha256": "e4417d523d87bd4a01f3ca5bb62a023430bd93f35f3550761ad87c18cca66059"
+    },
+    "ARAM_CircleofDeath": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_CircleofDeath",
+      "description": "Kiwi_CircleOfDeath_Summary",
+      "source": "KIWI",
+      "sha256": "e63a4fe1d4c55853ccd126e865ab1b46aa923563e18fcd6233d3bfc72e6dd63f"
+    },
+    "ARAM_CourageoftheColossus": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_CourageoftheColossus",
+      "description": "Cherry_CourageoftheColossus_Summary",
+      "source": "KIWI",
+      "sha256": "00878ef8c23d2aba3e9ca68cb20359a24a524f2c020563d5ee08f057bf6332e3"
+    },
+    "ARAM_Dashing": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Dashing",
+      "description": "Cherry_Dashing_Tooltip",
+      "source": "KIWI",
+      "sha256": "324dd6d3ba01bbede76ad0d1d5df30993b0241a77404336f59e5f13d1678f0d2"
+    },
+    "ARAM_DawnbringersResolve": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DawnbringersResolve",
+      "description": "Kiwi_DawnbringersResolve_Summary",
+      "source": "KIWI",
+      "sha256": "3b1126ab55e49490323726ef0777b0f708ebb17cc0ee4b12a8132c57099f5ef8"
+    },
+    "ARAM_Deft": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Deft",
+      "description": "Cherry_Deft_Tooltip",
+      "source": "KIWI",
+      "sha256": "5203798af518b8c92bd12cdf92ea82d83d7dd817531aa40c343310bf876b2be6"
+    },
+    "ARAM_DiveBomber": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DiveBomber",
+      "description": "Kiwi_DiveBomber_Summary",
+      "source": "KIWI",
+      "sha256": "f6cc0c066d564bc5fec45cf87b4e6fe54ebcb249fdb6ff62fea89b7b16860da4"
+    },
+    "ARAM_DontBlink": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DontBlink",
+      "description": "Cherry_DontBlink_Summary",
+      "source": "KIWI",
+      "sha256": "c19f58afe570afc6b24d8aa41707b6df40bd9a28f3802d77a758c7a16b46d67c"
+    },
+    "ARAM_Earthwake": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Earthwake",
+      "description": "Kiwi_Earthwake_Summary",
+      "source": "KIWI",
+      "sha256": "89ce193f2080091e37626d35e956ada1cf22632ef489b90ac1f0d76a18b30cb0"
+    },
+    "ARAM_Erosion": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Erosion",
+      "description": "Cherry_Erosion_Summary",
+      "source": "KIWI",
+      "sha256": "63a7747789e7f2e3437acc11f55840858ab4a28875e47b45adadd4ddfdac6515"
+    },
+    "ARAM_EtherealWeapon": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_EtherealWeapon",
+      "description": "Kiwi_EtherealWeapon_Summary",
+      "source": "KIWI",
+      "sha256": "8e08ba6724811661e03a4a37eec4d41c5d84907ae3ee743fbfa01fb45ae9ec81"
+    },
+    "ARAM_Eureka": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Eureka",
+      "description": "Cherry_Eureka_Summary",
+      "source": "KIWI",
+      "sha256": "2a2eca7e91da11c6b55d4d25a9655bafd68bc656d6bca1710071a9dce7571ea7"
+    },
+    "VeilOfWarding": {
+      "definition": "Maps/ModeSpecificData/Augments/VeilOfWarding",
+      "description": "Kiwi_VeilOfWarding_Summary",
+      "source": "KIWI",
+      "sha256": "75a02a4a7c80acae8068d5456e93462b0d87c28fc3d217b8cfbb609ff439f3f9"
+    },
+    "ARAM_Firebrand": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Firebrand",
+      "description": "Cherry_Firebrand_Summary",
+      "source": "KIWI",
+      "sha256": "4066d7059f17d22e78a2b73eb472442192a3aa5453d4d36c07bfb8f97c993f8f"
+    },
+    "ARAM_FirstAidKit": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_FirstAidKit",
+      "description": "Cherry_FirstAidKit_Tooltip",
+      "source": "KIWI",
+      "sha256": "8666dab916da84dac77d04203c1947097415a89660a66541a5963732cb7c7bad"
+    },
+    "ARAM_FromBeginningToEnd": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_FromBeginningToEnd",
+      "description": "Cherry_FromBeginningToEnd_Summary",
+      "source": "KIWI",
+      "sha256": "f1be824750e9a5269dce851c921d39b7d326652d87ea309271ec17d432b925aa"
+    },
+    "ARAM_Goliath": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Goliath",
+      "description": "Cherry_Goliath_Tooltip",
+      "source": "KIWI",
+      "sha256": "c06f5dee9a3969436f29c36db81145a331d4278c9bee600c26ac810c6563e833"
+    },
+    "ARAM_IceCold": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_IceCold",
+      "description": "Kiwi_IceCold_Summary",
+      "source": "KIWI",
+      "sha256": "795c93eb2c805034451a406b51f3cfb640d62cec3215721a0de0abe925e246b8"
+    },
+    "ARAM_InfernalConduit": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_InfernalConduit",
+      "description": "Kiwi_InfernalConduit_Summary",
+      "source": "KIWI",
+      "sha256": "e70b0533367b6279ca3d5ee9f2b6a9e76e565aa1ad1ff2e49807dd2b14529944"
+    },
+    "ARAM_InfernalSoul": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_InfernalSoul",
+      "description": "Cherry_InfernalSoul_Summary",
+      "source": "KIWI",
+      "sha256": "f832c802085fa0538725b09e74235849f924001b6063fb0bbd8181be12970f90"
+    },
+    "ARAM_ItsCritical": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ItsCritical",
+      "description": "Cherry_ItsCritical_Summary",
+      "source": "KIWI",
+      "sha256": "143e539090c106a4c89d43c49f99e789441d9a501d0ba40fdb9cce0856e944d9"
+    },
+    "ARAM_JeweledGauntlet": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_JeweledGauntlet",
+      "description": "Cherry_JeweledGauntlet_Summary",
+      "source": "KIWI",
+      "sha256": "f181df459ee84c0761b2614a3331884873911cb036ce3900fa72b6580a4d5846"
+    },
+    "ARAM_LightemUp": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_LightemUp",
+      "description": "Kiwi_LightemUp_Summary",
+      "source": "KIWI",
+      "sha256": "43da87e37121349a618c0b91776404a9281d4c97916ae7aecfb52c446caf1183"
+    },
+    "ARAM_MadScientist": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MadScientist",
+      "description": "Kiwi_MadScientist_Summary",
+      "source": "KIWI",
+      "sha256": "eb21f2586adaec9acd3c9376947d71eabb98b08d7ac2e95a08e51770d20cff59"
+    },
+    "ARAM_MasterofDuality": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MasterofDuality",
+      "description": "Kiwi_MasterofDuality_Summary",
+      "source": "KIWI",
+      "sha256": "c1faa737e16f29a9947104c9a6dfff7d9294c88594968af8cf1292f242c09012"
+    },
+    "ARAM_MindtoMatter": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MindtoMatter",
+      "description": "Cherry_MindtoMatter_Summary",
+      "source": "KIWI",
+      "sha256": "521810fbae37f5531f44e438845fce63af082d3a2e3069c92da120c4d7b88763"
+    },
+    "ARAM_MountainSoul": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MountainSoul",
+      "description": "Cherry_MountainSoul_Summary",
+      "source": "KIWI",
+      "sha256": "fec43567a2609f812ec3584159595eba0612b01516a04920a312a948ad043a06"
+    },
+    "ARAM_MysticPunch": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MysticPunch",
+      "description": "Cherry_MysticPunch_Summary",
+      "source": "KIWI",
+      "sha256": "3ed24958904d8ecd3ac390d45f81726ea57de4b48f7b47ac9d73e459a6bc844a"
+    },
+    "ARAM_OceanSoul": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_OceanSoul",
+      "description": "Cherry_OceanSoul_Summary",
+      "source": "KIWI",
+      "sha256": "a203b01efe809dc96bcd7e262958a7270bf718648a4155c4c40f3e79a46af009"
+    },
+    "ARAM_OkBoomerang": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_OkBoomerang",
+      "description": "Cherry_OkBoomerang_Summary",
+      "source": "KIWI",
+      "sha256": "8f1b8d1290167ea505f8d251b67b3cca7087f420d51ee5b6a54bf81e813fc20c"
+    },
+    "ARAM_OmniSoul": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_OmniSoul",
+      "description": "Cherry_OmniSoul_Summary",
+      "source": "KIWI",
+      "sha256": "124b4b77e2283b27f631eacfbb17334492d8868389d133e478cdb2d4422d1578"
+    },
+    "ARAM_OutlawsGrit": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_OutlawsGrit",
+      "description": "Kiwi_OutlawsGrit_Summary",
+      "source": "KIWI",
+      "sha256": "6878ff91b969fe394b36532901f6155bbe1f997c18de7d3e533f59a0698b71a6"
+    },
+    "ARAM_Perseverance": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Perseverance",
+      "description": "Cherry_Perseverance_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "3cc4c1844358bee9dd21671daa0d93d5a4a8017f297d942cae607322ffa6dbef"
+    },
+    "ARAM_QuantumComputing": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_QuantumComputing",
+      "description": "Kiwi_QuantumComputing_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "689eb6fcbec6c2e621ed943d59486b90f21c046e70f94e2d45b5ac6b27c902cf"
+    },
+    "ARAM_RabbleRousing": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_RabbleRousing",
+      "description": "Kiwi_RabbleRousing_Summary",
+      "source": "KIWI",
+      "sha256": "3a7690eeb46ccf935e73caca5950d582eb62d2907c674f92f1377a0bad251304"
+    },
+    "ARAM_Recursion": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Recursion",
+      "description": "Cherry_Recursion_Summary",
+      "source": "KIWI",
+      "sha256": "a24743b93db057728a286c9dde35f2e2268228a898dda3c7feb5032de3747e0d"
+    },
+    "ARAM_ScopierWeapons": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ScopierWeapons",
+      "description": "Cherry_ScopierWeapons_Summary",
+      "source": "KIWI",
+      "sha256": "9e1d8ec59d924dc9a1d75da54e052985606d6fb60fc6045cdd6a5f388ac129ba"
+    },
+    "ARAM_SearingDawn": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SearingDawn",
+      "description": "Cherry_SearingDawn_Summary",
+      "source": "KIWI",
+      "sha256": "5ccb73fd19a4eedffd9cfcc2fe0e3b68897498b27a8f7150028d7f215cd9b392"
+    },
+    "ARAM_ShadowRunner": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ShadowRunner",
+      "description": "Kiwi_ShadowRunner_Summary",
+      "source": "KIWI",
+      "sha256": "e631da0157144154565180c79dbc2b56adc70f9b82577b2a7c290b896aa59998"
+    },
+    "ARAM_ShrinkRay": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ShrinkRay",
+      "description": "Cherry_ShrinkRay_Summary",
+      "source": "KIWI",
+      "sha256": "83a322794eea9e0b0c0b305cd91f21d7ff4bb88de6ed9aeb03c5b6fadea24091"
+    },
+    "ARAM_SonicBoom": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SonicBoom",
+      "description": "Cherry_SonicBoom_Summary",
+      "source": "KIWI",
+      "sha256": "fb36494a547a2068e86c4349a10f05cefd0ea730dcb1f598c300e7f4858521c5"
+    },
+    "ARAM_SoulSiphon": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SoulSiphon",
+      "description": "Cherry_SoulSiphon_Summary",
+      "source": "KIWI",
+      "sha256": "905e011fa12c063b3cf265400456cb5abebf3ff5e187ec2d3e98db0e99d5f861"
+    },
+    "ARAM_SymphonyofWar": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SymphonyofWar",
+      "description": "Cherry_SymphonyofWar_Summary",
+      "source": "KIWI",
+      "sha256": "6f4ae56375ab23a879fb55ce5bb1889bded21b4fbcad53d2ba11ee54dc22ced6"
+    },
+    "ARAM_TankItOrLeaveIt": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_TankItOrLeaveIt",
+      "description": "Cherry_TankItOrLeaveit_Summary",
+      "source": "KIWI",
+      "sha256": "9649d3e4b0a1478229d91515e358779a1aa4eb18ffe6b83c3a78416a12fd1872"
+    },
+    "ARAM_TapDancer": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_TapDancer",
+      "description": "Kiwi_TapDancer_Summary",
+      "source": "KIWI",
+      "sha256": "8d3fb26926316278ae6fd9b41c019908accd6d6cf863c3178dbbbe39b2031bd9"
+    },
+    "ARAM_ThreadtheNeedle": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ThreadtheNeedle",
+      "description": "Cherry_ThreadtheNeedle_Summary",
+      "source": "KIWI",
+      "sha256": "40ed2617fdd55d5c49f6af52e9ae67cd307f16050963f192e8cacf2479676f33"
+    },
+    "ARAM_Typhoon": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Typhoon",
+      "description": "Kiwi_Typhoon_Summary",
+      "source": "KIWI",
+      "sha256": "6c2b4005deeb12154a9b8a57c7bd1879889a288c8b2e35bb141352722854dae7"
+    },
+    "ARAM_UltimateRevolution": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_UltimateRevolution",
+      "description": "Kiwi_UltimateRevolution_Summary",
+      "source": "KIWI",
+      "sha256": "859f78978c346159579e4f31c3e370f955c9d80993703d23f23a42b7d047bb5b"
+    },
+    "ARAM_Vulnerability": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Vulnerability",
+      "description": "Cherry_Vulnerability_Summary",
+      "source": "KIWI",
+      "sha256": "ce295acb07ace884a0c5d1174c8d5e6fd797c73f65d761f8698f6884d0fce96a"
+    },
+    "ARAM_WindspeakersBlessing": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_WindspeakersBlessing",
+      "description": "Cherry_WindspeakersBlessing_Summary",
+      "source": "KIWI",
+      "sha256": "f1aa8ca37164596b1a276cf0de3c052bc5920e18705ac4e0324d2951b74ad40e"
+    },
+    "ARAM_WitchfulThinking": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_WitchfulThinking",
+      "description": "Cherry_WitchfulThinking_Summary",
+      "source": "KIWI",
+      "sha256": "f9258bd733d23ab3d1449cbfa0564d17126853eef24bafa34609dd36365034c8"
+    },
+    "ARAM_WithHaste": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_WithHaste",
+      "description": "Cherry_WithHaste_Summary",
+      "source": "KIWI",
+      "sha256": "8f49546f3765245276a002c477ffd81eaf9a3299762a8806e85839ee7dab1f1e"
+    },
+    "ARAM_BreadAndButter": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BreadAndButter",
+      "description": "Kiwi_BreadAndButter_Tooltip",
+      "source": "KIWI",
+      "sha256": "a8df95795f14137b0d0d5290bb2f6da1aa5ad9bde82e36843753aa9c1359d1a7"
+    },
+    "ARAM_Minionmancer": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Minionmancer",
+      "description": "ARAM_Minionmancer_Tooltip",
+      "source": "KIWI",
+      "sha256": "e352c7568fdcdac54fe9e275f7355387913ec322148316826c575cde6b7b143d"
+    },
+    "ARAM_Homeguard": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Homeguard",
+      "description": "Kiwi_Homegaurd_Summary",
+      "source": "KIWI",
+      "sha256": "c60af494670dccd836d327f0248f4b54f504a816731c9fe6f95e577031a4456e"
+    },
+    "ARAM_UltimateUnstoppable": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_UltimateUnstoppable",
+      "description": "Cherry_UltimateUnstoppable_Tooltip",
+      "source": "KIWI",
+      "sha256": "2e6e184e03120cf68c1fa7e266c01fde43b9af4806c2cb124aff129a5c941d55"
+    },
+    "ARAM_SkilledSniper": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SkilledSniper",
+      "description": "Kiwi_SkilledSniper_Summary",
+      "source": "KIWI",
+      "sha256": "100a1c00c78c68e843f7c9d067d70493661352e519ba1b9e44893f577e120c1d"
+    },
+    "ARAM_ScopiestWeapons": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ScopiestWeapons",
+      "description": "Cherry_ScopiestWeapons_Tooltip",
+      "source": "KIWI",
+      "sha256": "9e1d8ec59d924dc9a1d75da54e052985606d6fb60fc6045cdd6a5f388ac129ba"
+    },
+    "ARAM_Flashy": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Flashy",
+      "description": "Kiwi_Flashy_Tooltip",
+      "source": "KIWI",
+      "sha256": "fec49d6f4a7a911d026b331c117bfcb08e46928f11b3416bf1a1f222e9e64cf2"
+    },
+    "ARAM_CriticalHealing": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_CriticalHealing",
+      "description": "Kiwi_CriticalHealing_Summary",
+      "source": "KIWI",
+      "sha256": "d64e000be2493d538719b642a830291d8a1d1655088517e844d430f72adbfc90"
+    },
+    "ARAM_Marksmage": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Marksmage",
+      "description": "Cherry_Marksmage_Summary",
+      "source": "KIWI",
+      "sha256": "4363436ef26aeef9d0a953fcb455457f6f2213845a7e779bb43bfdec51bebea6"
+    },
+    "ARAM_MagicMissile": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MagicMissile",
+      "description": "Kiwi_MagicMissile_Summary",
+      "source": "KIWI",
+      "sha256": "506df57da52aa7e32251347d6bfebf8cd6791f4de97895439047023ded6d4f89"
+    },
+    "ARAM_DrawYourSword": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DrawYourSword",
+      "description": "Kiwi_DrawYourSword_Summary",
+      "source": "KIWI",
+      "sha256": "8c832fa92a4cb5936d384b06c117ba2292332ab9f8ca9d7e5004c31620c8fdf3"
+    },
+    "ARAM_SlapAround": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SlapAround",
+      "description": "Kiwi_SlapAround_Summary",
+      "source": "KIWI",
+      "sha256": "1b9ad83f7be0a230dafd2169866bc0d8b04c54eb9f2fe0bb18b2478792f06228"
+    },
+    "ARAM_Goredrink": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Goredrink",
+      "description": "Cherry_Goredrink_Summary",
+      "source": "KIWI",
+      "sha256": "f7ad8a349d1acf75200abf2d86b96a7c2cfe5ea039080eaa95bad070476e7942"
+    },
+    "ARAM_AllForYou": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_AllForYou",
+      "description": "Cherry_AllForYou_Summary",
+      "source": "KIWI",
+      "sha256": "206ea5a9788caadb0d58dee5afdf7d542a635f599cde4b69cbdb1e283d928615"
+    },
+    "ARAM_Impassable": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Impassable",
+      "description": "Cherry_Impassable_Summary",
+      "source": "KIWI",
+      "sha256": "6dd44a1fe3b439f790c7b15921a2a0ff06b3b9f140caf839a0267ad7eb600eed"
+    },
+    "ARAM_BreadAndJam": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BreadAndJam",
+      "description": "Kiwi_BreadAndJam_Summary",
+      "source": "KIWI",
+      "sha256": "0c93334bc49131a19c38d32b5a155ddf34148d7397770c8c9b063dc2b24e1b44"
+    },
+    "ARAM_BreadAndCheese": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BreadAndCheese",
+      "description": "Kiwi_BreadAndCheese_Summary",
+      "source": "KIWI",
+      "sha256": "08e166e498bb1f614f7ad1555104d812cf3fc62c707cdc917c6664dbe1fb8002"
+    },
+    "ARAM_Quest_SteelYourHeart": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Quest_SteelYourHeart",
+      "description": "Kiwi_Quest_SteelYourHeart_Summary",
+      "source": "KIWI",
+      "sha256": "84f4d34a66c86e5f4bc0efaccdb968e5cd02a2e9a9c3b3c4843c0467dc589299"
+    },
+    "ARAM_Quest_UrfsChampion": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Quest_UrfsChampion",
+      "description": "Kiwi_Quest_UrfsChampion_Summary",
+      "source": "KIWI",
+      "sha256": "8efb6abf294acb025f87d49e6d62e0069646f585ad8232199b763f888dab666d"
+    },
+    "ARAM_Quest_WoogletsWitchcap": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Quest_WoogletsWitchcap",
+      "description": "WoogletsWitchcap_Desc",
+      "source": "KIWI",
+      "sha256": "602767954dd2f646dab27dc1181a78f65fd7229f742ae332e45660fed9be45ca"
+    },
+    "ARAM_ScopedWeapons": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ScopedWeapons",
+      "description": "Cherry_ScopedWeapons_Summary",
+      "source": "KIWI",
+      "sha256": "9e1d8ec59d924dc9a1d75da54e052985606d6fb60fc6045cdd6a5f388ac129ba"
+    },
+    "ARAM_BigBrain": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BigBrain",
+      "description": "Kiwi_BigBrain_Summary",
+      "source": "KIWI",
+      "sha256": "2ffccc565720b677eacfb2b8b1029005554662fdfef31f0f9a4615b0df1d1fe8"
+    },
+    "ARAM_HeavyHitter": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_HeavyHitter",
+      "description": "Cherry_HeavyHitter_Summary",
+      "source": "KIWI",
+      "sha256": "75f2ede4e1dec8b67d4c79bd74634b0a4803492f7d1e3554a2242a78f1e0aa12"
+    },
+    "ARAM_Flashbang": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Flashbang",
+      "description": "Kiwi_FlashBang_Summary",
+      "source": "KIWI",
+      "sha256": "7b4cb6fd9dbb350e0905796c293958ce0355d77e5e16e77068fc7173e7aa9c77"
+    },
+    "ARAM_FeyMagic": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_FeyMagic",
+      "description": "Cherry_FeyMagic_Summary",
+      "source": "KIWI",
+      "sha256": "9f9394c8c6ee35dae1c54d7e928c6ba02daa87c83536243820e696255e78ecf2"
+    },
+    "ARAM_GiantSlayer": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_GiantSlayer",
+      "description": "Kiwi_GiantSlayer_Summary",
+      "source": "KIWI",
+      "sha256": "76a7b8d7be700f5afbdcd987fe1ee90c9ec4b0025767da488d625670dafdf1dd"
+    },
+    "ARAM_StackosaurusRex": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_StackosaurusRex",
+      "description": "Cherry_StackosaurusRex_Summary",
+      "source": "KIWI",
+      "sha256": "4e6a072dfc841993b2a667b67d266cb7fe2b6e19818bc95284cd98a762e3ad69"
+    },
+    "ARAM_ADAPt": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ADAPt",
+      "description": "Cherry_ADAPt_Summary",
+      "source": "KIWI",
+      "sha256": "dcc18662d41ab131baaf702fd85db4fa66f3203159fe5c18625350e7b737ca81"
+    },
+    "ARAM_escAPADe": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_escAPADe",
+      "description": "Cherry_escAPADe_Summary",
+      "source": "KIWI",
+      "sha256": "54769bc43bfca03e6e9940e97f5d8d905c0707ddcd4a5d603bba15bd932b1f68"
+    },
+    "ARAM_ItsKillingTime": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ItsKillingTime",
+      "description": "Kiwi_ItskillingTime_Summary",
+      "source": "KIWI",
+      "sha256": "35a60649a40699c0dfe27788d619bffb27abe2b5d2e6d1fe9468e3ffecad20f1"
+    },
+    "ARAM_SpinToWin": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SpinToWin",
+      "description": "Kiwi_SpinToWin_Summary",
+      "source": "KIWI",
+      "sha256": "88daaf56cb414cdcfe20ef3ecfa7e97b36ddd04e73f3a60263b2e3c5e92ae313"
+    },
+    "ARAM_FanTheHammer": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_FanTheHammer",
+      "description": "Kiwi_FanTheHammer_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "25b2e4c14cc872a1e580a0da080b80739eb7ad5ce0634d109fb9c12e1191534a"
+    },
+    "ARAM_DualWield": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DualWield",
+      "description": "Kiwi_DualWield_Summary",
+      "source": "KIWI",
+      "sha256": "1afa9dbc7e26ddc3cfe57b3aae745fd23d3e5e3eeb756a1b75ca0782b7d867cb"
+    },
+    "ARAM_TransmuteGold": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_TransmuteGold",
+      "description": "Cherry_TransmuteGold_Tooltip",
+      "source": "KIWI",
+      "sha256": "76f499e139bba8631bed3f681baf30017ee68007571095dbcc885605abef5f3c"
+    },
+    "ARAM_TransmutePrismatic": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_TransmutePrismatic",
+      "description": "Cherry_TransmutePrismatic_Tooltip",
+      "source": "KIWI",
+      "sha256": "4535d04ed2759fe01ad7348616cf464059b75e877d4706dc01c21df62ac4dc08"
+    },
+    "ARAM_TransmuteChaos": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_TransmuteChaos",
+      "description": "Cherry_TransmuteChaos_Tooltip",
+      "source": "KIWI",
+      "sha256": "c0400b3d56664dd86b7f09a28b54bc88568b0174d2d8fed99c179e19a89f2dd2"
+    },
+    "ARAM_DivineIntervention": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DivineIntervention",
+      "description": "Kiwi_DiveineIntervention_Summary",
+      "source": "KIWI",
+      "sha256": "363d36140d6a3b32eba838bb9f18ff2aa678280fdbc72bc587594fd1e9c7e1a8"
+    },
+    "ARAM_LegDay": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_LegDay",
+      "description": "Cherry_LegDay_Tooltip",
+      "source": "KIWI",
+      "sha256": "06bf0a6a224fcc13e83a938fd17092e4135280140c7300084244624c18e10786"
+    },
+    "ARAM_Firefox": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Firefox",
+      "description": "Cherry_Foxfire_Summary",
+      "source": "KIWI",
+      "sha256": "f921eed97213f69a7e06d7eaa4db2e76eff66904cd1c610a37d779d749251251"
+    },
+    "ARAM_ClownCollege": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ClownCollege",
+      "description": "Kiwi_ClownCollege_Tooltip",
+      "source": "KIWI",
+      "sha256": "ba0b5f31173053a10d92c33a5da5d07988147b5465e530263b4a10a28ed6ee62"
+    },
+    "ARAM_Overflow": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Overflow",
+      "description": "Cherry_Overflow_Summary",
+      "source": "KIWI",
+      "sha256": "fdb19e3af1dd82b8d71fa20c3b8d37c9b6b5b0d55dff2f5036b5663f205132dc"
+    },
+    "MightyShield": {
+      "definition": "Maps/ModeSpecificData/Augments/MightyShield",
+      "description": "Kiwi_MightyShield_Summary",
+      "source": "KIWI",
+      "sha256": "25a42a98375ae0aae4c618c41e0bce13d82959d4f0c74cb7eaa3e37531eb1294"
+    },
+    "SwiftAndSafe": {
+      "definition": "Maps/ModeSpecificData/Augments/SwiftAndSafe",
+      "description": "Kiwi_SwiftAndSafe",
+      "source": "KIWI",
+      "sha256": "c147e89a92a4178ccc41977f102b4899f6f6867dbf54813657fccb88d43f56a2"
+    },
+    "ARAM_Upgrade_ZH": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Upgrade_ZH",
+      "description": "Kiwi_Upgrade_ZH_Summary",
+      "source": "KIWI",
+      "sha256": "b44acd4a6a3ecfc33a7f87e9d38e7cda0dec47af20101e3b10b249e2fc3d669f"
+    },
+    "ARAM_Upgrade_Immolate": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Upgrade_Immolate",
+      "description": "Kiwi_Upgrade_Immolate_Summary",
+      "source": "KIWI",
+      "sha256": "8f0664a83aff5606e0baf20f6153bd089aad1e7751d52e4f2f338ff1d383dd01"
+    },
+    "ARAM_Upgrade_Collector": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Upgrade_Collector",
+      "description": "Kiwi_Upgrade_Collector_Summary",
+      "source": "KIWI",
+      "sha256": "920caa328469cc28181207d6075104eab47369139b820299d88f5d38f92c12f8"
+    },
+    "ARAM_GetExcited": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_GetExcited",
+      "description": "Kiwi_GetExcited_Summary",
+      "source": "KIWI",
+      "sha256": "a3ee92d1a46c344b7705f0f4c8dd7403ecf3cd71f8b223d3adf23e7d6000d9de"
+    },
+    "ARAM_Cruelty": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Cruelty",
+      "description": "Kiwi_Cruelty_Summary",
+      "source": "KIWI",
+      "sha256": "5c9cc67dc1ce5760c677b9251f260a73d1a5fced24248bc9e40cb1c220dddc59"
+    },
+    "ARAM_ProteinShake": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_ProteinShake",
+      "description": "Kiwi_ProteinShake_Summary",
+      "source": "KIWI",
+      "sha256": "a9b408cfc9776d1f4c6fd50a5914207b55a5e25b64c5359a145b5e4be2434bf1"
+    },
+    "GlassCannon": {
+      "definition": "Maps/ModeSpecificData/Augments/GlassCannon",
+      "description": "Kiwi_GlassCannon_Summary",
+      "source": "KIWI",
+      "sha256": "8df8b8642f60e6d6906fa90b27712fbfb73f6e14d9b7ccad091ea0c3e0235d43"
+    },
+    "Nightstalking": {
+      "definition": "Maps/ModeSpecificData/Augments/Nightstalking",
+      "description": "Kiwi_Nightstalking_Summary",
+      "source": "KIWI",
+      "sha256": "563e38d1db1af47ce3b39f8e93dfd44f21d13da514437705d9a4e7abf6292933"
+    },
+    "Adamant": {
+      "definition": "Maps/ModeSpecificData/Augments/Adamant",
+      "description": "Kiwi_Adamant_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "e60a4e7752e084dde64cadbee84a90960908f7d14b0a794b614126e478e5a2b5"
+    },
+    "CriticalRhythm": {
+      "definition": "Maps/ModeSpecificData/Augments/CriticalRhythm",
+      "description": "Kiwi_CriticalRhythm_Summary",
+      "source": "KIWI",
+      "sha256": "83d4f358f40438be751974f3084a64e0770c17c40026cd6cc5e2000e69e4dd43"
+    },
+    "BiggestSnowballEver": {
+      "definition": "Maps/ModeSpecificData/Augments/BiggestSnowballEver",
+      "description": "Kiwi_BiggestSnowballEver_Summary",
+      "source": "KIWI",
+      "sha256": "abcd367b0d572fd517ed6df7faf8912822159cd4e48a27d6ee8d6856ca2af1a3"
+    },
+    "EmpyreanPromise": {
+      "definition": "Maps/ModeSpecificData/Augments/EmpyreanPromise",
+      "description": "Kiwi_EmpyreanPromise_Summary",
+      "source": "KIWI",
+      "sha256": "1d42ed22bb6044af0eee6e68a0ebb21d76282a1f1fa92a2ffa41f6c62f60421a"
+    },
+    "OminousPact": {
+      "definition": "Maps/ModeSpecificData/Augments/OminousPact",
+      "description": "Kiwi_OminousPact_Summary",
+      "source": "KIWI",
+      "sha256": "47f229399ee2b1db4e5595896beefb370e1d3a7a7a4d194e620f089e23323880"
+    },
+    "EscapePlan": {
+      "definition": "Maps/ModeSpecificData/Augments/EscapePlan",
+      "description": "Kiwi_EscapePlan_Summary",
+      "source": "KIWI",
+      "sha256": "4377c9552c80aa0676c9926d412697b898158abe9628cf729d28a26d9c16f91b"
+    },
+    "SnowballUpgrade": {
+      "definition": "Maps/ModeSpecificData/Augments/SnowballUpgrade",
+      "description": "Kiwi_SnowballUpgrade_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "0a8ad82bb803a2d825c4e82c70303104123dc2963702553bf969050ac455563a"
+    },
+    "Goldrend": {
+      "definition": "Maps/ModeSpecificData/Augments/Goldrend",
+      "description": "Kiwi_Goldrend_Summary",
+      "source": "KIWI",
+      "sha256": "ae43382290d03bc5028702f401d3cf745b0bc2ef1ef7e3cedf8a625f1752dd78"
+    },
+    "ARAM_Upgrade_IE": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Upgrade_IE",
+      "description": "Kiwi_Upgrade_IE_Summary",
+      "source": "KIWI",
+      "sha256": "219d3a55ae8d5933ea026fdd15f1b0fb0fe9026bfbdec5df0aaf843fa68398e5"
+    },
+    "KingMe": {
+      "definition": "Maps/ModeSpecificData/Augments/KingMe",
+      "description": "Kiwi_KingMe_Tooltip",
+      "source": "KIWI",
+      "sha256": "cacf6d900dcf23d5a3ed29b2ad081891903f257ae0c3b00e6cb76da60c11a9c9"
+    },
+    "LaserHeal": {
+      "definition": "Maps/ModeSpecificData/Augments/LaserHeal",
+      "description": "Kiwi_LaserHeal_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "c49834effb38c0f602b62415743ddfa98f8c3a0897fdca39b2da242225c0571a"
+    },
+    "SnowballRoulette": {
+      "definition": "Maps/ModeSpecificData/Augments/SnowballRoulette",
+      "description": "Kiwi_SnowballRoulette_Description",
+      "source": "KIWI_JADE",
+      "sha256": "0014fe6d3aca4472b87d1d423ac89932a8a6cfd945ba71723c70651d2dcee7f4"
+    },
+    "Quest_Sneakerhead": {
+      "definition": "Maps/ModeSpecificData/Augments/Quest_Sneakerhead",
+      "description": "Kiwi_Quest_Sneakerhead_Summary",
+      "source": "KIWI",
+      "sha256": "1d0661d723d07c1054cbc470ba9d419afb2c5fe3e04707cefddafc7b23042e13"
+    },
+    "FinalForm": {
+      "definition": "Maps/ModeSpecificData/Augments/FinalForm",
+      "description": "Kiwi_FinalForm_Summary",
+      "source": "KIWI",
+      "sha256": "7291f20da41480f0d7458c95fed5644a67d40c28cbe2bce3a8c1762affd6a061"
+    },
+    "ARAM_SpiritualPurification": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SpiritualPurification",
+      "description": "Kiwi_SpiritualPurification_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "94ff945bb1d14be02227944fe4a90ca08d26bb4a20623f996a1e53aaa837c0b9"
+    },
+    "Vampirism": {
+      "definition": "Maps/ModeSpecificData/Augments/Vampirism",
+      "description": "Kiwi_Vampirism_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "b7015548de44e65aa991e82bd665fd41c51cf2cb5fe9d1e5daed54c93ac1a938"
+    },
+    "Poltergeist": {
+      "definition": "Maps/ModeSpecificData/Augments/Poltergeist",
+      "description": "Kiwi_Poltergeist_Summary",
+      "source": "KIWI",
+      "sha256": "d740cfa00111f68fc6131bcbe8d0ecc0378e37a8c2ee3aa16908a905edc2e23c"
+    },
+    "Flash2": {
+      "definition": "Maps/ModeSpecificData/Augments/Flash2",
+      "description": "Kiwi_Flash2_Summary",
+      "source": "KIWI",
+      "sha256": "253ef59142a6d265311414f35ee5b4cf16a9b537dfc24bcacdda0b5edbac8c15"
+    },
+    "UltimateAwakening": {
+      "definition": "Maps/ModeSpecificData/Augments/UltimateAwakening",
+      "description": "Kiwi_UltimateAwakening_Summary",
+      "source": "KIWI",
+      "sha256": "5d840df4f20e4bda707577d5b301b3153b70fa2eacae75df745f3bc1e3ca0f5e"
+    },
+    "ARAM_TankEngine": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_TankEngine",
+      "description": "Kiwi_TankEngine_Summary",
+      "source": "KIWI",
+      "sha256": "07aefc81a9a9307a87c1d3d6461d7b99d005885b1bf3678c9eabf87597df5b6b"
+    },
+    "CriticalMissile": {
+      "definition": "Maps/ModeSpecificData/Augments/CriticalMissile",
+      "description": "Kiwi_CriticalMissile_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "84b89809789c01b319918c5d602b7d084c625aba043eab828229eaa0b8ca04e7"
+    },
+    "PinballSnowball": {
+      "definition": "Maps/ModeSpecificData/Augments/PinballSnowball",
+      "description": "Kiwi_PinballSnowball_Summary",
+      "source": "KIWI",
+      "sha256": "4813b3d8d7c9332b03506d399cb0567663adf0a9ebb2965652a131960401902d"
+    },
+    "ARAM_Quest_VoidImmolation": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Quest_VoidImmolation",
+      "description": "Kiwi_ARAM_Quest_VoidImmolation_Summary",
+      "source": "KIWI",
+      "sha256": "e66304f844338d0985f466153af7f01eaf4565b540d9b00942359ccaaf9973a5"
+    },
+    "BabyKitty": {
+      "definition": "Maps/ModeSpecificData/Augments/BabyKitty",
+      "description": "Kiwi_BabyKitty_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "0e6103ffc940efa089aeb050f1ad7ca74b773172fa30893351f5d292a59f7c3c"
+    },
+    "ShrinkEngine": {
+      "definition": "Maps/ModeSpecificData/Augments/ShrinkEngine",
+      "description": "Kiwi_ShrinkEngine_Summary",
+      "source": "KIWI",
+      "sha256": "64ec9d1e4dd8fccdd1938b991788583898327e10eda371cf765957bfd09fb6dc"
+    },
+    "SoulEater": {
+      "definition": "Maps/ModeSpecificData/Augments/SoulEater",
+      "description": "Kiwi_SoulEater_Summary",
+      "source": "KIWI",
+      "sha256": "9b8435f6c1f4ce9fc1d3d1f8c69dcd375a628077ecb6bf3fa61d0feae615ecfe"
+    },
+    "Upgrade_SwordOfBlossom": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_SwordOfBlossom",
+      "description": "Kiwi_Upgrade_SwordOfBlossom_Summary",
+      "source": "KIWI",
+      "sha256": "719faedad51917b70df376c139dc67424e6373804650e4af4605518d866c67b2"
+    },
+    "Donation": {
+      "definition": "Maps/ModeSpecificData/Augments/Donation",
+      "description": "Kiwi_Donation_Summary",
+      "source": "KIWI",
+      "sha256": "6a85ddf08d92d414858e79eb9554c02c2102ec8a1f3e8e2724e49fbce881bf3c"
+    },
+    "YouSpinMeRightRound": {
+      "definition": "Maps/ModeSpecificData/Augments/YouSpinMeRightRound",
+      "description": "Kiwi_ARAM_YouSpinMeRightRound_Tooltip",
+      "source": "KIWI",
+      "sha256": "b74501ddff5a8dc1614a5d9552452e09133117a9e35161088be9837084f0fd5d"
+    },
+    "InfiniteRecursion": {
+      "definition": "Maps/ModeSpecificData/Augments/InfiniteRecursion",
+      "description": "Kiwi_InfiniteRecursion_Summary",
+      "source": "KIWI",
+      "sha256": "26ecd22f771a30dce3e8696f6d0032295c4855ef7c94c301b4b7bd6857e1a56d"
+    },
+    "HandOfBaron": {
+      "definition": "Maps/ModeSpecificData/Augments/HandOfBaron",
+      "description": "Kiwi_ARAM_HandOfBaron_Tooltip",
+      "source": "KIWI",
+      "sha256": "ffa5979f5d827d132e0229e383220dc02371a5ddd2907c1f834e96f5d7d19ded"
+    },
+    "ARAM_PhenomenalEvil": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_PhenomenalEvil",
+      "description": "Kiwi_ARAM_PhenomenalEvil_Summary",
+      "source": "KIWI",
+      "sha256": "17f44d8c3a26834ac1add588c5211a2c4ba1ad121410a0a2a93967778a6cf33d"
+    },
+    "GoldenSnowball": {
+      "definition": "Maps/ModeSpecificData/Augments/GoldenSnowball",
+      "description": "Kiwi_GoldenSnowball_Summary",
+      "source": "KIWI",
+      "sha256": "fc902fb3b916d41ba7cf2cd9293d990fa3d059631d1e34746f47bac1de695a11"
+    },
+    "TrainOfTheDead": {
+      "definition": "Maps/ModeSpecificData/Augments/TrainOfTheDead",
+      "description": "Kiwi_TrainOfTheDead_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "19348262ed0b30962fcbc4655cef2250c6bf990db14a56d3792d6460b55401d7"
+    },
+    "GrowthSpurt": {
+      "definition": "Maps/ModeSpecificData/Augments/GrowthSpurt",
+      "description": "Kiwi_GrowthSpurt_Summary",
+      "source": "KIWI",
+      "sha256": "f310f934a55b01b800309fc161c7fcf08d839db15bdf290eac5ec800dc4f67bb"
+    },
+    "ARAM_StatsOnStatsOnStats": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_StatsOnStatsOnStats",
+      "description": "Kiwi_ARAM_StatsOnStatsOnStats_Tooltip",
+      "source": "KIWI",
+      "sha256": "9898af46a2c7698c24b24e621e9c01cfe56899039742c43fa275ce7860971834"
+    },
+    "ARAM_StatsOnStats": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_StatsOnStats",
+      "description": "Kiwi_ARAM_Stats_Tooltip",
+      "source": "KIWI",
+      "sha256": "94c2a6231a81722841fcc1aaec31796358fb13ccbe49c1a74cb5cb4b65becf64"
+    },
+    "ARAM_Stats": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Stats",
+      "description": "Cherry_Stats_Tooltip",
+      "source": "KIWI",
+      "sha256": "4927ba40f163a54161e93ef87f5f775db9df4ac9494a5e161341ed9384ef4787"
+    },
+    "GrandmasChiliOil": {
+      "definition": "Maps/ModeSpecificData/Augments/GrandmasChiliOil",
+      "description": "Kiwi_GrandmasChiliOil_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "710e9bd58af39a7754f88f15edd7782fe75c720ba5e7a8e9292284161e70a843"
+    },
+    "ARAM_Poro_Blast": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Poro_Blast",
+      "description": "Kiwi_Poro_Blaster_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "0d580a3ab6c3811b00498d2b507f09c24c61e5deb12f6d21708a2440efe5a41e"
+    },
+    "ARAM_StuckInHereWithMe": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_StuckInHereWithMe",
+      "description": "Kiwi_StuckInHereWithMe_Summary",
+      "source": "KIWI",
+      "sha256": "a6c94ef89d745c71d2565976a2c1621260d9eefba6c2c6a4ead616a2ee3f1262"
+    },
+    "Dropybara_Active": {
+      "definition": "Maps/ModeSpecificData/Augments/Dropybara_Active",
+      "description": "Kiwi_Augment_Droppybara_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "dfd8768878b34f5c608d4d842faa04dc58ab03274210e2681123af96b6a670dd"
+    },
+    "Twinfire": {
+      "definition": "Maps/ModeSpecificData/Augments/Twinfire",
+      "description": "Kiwi_TwinFire_Summary",
+      "source": "KIWI",
+      "sha256": "22e373d5a29e87ab59192c3bcdc50a82131e4c2d5b18c7c9395f4e4087bf95e1"
+    },
+    "HextechSoul": {
+      "definition": "Maps/ModeSpecificData/Augments/HextechSoul",
+      "description": "Kiwi_HextechSoul_Summary",
+      "source": "KIWI",
+      "sha256": "94bf6eec9b516af14f0ed98ef93f00ed07283ff0bc78e351fe94cb56f4f60543"
+    },
+    "Sonata": {
+      "definition": "Maps/ModeSpecificData/Augments/Sonata",
+      "description": "Kiwi_ARAM_Sonata_Summary",
+      "source": "KIWI",
+      "sha256": "301d8ee0d93bfb1cbe9297dc62d6477b6265224911241ff09e415cff1d51629f"
+    },
+    "PromQueen": {
+      "definition": "Maps/ModeSpecificData/Augments/PromQueen",
+      "description": "Kiwi_ARAM_PromQueen_Summary",
+      "source": "KIWI",
+      "sha256": "0e0f5a3fee7233757804ce71aa462957825e440f513477a3f9877e4587ec103c"
+    },
+    "ARAM_MissingPingAugment": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_MissingPingAugment",
+      "description": "Augment_MissingPingAugment_Desc",
+      "source": "KIWI_JADE",
+      "sha256": "ec32d7b1261770b6fda3ab94d6e35b9237d8168890a7c1991bdf8cb069859b90"
+    },
+    "ARAM_Upgrade_Sheen": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Upgrade_Sheen",
+      "description": "Kiwi_Upgrade_Sheen_Summary",
+      "source": "KIWI",
+      "sha256": "7595019e38abb7fbf47d4054c2f17d84764bf2b0b5ec7496c126e0d787807b77"
+    },
+    "ARAM_PoroKing": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_PoroKing",
+      "description": "Kiwi_ARAM_PoroKing_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "938699d0b8a0aad134991e467b42eabaaf4c8721e6d583f2075bdcd6e644d6a5"
+    },
+    "ARAM_EmpoweredByTheFaithful": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_EmpoweredByTheFaithful",
+      "description": "Kiwi_Augment_EmpoweredByTheFaithful_Summary",
+      "source": "KIWI",
+      "sha256": "ec3cabbb2d92adac4dd9b4ad5be00c4e09e600c496762f2ff180256c0e567886"
+    },
+    "ARAM_InfernoTriggered": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_InfernoTriggered",
+      "description": "Kiwi_Augment_InfernoTriggered_Summary",
+      "source": "KIWI",
+      "sha256": "5203882365c66b70341c000b68f2aee225b339867c724b6b31768585e04cd666"
+    },
+    "ARAM_Dropkick": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Dropkick",
+      "description": "Kiwi_Augment_Dropkick_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "ccd7344d0451dcda9b63473eda8ef2660764887c2387256d609651d043d92d0a"
+    },
+    "ARAM_LittleDevil": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_LittleDevil",
+      "description": "Kiwi_Augment_LittleDevil_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "e82077b3ce74421f0053e538504024318a17f245f8198041a3b69fd9671d47e7"
+    },
+    "ARAM_Zealot": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Zealot",
+      "description": "Kiwi_Zealot_Summary",
+      "source": "KIWI",
+      "sha256": "993cf6a8b51fa56c3ce8ea7b63321bf261eed9e6a64065a526218b7744303c93"
+    },
+    "ARAM_DoubleTap": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DoubleTap",
+      "description": "Kiwi_DoubleTap_Summary",
+      "source": "KIWI",
+      "sha256": "60e663d16132179ac141cef7ffede1435a9d4b34930a08fa0bb8c569e0aa9ffa"
+    },
+    "ARAM_Juiced": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Juiced",
+      "description": "Kiwi_Juiced_Summary",
+      "source": "KIWI",
+      "sha256": "9f284bf2fadfc19c4d8ab8d3e5696af112b00529d4e2a622e0374415a39241ff"
+    },
+    "ARAM_Purist_Caster": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Purist_Caster",
+      "description": "Kiwi_Purist_Caster_Summary",
+      "source": "KIWI",
+      "sha256": "fb3b032b0943d98f55b17fff7f6f82b80ffed5d8d9dfc6fed9ac90ab7be77c53"
+    },
+    "KillSecured": {
+      "definition": "Maps/ModeSpecificData/Augments/KillSecured",
+      "description": "Kiwi_ARAM_KillSecured_Summary",
+      "source": "KIWI",
+      "sha256": "9123999a550e78bbfaf70d8e9177ec92d5f09975f6b4c03fea9f3f215df85a79"
+    },
+    "ARAM_DropBear": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DropBear",
+      "description": "Kiwi_DropBear_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "0211ecda3815a3e20c33ec67a9443a77805c10a9a69376391934123f344b4d24"
+    },
+    "FishBait": {
+      "definition": "Maps/ModeSpecificData/Augments/FishBait",
+      "description": "Kiwi_FishBait_Summary",
+      "source": "KIWI",
+      "sha256": "9c66a0dff4325e73d27dbe06de06cf731677bc36a153360eb7c24dc097d59d8e"
+    },
+    "SharkTempest": {
+      "definition": "Maps/ModeSpecificData/Augments/SharkTempest",
+      "description": "Kiwi_Augment_SharkTempest_Summary",
+      "source": "KIWI",
+      "sha256": "228711fb6cbbb836f647f9181452556f747190520044bd1f17555b026150d9c3"
+    },
+    "BrushPower": {
+      "definition": "Maps/ModeSpecificData/Augments/BrushPower",
+      "description": "Kiwi_Augment_BrushPower_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "78ac28ab2c800ee0caa2bd7e2cf28f15abd4024a0baba2b7cd882ace74a924aa"
+    },
+    "NatureIsHealing": {
+      "definition": "Maps/ModeSpecificData/Augments/NatureIsHealing",
+      "description": "Kiwi_Augment_NatureIsHealing_Summary",
+      "source": "KIWI",
+      "sha256": "8c0ec66951d383f1893ed0a9642bb215871023a0d9dd2b15323fe9339fd5605b"
+    },
+    "SpellVolley": {
+      "definition": "Maps/ModeSpecificData/Augments/SpellVolley",
+      "description": "Kiwi_SpellVolley_Summary",
+      "source": "KIWI",
+      "sha256": "a722b71343a4f2335c5f5e4735136bb0f4ea17a6d82a2f32e46d50945b126de8"
+    },
+    "ARAM_Multishot": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Multishot",
+      "description": "Kiwi_ARAM_Augment_Multshot_Tooltip",
+      "source": "KIWI",
+      "sha256": "9c9b8487e15e9d2c9ea1dd41059a8e3f225657a17018e87758ee79ec1e1be4aa"
+    },
+    "Ability_SelfAOE_DoubleCast": {
+      "definition": "Maps/ModeSpecificData/Augments/Ability_SelfAOE_DoubleCast",
+      "description": "Kiwi_Ability_SelfAOE_DoubleCast_Summary",
+      "source": "KIWI",
+      "sha256": "92b3fdeb4298a2f07343a0e24550bb422896efe4120fe0490b1b852376329d39"
+    },
+    "DimensionShift_Active": {
+      "definition": "Maps/ModeSpecificData/Augments/DimensionShift_Active",
+      "description": "Kiwi_Augment_DimensionShift_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "8497c1a215f211918fc5d973b5bb2a6041aa0afb5552b947fabd92306e082884"
+    },
+    "ARAM_Quickstep": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Quickstep",
+      "description": "Kiwi_Augment_Vanguard_Desc",
+      "source": "KIWI",
+      "sha256": "72b2b425622272ddd9ada232abf1ed0ef5b0841a35bd50caa7c1786cec809f97"
+    },
+    "ARAM_Terror": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Terror",
+      "description": "Kiwi_ARAM_Augment_Terror_Desc",
+      "source": "KIWI",
+      "sha256": "ffca1ba9ee6b3f92961ad7b2dbb1b7854d12a28811059062ecb3afdba6086003"
+    },
+    "Missile_Split": {
+      "definition": "Maps/ModeSpecificData/Augments/Missile_Split",
+      "description": "Kiwi_Missile_Split_Summary",
+      "source": "KIWI",
+      "sha256": "6bc331f8d4b6fa76024658a622ca952901c612ba3eb0498e23df3c6f06588bfd"
+    },
+    "ARAM_SustainingStrike": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SustainingStrike",
+      "description": "ARAM_Augment_SustainingStrike_Desc",
+      "source": "KIWI",
+      "sha256": "1db1a4c7887afe3e3e68afcbbc6e9dca9a670e2a1f44f8928c6cd27a4c0bc7d4"
+    },
+    "TitansPulse": {
+      "definition": "Maps/ModeSpecificData/Augments/TitansPulse",
+      "description": "Kiwi_TitansPulse_Summary",
+      "source": "KIWI",
+      "sha256": "b08a3e81ef44c518c0e3957581e1e22c31aa1f66ccd190f155e0567f9bc8095c"
+    },
+    "DarkWind": {
+      "definition": "Maps/ModeSpecificData/Augments/DarkWind",
+      "description": "Kiwi_Augment_DarkWind_Summary",
+      "source": "KIWI",
+      "sha256": "be21b1851ed596f46201f2d5f1adef82caa8ec97beb016257bbc72c3f7cba456"
+    },
+    "ChainReaction": {
+      "definition": "Maps/ModeSpecificData/Augments/ChainReaction",
+      "description": "Kiwi_ChainReaction_Summary",
+      "source": "KIWI",
+      "sha256": "49b256e4b7304f3b9d8fbe4b179238b0be8b7e88ecc2e034ce00c39690b94841"
+    },
+    "Snowbomb": {
+      "definition": "Maps/ModeSpecificData/Augments/Snowbomb",
+      "description": "Kiwi_AloneTime_Summary",
+      "source": "KIWI",
+      "sha256": "95e3158a76d727850327cbe99536847ff4378c544c97b6f520ba28a487daa668"
+    },
+    "Equilibrium": {
+      "definition": "Maps/ModeSpecificData/Augments/Equilibrium",
+      "description": "Kiwi_Augment_Equilibrium_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "4a83d933452e5ce7003d9bd70cb88a372be27f150b7da043677d4ea2747a49ef"
+    },
+    "BurstingTeeth": {
+      "definition": "Maps/ModeSpecificData/Augments/BurstingTeeth",
+      "description": "Kiwi_Augment_BurstingTeeth_Summary",
+      "source": "KIWI",
+      "sha256": "fe2c9156eb8e3bee841bd54f971a37833a5deed0ff242b2320f81834faab9a1d"
+    },
+    "ARAM_Archmage": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Archmage",
+      "description": "Kiwi_Archmage_Summary",
+      "source": "KIWI",
+      "sha256": "f2a441c95db3701917fc9c5c8cf02e8adf8e3b6b3d8b40072535c5a2dba3b900"
+    },
+    "ARAM_Snowday": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Snowday",
+      "description": "Kiwi_Snowday_Description",
+      "source": "KIWI",
+      "sha256": "b27630a33ad724ddb081b82da7af508b85b613b3764c7e2b57a93b77a2e7a9cb"
+    },
+    "ARAM_YowchMyCoins": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_YowchMyCoins",
+      "description": "Kiwi_OuchMyCoins_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "4bcbc804e3b31abac557904a8c4b5fef96eb91d11830273dbb1b9c55fa7b3854"
+    },
+    "EndlessDecimation": {
+      "definition": "Maps/ModeSpecificData/Augments/EndlessDecimation",
+      "description": "Kiwi_EndlessDecimation_Summary",
+      "source": "KIWI",
+      "sha256": "a379d6baa3e8a4c8a9c5605271b3cb5cf512e14cf859a4ed628b0b4abb86932e"
+    },
+    "LittleExtraHelp": {
+      "definition": "Maps/ModeSpecificData/Augments/LittleExtraHelp",
+      "description": "Kiwi_LittleExtraHelp_Summary",
+      "source": "KIWI",
+      "sha256": "885f36a3da9a7fdc19e3286edf974e85820b0f41a8b98d153424f49255096e57"
+    },
+    "VoidDash": {
+      "definition": "Maps/ModeSpecificData/Augments/VoidDash",
+      "description": "Kiwi_VoidDash_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "6a1814b1ebe47b601735b2bf80195fb051c289ce8f6307a404ca779e86a99986"
+    },
+    "ARAM_EndlessHunt": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_EndlessHunt",
+      "description": "Kiwi_ARAM_EndlessHunt_Summary",
+      "source": "KIWI",
+      "sha256": "b432e8ed0374878c4aec78b7e43a1e3181e3046ff196531fd560380a7be9640a"
+    },
+    "ARAM_DivineDomain": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_DivineDomain",
+      "description": "Kiwi_Augment_DivineDomain_Summary",
+      "source": "KIWI",
+      "sha256": "7da4d71db5a8425aaa98f0ffa0bf69cee64ebb5aa6b6907c74ba33bb7cc20acc"
+    },
+    "ARAM_SpecializedRecursion": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SpecializedRecursion",
+      "description": "Augment_SpecializedRecursion_Desc",
+      "source": "KIWI",
+      "sha256": "cc5246991129a58a2ead75d8342fc4fe80dc5e1c0247fe84b7049f75b2b580d2"
+    },
+    "PressureCooker": {
+      "definition": "Maps/ModeSpecificData/Augments/PressureCooker",
+      "description": "Kiwi_BurnBabyBurn_Desc",
+      "source": "KIWI",
+      "sha256": "e06573e0d37b78d78754df2c66d7f388dbd9cc5ae96a310ca816b3654a6605e5"
+    },
+    "ARAM_BangBang": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_BangBang",
+      "description": "Augment_BangBang_Desc",
+      "source": "KIWI",
+      "sha256": "317b3ea20b6686fae5ed5561c8bc544e4d027f847ba58232117783f22fc1ad97"
+    },
+    "ARAM_SpiritBomb": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SpiritBomb",
+      "description": "Kiwi_Augment_SpiritBomb_Summary",
+      "source": "KIWI",
+      "sha256": "0b87c6115a6d2c9ee828f6ff3c5bb29b93b5966882ec1d0a16553985dd0b81fe"
+    },
+    "ARAM_Hellbent": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_Hellbent",
+      "description": "Kiwi_Augment_Hellbent_Summary",
+      "source": "KIWI",
+      "sha256": "efc866fbfa23bc57253877d99ba99354e4fce64c0e26f316bcadc3310262f31c"
+    },
+    "SnapBack": {
+      "definition": "Maps/ModeSpecificData/Augments/SnapBack",
+      "description": "Kiwi_SnapBack_Summary",
+      "source": "KIWI",
+      "sha256": "0c045ba50b7475957c85aa5652b5476d01c2044401275a752e2e2ecbd4498a34"
+    },
+    "Bonk": {
+      "definition": "Maps/ModeSpecificData/Augments/Bonk",
+      "description": "Kiwi_Bonk_Summary",
+      "source": "KIWI",
+      "sha256": "629de986fa8823436497c7cd157f20939fb150ede88133891e470e7d9b4a9858"
+    },
+    "SquishySlappyGrab": {
+      "definition": "Maps/ModeSpecificData/Augments/SquishySlappyGrab",
+      "description": "Augment_SquishySlappyGrab_Summary",
+      "source": "KIWI",
+      "sha256": "86791ab6a6990a7aa05e7649d79aad3d46794a6ef3b9074bcc9ffe5b41d9e718"
+    },
+    "SpecializedEmpowerment": {
+      "definition": "Maps/ModeSpecificData/Augments/SpecializedEmpowerment",
+      "description": "Augment_SpecializedEmpowerment_Desc",
+      "source": "KIWI",
+      "sha256": "76cbc5069e86fbbae9de2f59e8cab59f069ba4a347a8fc21e5c2934d2f8cd37b"
+    },
+    "Overextender": {
+      "definition": "Maps/ModeSpecificData/Augments/Overextender",
+      "description": "Kiwi_Overextender_Summary",
+      "source": "KIWI",
+      "sha256": "3278017510ad8fb56a16bb17593ab75d2b9b3b74d62e03598c8f43acf81f7ff1"
+    },
+    "Overloaded": {
+      "definition": "Maps/ModeSpecificData/Augments/Overloaded",
+      "description": "Augment_Overloaded_Summary",
+      "source": "KIWI",
+      "sha256": "5b18f741b69cfcdc1ffa924232904faeeb78886d2e767584e3d3e9171034c247"
+    },
+    "ItsGoTime": {
+      "definition": "Maps/ModeSpecificData/Augments/ItsGoTime",
+      "description": "Augment_ItsGoTime_Summary",
+      "source": "KIWI",
+      "sha256": "a6bcd58cbf44a98a192c67dc7121eca7621843e764613adb0b726315dcc79560"
+    },
+    "KeepGoing": {
+      "definition": "Maps/ModeSpecificData/Augments/KeepGoing",
+      "description": "Augment_KeepGoing_Summary",
+      "source": "KIWI",
+      "sha256": "d72b1c2a3cc1736d33618d081dcc3a15dd17cde3a46995cc2864ff959cf13307"
+    },
+    "ForgedByTheMaster": {
+      "definition": "Maps/ModeSpecificData/Augments/ForgedByTheMaster",
+      "description": "Augment_ForgedByTheMaster_Summary",
+      "source": "KIWI",
+      "sha256": "49c09db01eb321fe1fcf80c4c927f3ab890ce3ccf29e8c7a8c047fc7afd9d6d2"
+    },
+    "BloodMoneyBurn": {
+      "definition": "Maps/ModeSpecificData/Augments/BloodMoneyBurn",
+      "description": "Kiwi_BloodMoneyBurn_Summary",
+      "source": "KIWI_JADE",
+      "sha256": "4c7612cf43234321ae1a9bf432310c958c74c8b4e8dafc213b314955b9b71a1b"
+    },
+    "Terraind": {
+      "definition": "Maps/ModeSpecificData/Augments/Terraind",
+      "description": "Augment_Terraind_Summary",
+      "source": "KIWI",
+      "sha256": "a2e68c520382b43689781307f60c33a8d55ed0d1154defee8557f282e50dd2ec"
+    },
+    "DontChangeTheChannel": {
+      "definition": "Maps/ModeSpecificData/Augments/DontChangeTheChannel",
+      "description": "Augment_DontChangeTheChannel_Summary",
+      "source": "KIWI",
+      "sha256": "e1b3867e67da18b91d9c20c1da2a81880cb1516d8c5a3a7a7bb3b3fd09049b3a"
+    },
+    "WarlockJuicebox": {
+      "definition": "Maps/ModeSpecificData/Augments/WarlockJuicebox",
+      "description": "Augment_WarlockJuicebox_Summary",
+      "source": "KIWI",
+      "sha256": "ed224fc340677f6498d2c0667aaf9bb2293dae4d73622c2dae182c08b4047a7e"
+    },
+    "MercysStrike": {
+      "definition": "Maps/ModeSpecificData/Augments/MercysStrike",
+      "description": "Kiwi_MercysStrike_Summary",
+      "source": "KIWI",
+      "sha256": "dfdeba1baae391821a38ac7c90b81f2a75057626cb9514366b2525eabde493fa"
+    },
+    "SurgeField": {
+      "definition": "Maps/ModeSpecificData/Augments/SurgeField",
+      "description": "Augment_SurgeField_Summary",
+      "source": "KIWI",
+      "sha256": "f8b1d6d25f087597eba09f403057e4a820031b657a871e6f4540a783b145712e"
+    },
+    "Overkill": {
+      "definition": "Maps/ModeSpecificData/Augments/Overkill",
+      "description": "Augment_Overkill_Summary",
+      "source": "KIWI",
+      "sha256": "51e19a2b74ef6d7d404334e353635c30575e0469a5263f57f617378b625360bf"
+    },
+    "TrustyWeapon": {
+      "definition": "Maps/ModeSpecificData/Augments/TrustyWeapon",
+      "description": "Augment_TrustyWeapon_Summary",
+      "source": "KIWI",
+      "sha256": "fe83ca025fae02bb1fdbd8bc8f4807ac8307f868f745b84183ff301970f61471"
+    },
+    "PatOnTheBack": {
+      "definition": "Maps/ModeSpecificData/Augments/PatOnTheBack",
+      "description": "Augment_PatOnTheBack_Summary",
+      "source": "KIWI",
+      "sha256": "697d4bc9b1948d1c5849af4dac9f011004517f6a996462e3da14a0be7e6ce136"
+    },
+    "WardingWeapon": {
+      "definition": "Maps/ModeSpecificData/Augments/WardingWeapon",
+      "description": "Augment_WardingWeapon_Summary",
+      "source": "KIWI",
+      "sha256": "c3b3e64df9e09ef38ef05851899db1f57ee23be6c5f031b08ce9fa8c3afbbc4e"
+    },
+    "PinCushion": {
+      "definition": "Maps/ModeSpecificData/Augments/PinCushion",
+      "description": "Augment_PinCushion_Summary",
+      "source": "KIWI",
+      "sha256": "12fe816ccdcbb72bd791c08c69741a5afd089d04aa1d54d8e2c35caba218ae00"
+    },
+    "Upgrade_Ravenous": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_Ravenous",
+      "description": "Upgrade_Ravenous_Description",
+      "source": "KIWI",
+      "sha256": "bad040b2f09204320287ef301c30e5e12259f4d0de3007b20c43ee6134bcadac"
+    },
+    "Quest_UltraHydra": {
+      "definition": "Maps/ModeSpecificData/Augments/Quest_UltraHydra",
+      "description": "Quest_UltraHydra_Description",
+      "source": "KIWI",
+      "sha256": "a976fb09dbbdf28aba277b3cd3c98fa7c1c89fa4cb75ac10915467f711889410"
+    },
+    "Upgrade_SunderedSky": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_SunderedSky",
+      "description": "UpgradeSunderedSky_Description",
+      "source": "KIWI",
+      "sha256": "9b7709edf7e33fc118c4933c1fc1f0bf6f2be9c66ec986b0054c4bc55d11381f"
+    },
+    "DoubleDefense": {
+      "definition": "Maps/ModeSpecificData/Augments/DoubleDefense",
+      "description": "Kiwi_DoubleDefense_Summary",
+      "source": "KIWI",
+      "sha256": "9759e12bec46ffd4a59eb94c2f15caa68c82ea6acb75569350bc15cbc73f62c4"
+    },
+    "DoubleStrike": {
+      "definition": "Maps/ModeSpecificData/Augments/DoubleStrike",
+      "description": "ARAM_Augment_Doublestrike_Description",
+      "source": "KIWI_JADE",
+      "sha256": "2dcd0de21a1ddcc584ddc9fd2b8f5633c8a6a2a1567be93953d623fa5e5188a6"
+    },
+    "Upgrade_DeathDance": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_DeathDance",
+      "description": "UpgradeDeathDance_Description",
+      "source": "KIWI",
+      "sha256": "d09fe283e4408a16f05e8dcb9f259b2b3d2d5e1a7e9e355d164802c23d688a5f"
+    },
+    "GetJinxed": {
+      "definition": "Maps/ModeSpecificData/Augments/GetJinxed",
+      "description": "Kiwi_Augment_GetJinxed_Description",
+      "source": "KIWI",
+      "sha256": "9d63a1b1ee2881a121c30ac799e8cbb7a58ba25953afc864a5d403f7751c0d86"
+    },
+    "ThirdTimesTheHarm": {
+      "definition": "Maps/ModeSpecificData/Augments/ThirdTimesTheHarm",
+      "description": "Kiwi_Augment_ThirdTimesTheHarm_Description",
+      "source": "KIWI",
+      "sha256": "4e311d99217cdbb38b6ce1321e058eec9922395c058bf7444db3516919637ca0"
+    },
+    "BigShot": {
+      "definition": "Maps/ModeSpecificData/Augments/BigShot",
+      "description": "Kiwi_Augment_BigShot_Description",
+      "source": "KIWI",
+      "sha256": "d1cf1f02e8d4ee9d376c8b005d57fc276652beca1bf287bb3d6579a6086cbfba"
+    },
+    "Sound_Barrier": {
+      "definition": "Maps/ModeSpecificData/Augments/Sound_Barrier",
+      "description": "Kiwi_Augment_Sound_Barrier_Description",
+      "source": "KIWI",
+      "sha256": "30da27aa0fda8e6477f83f5330ba4d7d058bc3a772f00e3c5e00d011440c511a"
+    },
+    "DoubleTime": {
+      "definition": "Maps/ModeSpecificData/Augments/DoubleTime",
+      "description": "Kiwi_Augment_DoubleTime_Description",
+      "source": "KIWI",
+      "sha256": "a1903565b4644c7eb9b51cd1803bf08b09f4a2ef6f254a3bd1a3a582ba4a3c1a"
+    },
+    "Salvation": {
+      "definition": "Maps/ModeSpecificData/Augments/Salvation",
+      "description": "Kiwi_Augment_Salvation_Description",
+      "source": "KIWI",
+      "sha256": "d7e071e8e3c911ce7d66175a9ee1171c21d9192c4b740434db9800b109ec3fd5"
+    },
+    "BouncingBees": {
+      "definition": "Maps/ModeSpecificData/Augments/BouncingBees",
+      "description": "BouncingBees_Description",
+      "source": "KIWI",
+      "sha256": "50bf2d5bcc7984c8b92f8c7094f21f70995f21c944cb30f951693ec0735f6a54"
+    },
+    "ArmoredImpact": {
+      "definition": "Maps/ModeSpecificData/Augments/ArmoredImpact",
+      "description": "Kiwi_Augment_ArmoredImpact_Description",
+      "source": "KIWI",
+      "sha256": "eeea1b623414674f3d41720ace7d90a9aeeb562399233734514fe8bcc11f3820"
+    },
+    "BlueBarrier": {
+      "definition": "Maps/ModeSpecificData/Augments/BlueBarrier",
+      "description": "Kiwi_Augment_BlueBarrier_Description",
+      "source": "KIWI",
+      "sha256": "3c7f84105c954cfeb0ff5d62acc4c20d434c919ba9a96a85cc4beaed01c9a790"
+    },
+    "HandsOffTheTalent": {
+      "definition": "Maps/ModeSpecificData/Augments/HandsOffTheTalent",
+      "description": "Kiwi_Augment_HandsOffTheTalent_Description",
+      "source": "KIWI",
+      "sha256": "9ea5032c6002017cce5d2875c8d219042ed32ab6d134fc0c3b82ae6c49163532"
+    },
+    "MoshMonster": {
+      "definition": "Maps/ModeSpecificData/Augments/MoshMonster",
+      "description": "Kiwi_Augment_MoshMonster_Description",
+      "source": "KIWI",
+      "sha256": "5ce0c8e28ec0d9f0ad24223806d0013c574061fe9d24c5c6d415cd11aea53499"
+    },
+    "UltimateRecursion": {
+      "definition": "Maps/ModeSpecificData/Augments/UltimateRecursion",
+      "description": "Kiwi_Augment_UltimateRecursion_Description",
+      "source": "KIWI",
+      "sha256": "0d17acc4bd42ae44b3acb9d5d76e160f1782e6d562e07b180dfc189f1863bf7c"
+    },
+    "TickleMonster": {
+      "definition": "Maps/ModeSpecificData/Augments/TickleMonster",
+      "description": "Kiwi_Augment_TickleMonster_Description",
+      "source": "KIWI",
+      "sha256": "3a1a86906ceb14c35b467566ebe9dedeaa115cb000c9a6c0131d648a2ddf0f2c"
+    },
+    "NoManaNoProblem": {
+      "definition": "Maps/ModeSpecificData/Augments/NoManaNoProblem",
+      "description": "Kiwi_Augment_NoManaNoProblem_Description",
+      "source": "KIWI",
+      "sha256": "e5b3e259b0fc002fb166c135efc12c3c014afc46295b9768cee684727934baf3"
+    },
+    "OneHitWonder": {
+      "definition": "Maps/ModeSpecificData/Augments/OneHitWonder",
+      "description": "Augment_OneHitWonder_Description",
+      "source": "KIWI",
+      "sha256": "2037978879a29e9fab56b4d0d22d557f2651278c094cad67b46f1191d68e0708"
+    },
+    "GiftoftheDrowned": {
+      "definition": "Maps/ModeSpecificData/Augments/GiftoftheDrowned",
+      "description": "Kiwi_Augment_GiftoftheDrowned_Description",
+      "source": "KIWI",
+      "sha256": "ccf7519a1d020343bf0903f876e0fa5b5cb5ed34414bb30fd87522a149de24a2"
+    },
+    "BrassBlast": {
+      "definition": "Maps/ModeSpecificData/Augments/BrassBlast",
+      "description": "Kiwi_Augment_BrassBlast_Description",
+      "source": "KIWI",
+      "sha256": "781ddd08b5f4608c6adb78204e683b3e8889f619e2a87d77c004feec3d0bbb47"
+    },
+    "Recoil": {
+      "definition": "Maps/ModeSpecificData/Augments/Recoil",
+      "description": "Augment_Recoil_Summary",
+      "source": "KIWI",
+      "sha256": "4f734ad0e4877b7067349ee582378e1e7865eaab8e24f61b3e8d4909bb64ce9c"
+    },
+    "TheBoomAndTheBass": {
+      "definition": "Maps/ModeSpecificData/Augments/TheBoomAndTheBass",
+      "description": "Kiwi_Augment_TheBoomAndTheBass_Description",
+      "source": "KIWI",
+      "sha256": "48a87fb58a1402ed909ed38366d8fde96b5cd1366c8e4b690093e23241bd51de"
+    },
+    "Totentanz": {
+      "definition": "Maps/ModeSpecificData/Augments/Totentanz",
+      "description": "Kiwi_Augment_Totentanz_Description",
+      "source": "KIWI",
+      "sha256": "db7ff7a65c1005d724b65dc35a0fab1cbc81d899be635245fc497962d7d484e0"
+    },
+    "WeaponOfDestiny": {
+      "definition": "Maps/ModeSpecificData/Augments/WeaponOfDestiny",
+      "description": "Kiwi_Augment_WeaponOfDestiny_Description",
+      "source": "KIWI",
+      "sha256": "c4656dc8113f42306e9b6daad4d80c53722ff7678e064015ef4f38bab71495f0"
+    },
+    "FlowOfSpirit": {
+      "definition": "Maps/ModeSpecificData/Augments/FlowOfSpirit",
+      "description": "Kiwi_Augment_FlowOfSpirit_Description",
+      "source": "KIWI",
+      "sha256": "d21f1a2aee8519e690f16c74fbae39226320e79076995876fdc520cd2bb350bd"
+    },
+    "BEES": {
+      "definition": "Maps/ModeSpecificData/Augments/BEES",
+      "description": "Kiwi_Augment_BEES_Description",
+      "source": "KIWI",
+      "sha256": "b7e7045bd5583a3c8363af3a418a64ab3535022dcd1c540608bbaeacb7872476"
+    },
+    "CrimsonCobalt": {
+      "definition": "Maps/ModeSpecificData/Augments/CrimsonCobalt",
+      "description": "Kiwi_Augment_CrimsonCobalt_Description",
+      "source": "KIWI",
+      "sha256": "69f4a186f0b9f6e746f3a4993796c43a94e6675349dc6ebdce2da095a9b314c7"
+    },
+    "LichBrain": {
+      "definition": "Maps/ModeSpecificData/Augments/LichBrain",
+      "description": "Kiwi_Augment_LichBrain_Description",
+      "source": "KIWI",
+      "sha256": "ca9820b1fcd18471f213a6bc1885c21d93a10317e6760bf01dacff6e2ff8f9c1"
+    },
+    "TakeemDownDownDown": {
+      "definition": "Maps/ModeSpecificData/Augments/TakeemDownDownDown",
+      "description": "Kiwi_Augment_TakeemDownDownDown_Description",
+      "source": "KIWI",
+      "sha256": "c837e0bef7122c56cf999ea62c1bd257aa86215356e4a174d9ec46afb9d1d50c"
+    },
+    "ArcaneAxiom": {
+      "definition": "Maps/ModeSpecificData/Augments/ArcaneAxiom",
+      "description": "Kiwi_Augment_ArcaneAxiom_Description",
+      "source": "KIWI",
+      "sha256": "a29632e610c5a77c95385c5dfad4ecaaf1499972299f460db5183aa932641948"
+    },
+    "Fruitify": {
+      "definition": "Maps/ModeSpecificData/Augments/Fruitify",
+      "description": "Kiwi_Augment_Fruitify_Description",
+      "source": "KIWI",
+      "sha256": "cc0fd5b827025af8a1fe280fef46baae33705279ca744bc95b6a0134810963e4"
+    },
+    "JeweledBracelet": {
+      "definition": "Maps/ModeSpecificData/Augments/JeweledBracelet",
+      "description": "Kiwi_Augment_JeweledBracelet_Description",
+      "source": "KIWI",
+      "sha256": "6b212fd2869cc0e03580074a47db3086c17d5d3e774517c5abf42a10626879e7"
+    },
+    "SapMagic": {
+      "definition": "Maps/ModeSpecificData/Augments/SapMagic",
+      "description": "Kiwi_Augment_SapMagic_Description",
+      "source": "KIWI",
+      "sha256": "6f2cf9e9f38d170063cdec0647ed71f3fc488cbf76c86ab60f53130f40609425"
+    },
+    "StillHere": {
+      "definition": "Maps/ModeSpecificData/Augments/StillHere",
+      "description": "Kiwi_Augment_StillHere_Description",
+      "source": "KIWI",
+      "sha256": "ca0411c13563a1e0587072e0ed1560cdd5e8102589176006af5145e2b2deb36e"
+    },
+    "HeavyIsTheCrown": {
+      "definition": "Maps/ModeSpecificData/Augments/HeavyIsTheCrown",
+      "description": "Kiwi_Augment_HeavyIsTheCrown_Description",
+      "source": "KIWI",
+      "sha256": "986927ff1209774c6078a5575a173c6e567f29d29582ad834b3684117bb521ea"
+    },
+    "LonelyWarrior": {
+      "definition": "Maps/ModeSpecificData/Augments/LonelyWarrior",
+      "description": "Kiwi_Augment_LonelyWarrior_Description",
+      "source": "KIWI",
+      "sha256": "12d1dedae8111e580333c9f49441fb15841d302443d43ceff159db82ea7c2653"
+    },
+    "GroupHug": {
+      "definition": "Maps/ModeSpecificData/Augments/GroupHug",
+      "description": "Kiwi_Augment_GroupHug_Description",
+      "source": "KIWI",
+      "sha256": "f7038625c3a95f631fea14ad061eb42f0a8a67eb0abc3231a3dcd4de5f22db9d"
+    },
+    "Upgrade_Stormsurge": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_Stormsurge",
+      "description": "Kiwi_Augment_Upgrade_Stormsurge_Description",
+      "source": "KIWI",
+      "sha256": "e52dc56b660d81afb7fc128072b4f065ff77814403a6a33b5b297e644cd7cbb5"
+    },
+    "RISE": {
+      "definition": "Maps/ModeSpecificData/Augments/RISE",
+      "description": "RISE_Description",
+      "source": "KIWI",
+      "sha256": "ff4dde1c15a2bfcb958ff24a6f7c37f2fa7d47d91bed286de6b6bf53f1701e1f"
+    },
+    "EnchantingButterflies": {
+      "definition": "Maps/ModeSpecificData/Augments/EnchantingButterflies",
+      "description": "Kiwi_Augment_EnchantingButterflies_Description",
+      "source": "KIWI",
+      "sha256": "f2b026fbd77c1d5072776a078b6f053b547f8e1e99554a703ca1c0e5d4210767"
+    },
+    "GoH_PentakillAug_Q": {
+      "definition": "{a6c26eaf}",
+      "description": "Kiwi_GoH_PentakillAug_Generic_Description",
+      "source": "KIWI",
+      "sha256": "44e25adb2f7c7902af8079b12c33b1c6318606b1c8996ce4fe9a57f7bff783d0"
+    },
+    "GoH_PentakillAug_W": {
+      "definition": "{a4c26b89}",
+      "description": "Kiwi_GoH_PentakillAug_Generic_Description",
+      "source": "KIWI",
+      "sha256": "44e25adb2f7c7902af8079b12c33b1c6318606b1c8996ce4fe9a57f7bff783d0"
+    },
+    "GoH_PentakillAug_E": {
+      "definition": "{92c24f33}",
+      "description": "Kiwi_GoH_PentakillAug_Generic_Description",
+      "source": "KIWI",
+      "sha256": "44e25adb2f7c7902af8079b12c33b1c6318606b1c8996ce4fe9a57f7bff783d0"
+    },
+    "GoH_PentakillAug_R": {
+      "definition": "{a7c27042}",
+      "description": "Kiwi_GoH_PentakillAug_Generic_Description",
+      "source": "KIWI",
+      "sha256": "44e25adb2f7c7902af8079b12c33b1c6318606b1c8996ce4fe9a57f7bff783d0"
+    },
+    "Upgrade_ZzRotPortal": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_ZzRotPortal",
+      "description": "Kiwi_Upgrade_ZzRotPortal_Description",
+      "source": "KIWI_JADE",
+      "sha256": "c80c75946c2d5b5bca5d161c283510239594fa3b89074c972dc8c31a8510f7f1"
+    },
+    "DontStopCleavin": {
+      "definition": "Maps/ModeSpecificData/Augments/DontStopCleavin",
+      "description": "Kiwi_DontStopCleavin_Description",
+      "source": "KIWI_JADE",
+      "sha256": "1e2d0c039d6344029b6e338245cd4883521f4732e0ee4846747bc06567fb28ca"
+    },
+    "DoOrDie": {
+      "definition": "Maps/ModeSpecificData/Augments/DoOrDie",
+      "description": "Kiwi_DoOrDie_Description",
+      "source": "KIWI_JADE",
+      "sha256": "d11fba23a75872c591c68db969eb0c6a50cd5dc5e5d50f9275f43165b9396605"
+    },
+    "DrinkUp": {
+      "definition": "Maps/ModeSpecificData/Augments/DrinkUp",
+      "description": "Kiwi_DrinkUp_Description",
+      "source": "KIWI_JADE",
+      "sha256": "abf101defeb1f41b42abb687cb4b787f6bd531944ecc69923cb85b87c36a371d"
+    },
+    "HasteMakesWaste": {
+      "definition": "Maps/ModeSpecificData/Augments/HasteMakesWaste",
+      "description": "Kiwi_HasteMakesWaste_Description",
+      "source": "KIWI_JADE",
+      "sha256": "f6e5fde6b56213982b6383092cab11a03c1651cdd5263c8a32e7e0e14d80f3d6"
+    },
+    "StabbyStabby": {
+      "definition": "Maps/ModeSpecificData/Augments/StabbyStabby",
+      "description": "Kiwi_StabbyStabby_Description",
+      "source": "KIWI_JADE",
+      "sha256": "dba99b47027ab7a4ba75f041e2866709fbb63ab4c5d2e78c7756571fc6248648"
+    },
+    "Upgrade_DeathFireGrasp": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_DeathFireGrasp",
+      "description": "Kiwi_Upgrade_DeathFireGrasp_Description",
+      "source": "KIWI_JADE",
+      "sha256": "810614ab0050be0af8f93f61884a26bc56edd5d6f2be6d8acaeb920ac485b466"
+    },
+    "DoransBiggestFan": {
+      "definition": "Maps/ModeSpecificData/Augments/DoransBiggestFan",
+      "description": "Kiwi_DoransBiggestFan_Description",
+      "source": "KIWI_JADE",
+      "sha256": "fdebacab6d7cd0fc5db915e14f6c21a6773e03f3a5936875fa71f082ac442caa"
+    },
+    "Upgrade_InnervatingLocket": {
+      "definition": "Maps/ModeSpecificData/Augments/Upgrade_InnervatingLocket",
+      "description": "Kiwi_Upgrade_InnervatingLocket_Description",
+      "source": "KIWI_JADE",
+      "sha256": "3c15622fbc96411d884174fad7e0a29efb21a4d2112cb8290486422aef4930da"
+    },
+    "FutureSightHeartsteel": {
+      "definition": "Maps/ModeSpecificData/Augments/FutureSightHeartsteel",
+      "description": "Kiwi_FutureSightHeartsteel_Description",
+      "source": "KIWI_JADE",
+      "sha256": "badb6edd76d5e94bc0ec612b02ed091212cd1e2d67b89e90bd5a404a909c54ca"
+    },
+    "TrueEternity": {
+      "definition": "Maps/ModeSpecificData/Augments/TrueEternity",
+      "description": "TrueEternity_Description",
+      "source": "KIWI_JADE",
+      "sha256": "98e8cde4b5c2e0b7c3c71e9cced3274bb1b3fe104a8f6591d4c34709ac4e8f26"
+    },
+    "HexCore": {
+      "definition": "Maps/ModeSpecificData/Augments/HexCore",
+      "description": "HexCore_Description",
+      "source": "KIWI_JADE",
+      "sha256": "1f5cef227e57b8c7567c0144d1a51d57a97c9066f68daaa66040cc3d8d225000"
+    },
+    "SpiritOfTheJungleMain": {
+      "definition": "Maps/ModeSpecificData/Augments/SpiritOfTheJungleMain",
+      "description": "SpiritOfTheJungleMain_Description",
+      "source": "KIWI_JADE",
+      "sha256": "a1e5ddf72446718e702f3837d6cdbef51444876a3a655c2c181503d9a5e115cc"
+    },
+    "DipDiveDodge": {
+      "definition": "Maps/ModeSpecificData/Augments/DipDiveDodge",
+      "description": "DipDiveDodge_Description",
+      "source": "KIWI_JADE",
+      "sha256": "09389dc11d8f6f95e001e220ab483ff8617ba7d9a4459e55d1bfba0adbf16144"
+    },
+    "SummonersSafari": {
+      "definition": "Maps/ModeSpecificData/Augments/SummonersSafari",
+      "description": "SummonersSafari_Description",
+      "source": "KIWI_JADE",
+      "sha256": "e57f033f2600bdd24cf28b025f84fc7d66dd21427e4cbdaf25d2880dcc2c6db2"
+    },
+    "ARAM_PandorasBox": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_PandorasBox",
+      "description": "Cherry_PandorasBox_Summary",
+      "source": "KIWI",
+      "sha256": "30743f1f972f2437ae8e91f7d309594ca9ae7e69977a86c9d8ba91221f4662f1"
+    }
+  }
+}
