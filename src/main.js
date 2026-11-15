@@ -14,9 +14,12 @@ const { createDesktop, DEFAULT_SHORTCUT } = require('./desktop');
 const { roleQuestsEnabled } = require('./rolequests');
 const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
 const draftlab = require('./draftlab');
+const mayhem = require('./mayhem');
+const { isAram, modeFromFlow } = require('./modes');
 const offlineGame = require('./gamedata').buildGameData(require('../data/catalog.json'));
 const choiceWrites = serialQueue();
 let choicesStore;
+let mayhemSession;
 const withChoices = (alias, state) => ({ ...state, choices: choicesStore?.get(alias, state) || {} });
 const buildFor = (alias, state) => ({ ...engine.buildFor(alias, withChoices(alias, state), game, data), scope: choiceKey(alias, state) });
 const runesFor = (alias, state = lastSelectState) => engine.runePageFor(alias, game, data, withChoices(alias, state));
@@ -67,13 +70,15 @@ const log = (line) => { try { fs.appendFileSync(userFile('log.txt'), `${new Date
 let settings = { stats: true, autoRunes: true, autoItemSet: true, autoPopup: true, launchAtLogin: false, keyboardShortcut: DEFAULT_SHORTCUT };
 // Tryb gry z /lol-gameflow/v1/session: 'aram' (Howling Abyss) albo 'classic'.
 let currentMode = 'classic';
+let currentMayhemPool = 'KIWI';
 let currentRoleQuests = false;
 async function detectMode() {
   const flow = await lcu.get('/lol-gameflow/v1/session').catch(() => null);
   const gameMode = String((flow && flow.gameData && flow.gameData.queue && flow.gameData.queue.gameMode) || '').toUpperCase();
-  const mapId = flow && flow.map && flow.map.id;
-  currentMode = mapId === 12 || ['ARAM', 'KIWI'].includes(gameMode) ? 'aram' : 'classic';
+  currentMode = modeFromFlow(flow);
+  currentMayhemPool = gameMode === 'KIWI_JADE' ? 'KIWI_JADE' : 'KIWI';
   currentRoleQuests = roleQuestsEnabled(flow);
+  recomputeData();
   return currentMode;
 }
 let provider = null;
@@ -83,7 +88,7 @@ let running = 0;
 let refreshTimer = null;
 
 function recomputeData() {
-  data = settings.stats && game ? mergeStats(baseData, stats, game) : baseData;
+  data = currentMode !== 'mayhem' && settings.stats && game ? mergeStats(baseData, stats, game) : baseData;
 }
 
 // Po nadejściu nowych statystyk przelicz widok (z małym opóźnieniem, żeby nie migał przy serii odpowiedzi).
@@ -97,6 +102,10 @@ function initStats() {
     const file = userFile('choices.json');
     fs.writeFileSync(file + '.tmp', JSON.stringify(value));
     fs.renameSync(file + '.tmp', file);
+  });
+  mayhemSession = new mayhem.MayhemSession(readJson(userFile('mayhem-session.json'), null), value => {
+    const file = userFile('mayhem-session.json');
+    fs.writeFileSync(file + '.tmp', JSON.stringify(value)); fs.renameSync(file + '.tmp', file);
   });
   settings = { ...settings, ...readJson(userFile('settings.json'), {}) };
   provider = new OpggProvider({
@@ -117,6 +126,7 @@ function loadMeta() {
 const attempted = new Map();
 
 function requestAnalysis(alias, position, mode = currentMode, replace = true) {
+  if (mode === 'mayhem') return;
   // OP.GG wymaga pozycji; bez niej (champion spoza danych, zanim wczyta się meta) spróbujemy przy następnym odświeżeniu.
   // Na ARAM-ie pozycja nic nie zmienia, ale pole jest wymagane, więc wystarczy dowolna.
   if (mode === 'aram') position = position || 'middle';
@@ -232,6 +242,7 @@ async function tick() {
     }
     const session = await lcu.get('/lol-champ-select/v1/session');
     if (!session) return;
+    if (!lastSessionJson) { await detectMode(); recomputeData(); }
     await choiceWrites(() => preserveManualRunes(engine.readSession(session, currentMode, { roleQuestsEnabled: currentRoleQuests })));
     // Bany i dostępność z osobnych list klienta: akcje w sesji nie zawsze pokazują ban od razu.
     const [pickable, disabled] = await Promise.all([
@@ -242,7 +253,6 @@ async function tick() {
     const json = JSON.stringify([session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase, session.benchChampions, session.extra]);
     if (json === lastSessionJson) return;
     if (!lastSessionJson) {
-      await detectMode();
       // Nowy champ select: odśwież listę posiadanych championów.
       const owned = await lcu.get('/lol-champions/v1/owned-champions-minimal');
       if (owned) game.owned = new Set(owned.filter((c) => c.id > 0).map((c) => c.id));
@@ -268,7 +278,7 @@ let loadingDirty = false;
 const playerKey = (p) => `${p.gameName}#${p.tagLine}`;
 
 function fetchPlayerStats(target) {
-  if (!settings.stats) return;
+  if (!settings.stats || isAram(currentMode)) return;
   const players = [...target.allies, ...target.enemies].filter((p) => p.gameName && p.tagLine);
   let next = 0;
   const worker = async () => {
@@ -290,7 +300,7 @@ function buildLoadingView() {
     pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName,
   });
   const me = loading.allies.find((p) => p.isMe);
-  const aram = currentMode === 'aram';
+  const aram = isAram(currentMode);
   let plan = null;
   if (!aram) try { plan = lanePlan(me, loading.enemies, cardOf, game, data); } catch (err) { log(`plan linii: ${err.message}`); }
   if (plan) {
@@ -300,7 +310,7 @@ function buildLoadingView() {
     plan.opponent.icon = champView(plan.opponent.championId).icon;
   }
   let teamPlan = null;
-  try { teamPlan = gamePlan(loading.allies, loading.enemies, cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
+  if (currentMode !== 'mayhem') try { teamPlan = gamePlan(loading.allies, loading.enemies, aram ? null : cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(card);
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
   return {
@@ -313,7 +323,7 @@ function buildLoadingView() {
     allies: loading.allies.map(card),
     enemies,
     statsEnabled: settings.stats,
-    statsStatus: settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
+    statsStatus: aram ? { ok:true, message:currentMode === 'mayhem' ? 'Mayhem · augmenty i posiadane przedmioty zaznaczasz ręcznie' : 'ARAM · bez statystyk soloQ' } : settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
   };
 }
 
@@ -324,15 +334,24 @@ let lastFinal = null;
 // (na ARAM-ie w wyborze postaci nie widać wroga).
 function loadingSelectState(me) {
   const s = lastSelectState;
-  if (!s || !s.me || !me || s.me.championId !== me.championId) return null;
-  return { ...s, enemies: loading.enemies.map((p) => ({ championId: p.championId })) };
+  if (!me?.championId) return null;
+  const base = s?.me?.championId === me.championId ? s : { me, allies:loading.allies, bans:new Set(), allLocked:true };
+  const alias = game.championsById.get(me.championId)?.alias;
+  if (!loading.sessionId) loading.sessionId = crypto.randomUUID();
+  const session = currentMode === 'mayhem' && alias ? mayhemSession.ensure(loading.gameId || loading.sessionId, alias, currentMayhemPool) : null;
+  return { ...base, me:{ ...base.me, ...me }, allies:loading.allies, mode:currentMode, roleQuestsEnabled:currentRoleQuests,
+    enemies: loading.enemies.map((p) => ({ championId: p.championId })),
+    mayhem:session?.selection, mayhemKey:session?.key, mayhemPool:currentMayhemPool };
 }
 function finalWithEnemies(me) {
   const s = loadingSelectState(me);
-  if (!lastFinal || !s) return lastFinal;
+  if (!s) return lastFinal;
   const alias = game.championsById.get(me.championId)?.alias;
   try {
-    return { ...lastFinal, myChampion: { ...lastFinal.myChampion, runes: runesFor(alias, s) }, build: { ...buildFor(alias, s), provisional: false } };
+    lastSelectState = s;
+    const build = { ...buildFor(alias, s), provisional:false };
+    if (build.mayhem) build.mayhem = { ...build.mayhem, matchKey:s.mayhemKey, pool:s.mayhemPool };
+    return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
 
@@ -341,7 +360,7 @@ function buildView(session) {
   lastSelectState = state;
   const me = state.me;
   const myAlias = me && me.championId ? game.championsById.get(me.championId)?.alias : null;
-  const aram = state.mode === 'aram';
+  const aram = isAram(state.mode);
   // Na ARAM-ie nie ma wyboru z całej puli: zamiast sugestii ranking championów z ławki.
   const picks = aram ? { list: [], blind: false, laneOpponent: null } : engine.suggestPicks(state, game, data);
   requestNeeded(state, picks);
@@ -368,7 +387,7 @@ function buildView(session) {
     bans: state.banPhase ? engine.suggestBans(state, game, data).map((b) => ({ ...b, icon: champView(b.championId).icon })) : [],
     compositions: engine.compositions(state, game, data),
     metaSource: (data.meta && data.meta.source) || '',
-    statsStatus: settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
+    statsStatus: currentMode === 'mayhem' ? { ok:true, message:'Mayhem · baza championa i wybrane augmenty' } : settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
     statsEnabled: settings.stats,
     autoRunes: autoRunesView(),
     autoItemSet: autoItemSetView(),
@@ -395,6 +414,7 @@ const RUNE_PREFIX = 'CS Assist';
 let lastImportedRunes = null;
 let lastObservedRunes = null;
 async function preserveManualRunes(state) {
+  if (state?.mode === 'mayhem') return null;
   const alias = game?.championsById.get(state?.me?.championId)?.alias;
   if (!alias || !lcu) return null;
   const current = await lcu.get('/lol-perks/v1/currentpage').catch(() => null);
@@ -413,6 +433,7 @@ async function preserveManualRunes(state) {
   return current;
 }
 async function importRunes(alias, automatic = false) {
+  if (currentMode === 'mayhem') throw new Error('W Mayhem runy są wyłączone.');
   if (!lcu || !game) throw new Error('Brak połączenia z klientem');
   if (automatic && (lastState?.status !== 'champselect' || game.championsById.get(lastSelectState?.me?.championId)?.alias !== alias)) return { ok: true, skipped: true };
   const currentPage = automatic ? await preserveManualRunes(lastSelectState) : null;
@@ -439,6 +460,7 @@ async function importRunes(alias, automatic = false) {
 // Automatyczny import run, gdy wszyscy zablokowali championów (raz na dany skład; można wyłączyć w ustawieniach).
 let autoRunes = { key: '', done: '', error: '' };
 async function autoImportRunes() {
+  if (currentMode === 'mayhem') return;
   const s = lastSelectState;
   if (!settings.autoRunes || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
@@ -523,7 +545,7 @@ async function runAutoItemSet(alias, state, key) {
   const target = autoItemSet = { key, done: '', error: '' };
   try {
     const result = await choiceWrites(() => {
-      const active = lastState?.status === 'champselect' || (lastState?.status === 'loading-screen' && currentMode === 'aram');
+      const active = lastState?.status === 'champselect' || (lastState?.status === 'loading-screen' && isAram(currentMode));
       if (!active || game.championsById.get(lastSelectState?.me?.championId)?.alias !== alias || choiceKey(alias, lastSelectState) !== choiceKey(alias, state)) return { skipped: true };
       return exportItemSet(alias, state);
     });
@@ -544,7 +566,7 @@ function autoExportItemSet() {
 }
 // ARAM: w wyborze postaci nie widać wroga, więc na ekranie ładowania wysyłamy zestaw jeszcze raz, już pod skład wroga.
 function autoExportItemSetForLoading() {
-  if (!settings.autoItemSet || currentMode !== 'aram' || !loading) return;
+  if (!settings.autoItemSet || !isAram(currentMode) || !loading) return;
   const me = loading.allies.find((p) => p.isMe);
   const s = loadingSelectState(me);
   if (!s) return;
@@ -595,6 +617,7 @@ ipcMain.handle('get-choices', wrap((alias) => {
 }));
 ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
   const state = choiceContext(input.alias, input.scope);
+  if (state.mode === 'mayhem' && ['runes','client-runes','unpin-runes'].includes(input.action)) throw new Error('W Mayhem runy są wyłączone.');
   let own = choicesStore.get(input.alias, state);
   if (input.action === 'item') {
     if (input.slot === 'boots') own.boots = own.boots === Number(input.id) ? null : Number(input.id);
@@ -618,6 +641,26 @@ ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
 })));
 ipcMain.handle('draft-catalog', wrap(() => ({ ok: true, ...draftlab.catalog(game || offlineGame, baseData) })));
 ipcMain.handle('preview-draft', wrap((input) => ({ ok: true, ...draftlab.preview(input, game || offlineGame, baseData) })));
+ipcMain.handle('mayhem-catalog', wrap(pool => ({ ok:true, ...mayhem.choicesCatalog(pool === 'KIWI_JADE' ? pool : 'KIWI') })));
+function mayhemContext(key) {
+  if (currentMode !== 'mayhem' || lastState?.status !== 'loading-screen' || !loading) throw Error('Augmenty meczu można zmieniać po rozpoczęciu Mayhem. Do symulacji użyj testera draftów.');
+  const state = loadingSelectState(loading.allies.find(p => p.isMe));
+  if (!state || (key && state.mayhemKey !== key)) throw Error('Mecz się zmienił. Otwórz augmenty ponownie.');
+  return state;
+}
+ipcMain.handle('get-mayhem', wrap(() => {
+  const state = mayhemContext(), alias = game.championsById.get(state.me.championId).alias;
+  return { ok:true, matchKey:state.mayhemKey, alias, selection:state.mayhem,
+    ...mayhem.choicesCatalog(state.mayhemPool), items:draftlab.catalog(game,baseData,state,alias) };
+}));
+ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
+  if (!input?.matchKey) throw Error('Brak identyfikatora meczu. Otwórz augmenty ponownie.');
+  const state = mayhemContext(input.matchKey), alias = game.championsById.get(state.me.championId).alias;
+  const selection = mayhem.validateSelection(input.selection,game,alias,state.mayhemPool);
+  mayhemSession.set(state.mayhemKey,selection);
+  loadingDirty = true; send(buildLoadingView());
+  return { ok:true };
+})));
 
 // ---------- aktualizacje ----------
 

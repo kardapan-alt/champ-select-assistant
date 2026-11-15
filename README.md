@@ -99,11 +99,24 @@ npm test                 # testy logiki na symulowanym kliencie
 npm run test:ui          # interfejs i przypięcia w testerze draftów
 npm run test:desktop     # cykl okna oraz ochrona run na symulowanym LCU
 npm run test:offline     # tester bez klienta i izolacja od własnych ustawień
+npm run test:mayhem      # augmenty, zakupy, IPC, izolacja testera i reset meczu
 npm run mock             # symulowany klient na porcie 2999
 node mock/mock-opgg.js   # symulowany OP.GG na porcie 3999
 set LCU_MOCK=http://127.0.0.1:2999 && set OPGG_ENDPOINT=http://127.0.0.1:3999/mcp && npm start
 ```
 Kroki scenariusza w symulatorze: `http://127.0.0.1:2999/__step?n=0` … `n=3`.
+
+## ARAM: Mayhem (od 0.6.16)
+- Osobne wykrywanie `KIWI` i `KIWI_JADE`; zwykły ARAM pozostaje osobnym trybem. Runy i ich import są wyłączone w Mayhem, a Exhaust nie jest sugerowany.
+- Po rozpoczęciu meczu przycisk **Augmenty i ekwipunek** otwiera wyszukiwarkę nazw polskich i angielskich. Możesz wybrać do 5 augmentów, zaznaczyć ukończenie zadania i podać kupione przedmioty oraz buty. Otwórz asystenta swoim skrótem (domyślnie Ctrl+X).
+- Zmiana augmentu od razu przelicza dalsze zakupy z uwzględnieniem składu wroga. Posiadane przedmioty zostają w buildzie. Aplikacja pokazuje następny zakup i uzasadnienie zmian. Questy itemowe mają osobną obsługę składników oraz ukończenia.
+- Katalog z 15 listopada 2026 zawiera 241 pozycji z puli KIWI (283 unikalne po uwzględnieniu KIWI_JADE). 65 pozycji z KIWI ma reguły zakupów. Pozostałe są oznaczone **bez reguły zakupów** i zachowują bazowy build; można ręcznie wskazać efekt, np. AP, zdrowie, on-hit, mana czy leczenie. To heurystyki synergii, bez deklarowania winrate lub optymalnego buildu dla każdej kombinacji.
+- Augmenty, ukończenie questów i ekwipunek zaznaczasz ręcznie. Aplikacja nie odczytuje ich automatycznie z gry. Dane zapisuje lokalnie dla danego meczu i championa, odtwarza po restarcie oraz resetuje w następnym meczu. Po sprzedaży lub połączeniu itemów zaktualizuj listę posiadanych.
+- Build w aplikacji aktualizuje się od razu. Zapis zestawu do klienta po zmianie augmentów uruchamia osobny przycisk; klient może nie odświeżyć już otwartego sklepu w trakcie meczu.
+- Mayhem jest również dostępny w **Testerze draftów**. Symulacja nie zmienia wyborów trwającego meczu.
+- ARAM i Mayhem nie pokazują porad o linii, jungli i wardach ani statystyk/rang graczy z soloQ. Mayhem skupia główny ekran na buildzie i augmentach; zwykły ARAM zachowuje porady o walkach drużynowych.
+
+Źródła: [zasady Riot](https://support.riotgames.com/en-us/league-of-legends/events/league-of-legends-aram-mayhem-game-mode), dane gry udostępnione przez [CommunityDragon](https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/augment-lists.json). Katalog można odświeżyć poleceniem `node scripts/update-mayhem-catalog.js`. Reguły w `src/mayhem.js` wymagają osobnego przeglądu przy zmianach patcha.
 
 ## Aktualizacje
 - Wersja z instalatorem (`ChampSelectAssistant-Setup-x.y.z.exe`) aktualizuje się sama: pobiera nową wersję w tle, a w górnym pasku pojawia się „Wersja x.y.z pobrana · Uruchom ponownie”. Bez kliknięcia zainstaluje się przy zamknięciu aplikacji.
@@ -111,7 +124,7 @@ Kroki scenariusza w symulatorze: `http://127.0.0.1:2999/__step?n=0` … `n=3`.
 - Aplikacja sprawdza aktualizacje przy starcie i co 6 godzin, w [wydaniach na GitHubie](https://github.com/kardapan-alt/champ-select-assistant/releases).
 
 ## Wydawanie nowej wersji
-Podnieś `version` w `package.json`, scal zmiany do `main` i wypchnij tag, np. `git tag v0.6.1 && git push origin v0.6.1`. GitHub Actions (`.github/workflows/release.yml`) uruchomi testy, zbuduje instalator i wersję portable na Windowsie i opublikuje wydanie.
+Każdą aktualizację aplikacji publikuj także jako GitHub Release, żeby zadziałał automatyczny updater. Podnieś `version` w `package.json` i lockfile, przetestuj zmiany, wypchnij `main` oraz odpowiadający wersji tag `v*`. GitHub Actions (`.github/workflows/release.yml`) uruchomi testy, zbuduje instalator i wersję portable na Windowsie i opublikuje wydanie. Przed zakończeniem sprawdź powodzenie workflow oraz obecność instalatora, pliku blockmap i `latest.yml` w publicznym wydaniu.
 
 ## Budowanie exe
 `npm run dist` → folder `dist/`.

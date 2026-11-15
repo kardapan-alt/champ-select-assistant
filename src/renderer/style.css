@@ -393,3 +393,30 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
   .build-primary .item { padding-top: 5px; padding-bottom: 5px; }
   .priority-tip p { line-height: 1.4; }
 }
+#mayhem-dialog { width:min(880px,94vw); max-height:90vh; padding:22px; color:#e5e7eb; background:#141b26; border:1px solid #bca66e; border-radius:14px; }
+#mayhem-dialog::backdrop { background:#02060bcc; }
+#mayhem-dialog h2 { margin:0; font-size:19px; }
+#mayhem-dialog form > .actions { position:sticky; bottom:-22px; background:#141b26; padding:14px 0; border-top:1px solid #303b4b; }
+#mayhem-dialog input[type=search], #mayhem-dialog select { box-sizing:border-box; width:100%; padding:9px; color:#e5e7eb; background:#1b2432; border:1px solid #38465b; border-radius:6px; }
+.augment-search { display:block; margin:14px 0 8px; }
+.augment-search input { display:block; margin-top:6px; }
+.augment-results { max-height:220px; overflow-y:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+.augment-option { display:flex; gap:9px; padding:9px; border:1px solid #303b4b; border-radius:7px; cursor:pointer; align-items:center; }
+#mayhem-dialog input[type=checkbox] { width:auto; flex:0 0 auto; margin:0 4px 0 0; }
+.augment-option > span { min-width:0; }
+.augment-option small { display:block; color:#9eabc0; font-size:11px; margin-top:3px; }
+.selected-augment { padding:10px; margin-bottom:8px; background:#1b2432; border-radius:8px; }
+.selected-augment > div { display:flex; gap:8px; align-items:center; }
+.selected-augment > div button { margin-left:auto; }
+.selected-augment > label { display:block; margin-top:7px; }
+.selected-augment .note { margin:7px 0; }
+.selected-augment select { margin-top:5px; }
+.owned-editor { margin-top:15px; }
+.owned-editor summary { cursor:pointer; color:#c8b77c; padding:8px 0; }
+.mayhem-summary { padding:12px; margin:8px 0 14px; border:1px solid #75633d; background:#1b202c; border-radius:9px; }
+.mayhem-summary .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.augment-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.next-purchase { margin:10px 0 0; color:#d8c185; }
+.aram-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:15px 0 25px; }
+.aram-roster > div { display:flex; flex-direction:column; gap:8px; padding:14px; background:#171e29; border-radius:9px; }
+@media(max-width:850px) { .augment-results { grid-template-columns:1fr; } .aram-roster { grid-template-columns:repeat(3,minmax(0,1fr)); } }

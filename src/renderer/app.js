@@ -1,6 +1,7 @@
 const $app = document.getElementById('app');
 const $status = document.getElementById('status');
 const $toast = document.getElementById('toast');
+const isAramView = mode => mode === 'aram' || mode === 'mayhem';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // Ikony z klienta mają ścieżki /lol-game-data/..., pobieramy je przez proces główny.
@@ -126,6 +127,7 @@ function compPanel(c) {
 
 function myChampionPanel(m, readonly = false, auto = null) {
   const r = m.runes;
+  if (r?.disabled) return `<div class="panel"><h3>${esc(m.name)} · Mayhem</h3><p class="muted">${esc(r.reason)}</p><div class="spells-line">${r.spells.map(s=>img(s.icon,'spell',s.name)).join('')}<span>${r.spells.map(s=>esc(s.name)).join(' + ')}</span></div>${readonly ? '' : `<button data-spells="${esc(m.alias)}">Ustaw czary przywoływacza</button>`}</div>`;
   // W trakcie wyboru runy są wstępne: dopasowanie do wroga jest pełne dopiero, gdy wszyscy zablokują.
   const status = readonly ? ''
     : m.provisional
@@ -177,7 +179,7 @@ const buildTiles = (b) => {
   const [first, ...rest] = b.items;
   const outside = b.inventory?.bootsSlot === 'quest';
   const ordered = outside ? b.items : [first, b.boots, ...rest].filter(Boolean);
-  const main = ordered.map((it, i) => whyTile({ ...it, pinControl: true, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1 })).join('');
+  const main = ordered.map((it, i) => whyTile({ ...it, pinControl: !it.owned, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1 })).join('');
   const reserved = b.reservedSlot ? `<div class="item reserved-item"><div class="reserved-icon">◈</div><div class="item-name">${esc(b.reservedSlot)}</div><div class="why">Zostaje w ekwipunku</div></div>` : '';
   const side = b.quest?.slotItem;
   return `<div class="build-inventory ${side ? 'with-quest-slot' : ''}"><div class="items path inventory-items">${main}${reserved}</div>
@@ -226,16 +228,18 @@ function itemSetStatus(b, auto) {
 }
 
 function buildPanel(b, readonly = false, auto = null) {
-  const aram = b.mode === 'aram';
+  const aram = isAramView(b.mode);
   return `<div class="panel build-panel">
     <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
+    ${mayhemPanel(b)}
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
     <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
     <div class="build-row build-primary"><h4>Kolejność zakupów${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
     <div class="build-essentials"><div><span class="muted">Umiejętności</span><div class="skills">${skillKeys(b.skills)}</div></div><div><span class="muted">Czary</span><div class="spells-line">${b.spells.map((s) => img(s.icon, 'spell', s.name)).join('')}<span>${b.spells.map((s) => esc(s.name)).join(' + ')}</span></div></div></div>
     ${disclosure('build-details', 'Dlaczego te zakupy? · własne wybory', `${buildExplanation(b)}${b.enemy && b.enemy.count ? `<div class="build-row"><h4>Szacowany profil obrażeń wroga</h4>${enemyBar(b.enemy)}</div>` : ''}${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}${b.alternatives.length ? `<div class="build-row"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}`)}
-    ${readonly ? '<div class="shop-hint">W sklepie szukaj zestawu <b>CS Assist</b> · Zestawy przedmiotów</div>' : ''}
+    ${readonly && !labActive && b.mode !== 'mayhem' ? '<div class="shop-hint">W sklepie szukaj zestawu <b>CS Assist</b> · Zestawy przedmiotów</div>' : ''}
+    ${readonly && !labActive && b.mode === 'mayhem' ? `<div class="actions"><button data-itemset="${esc(b.alias)}">Zapisz zestaw w kliencie LoL</button><span class="note">Kolejne zakupy sprawdzaj tutaj pod Ctrl+X.</span></div>` : ''}
     ${readonly ? '' : `<div class="actions" style="margin-top:12px;align-items:center">
       <button class="primary" data-itemset="${esc(b.alias)}">${auto && auto.done ? 'Wyślij ponownie' : 'Wyślij build do sklepu w grze'}</button>
       ${itemSetStatus(b, auto)}
@@ -363,6 +367,7 @@ function gamePlanPanel(g) {
 
 function priorityAdvicePanel(s) {
   const b = s.final?.build || s.build;
+  if (b?.mode === 'mayhem') return '';
   const tips = [];
   if (s.plan?.tips?.[0]) tips.push({ label: 'Na linii', text: s.plan.tips[0] });
   const mid = s.gamePlan?.phases?.find((p) => /Środek|Wasz styl|Walki drużynowe/.test(p.title));
@@ -379,7 +384,7 @@ function priorityAdvicePanel(s) {
 }
 
 function runeSummary(m) {
-  if (!m?.runes) return '';
+  if (!m?.runes || m.runes.disabled) return '';
   const r = m.runes;
   return `<div class="rune-summary">${img(r.keystone.icon, 'rune', r.keystone.name)}<div><b>${esc(r.keystone.name)}</b><span class="muted"> · ${esc(r.primaryStyle)} + ${esc(r.subStyle)}</span>${r.adaptations.length ? `<div class="note">${esc(r.adaptations[0])}${r.adaptations.length > 1 ? ` · +${r.adaptations.length - 1} zmian w szczegółach` : ''}</div>` : '<div class="note">Baza run dla championa i roli</div>'}</div></div>`;
 }
@@ -393,26 +398,29 @@ function adviceDetails(list) {
 
 function loadingScreen(s) {
   const tab = loadingTab;
+  const aram = isAramView(s.mode);
   const tabs = `<div class="seg loading-tabs" role="tablist" aria-label="Widok meczu">
-      <button role="tab" aria-selected="${tab === 'overview'}" data-loading-tab="overview" class="${tab === 'overview' ? 'on' : ''}">Build i plan</button>
-      <button role="tab" aria-selected="${tab === 'build'}" data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">Runy i szczegóły</button>
-      <button role="tab" aria-selected="${tab === 'players'}" data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">Gracze i statystyki</button>
+      <button role="tab" aria-selected="${tab === 'overview'}" data-loading-tab="overview" class="${tab === 'overview' ? 'on' : ''}">${s.mode==='mayhem'?'Build i augmenty':'Build i plan'}</button>
+      <button role="tab" aria-selected="${tab === 'build'}" data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">${s.mode==='mayhem'?'Czary i szczegóły':'Runy i szczegóły'}</button>
+      <button role="tab" aria-selected="${tab === 'players'}" data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">${aram?'Składy drużyn':'Gracze i statystyki'}</button>
     </div>`;
   const plans = `${s.plan || s.gamePlan ? `<div class="plans${s.plan && s.gamePlan ? '' : ' single'}">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : '<p class="muted">Plan pojawi się po odczytaniu składów.</p>'}`;
   const list = s.final?.build?.situations || s.gamePlan?.situations || [];
-  const body = tab === 'players'
+  const planDetails = s.mode === 'mayhem' ? '' : disclosure('full-plan', aram ? 'Plan walk na ARAM-ie' : 'Pełny plan na linię i grę', plans);
+  const roster = players => `<div class="aram-roster">${players.map(p=>`<div>${img(p.championView?.icon,'icon',p.championView?.name)}<b>${esc(p.championView?.name || 'Nieznany champion')}</b></div>`).join('')}</div>`;
+  const body = tab === 'players' && aram ? `<p class="note">${s.mode==='mayhem'?'Mayhem':'ARAM'}: bez rang, winrate i wskazówek z soloQ.</p><h3 class="ally-h">Twoja drużyna</h3>${roster(s.allies)}<h3 class="enemy-h">Przeciwnicy</h3>${roster(s.enemies)}` : tab === 'players'
     ? `<p class="note">Winrate opisuje widoczną próbę gier. Mała próba i inna rola nie przesądzają o umiejętnościach gracza.</p><h3 class="ally-h">Twoja drużyna</h3><div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div><h3 class="enemy-h">Przeciwnicy</h3><div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`
     : tab === 'build'
-      ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane run.</p>'}${priorityAdvicePanel(s)}${disclosure('full-plan', 'Pełny plan na linię i grę', plans)}${adviceDetails(list)}`
+      ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane postaci.</p>'}${priorityAdvicePanel(s)}${planDetails}${adviceDetails(list)}`
     : `${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
       ${priorityAdvicePanel(s)}
       ${runeSummary(s.final?.myChampion)}
-      ${disclosure('full-plan', 'Pełny plan na linię i grę', plans)}
+      ${planDetails}
       ${adviceDetails(list)}`;
   return `<div class="loading-screen">
     ${tabs}
     ${body}
-    <footer><span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}${s.region ? ` · serwer ${esc(s.region)}` : ''}</span><button data-stats-diag>Diagnostyka OP.GG</button></footer>
+    <footer><span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}${s.region ? ` · serwer ${esc(s.region)}` : ''}</span>${aram?'':'<button data-stats-diag>Diagnostyka OP.GG</button>'}</footer>
   </div>`;
 }
 
@@ -441,14 +449,16 @@ function render(s) {
   if (!s) return;
   const previous = lastState;
   lastState = s;
+  if (!labActive && (s.mode !== 'mayhem' || s.final?.build?.mayhem?.matchKey !== previous?.final?.build?.mayhem?.matchKey)) document.getElementById('mayhem-dialog')?.close();
   if (labActive) {
     if (s.status === 'champselect' && previous?.status !== 'champselect') {
       labActive = false; labRevision++; document.getElementById('draft-lab').textContent = 'Tester draftów';
-      document.getElementById('choices-dialog')?.close(); editorContext = null; toast('Rozpoczął się Twój champion select');
+      document.getElementById('choices-dialog')?.close(); document.getElementById('mayhem-dialog')?.close(); editorContext = null; toast('Rozpoczął się Twój champion select');
     } else return;
   }
   const [label, live] = STATUS[s.status] || ['', false];
   $status.textContent = s.status === 'error' ? `${label}: ${s.message}` : label;
+  if (s.mode === 'mayhem') $status.textContent = s.status === 'champselect' ? 'Mayhem · wybór postaci' : 'ARAM: Mayhem';
   $status.className = 'status' + (live ? ' live' : '');
 
   if (s.status === 'loading-screen') {
@@ -471,10 +481,10 @@ function render(s) {
   const meLocked = s.myChampion && s.myChampion.locked;
   const center = [
     bansPanel(s),
-    s.mode === 'aram' ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
+    isAramView(s.mode) ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
     s.build ? buildPanel({ ...s.build, mode: s.mode }, false, s.autoItemSet) : '',
     s.build ? priorityAdvicePanel(s) : '',
-    s.myChampion ? disclosure('runes', 'Runy, czary i dopasowanie do matchupu', myChampionPanel(s.myChampion, false, s.autoRunes)) : '',
+    s.myChampion ? disclosure('runes', s.mode==='mayhem'?'Czary przywoływacza':'Runy, czary i dopasowanie do matchupu', myChampionPanel(s.myChampion, false, s.autoRunes)) : '',
     s.build ? adviceDetails(s.build.situations) : '',
     disclosure('compositions', 'Style obu drużyn', compPanel(s.compositions)),
   ].join('');
@@ -485,13 +495,13 @@ function render(s) {
       <footer>
         <span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}</span>
         <button data-toggle-stats>${s.statsEnabled ? 'Wyłącz OP.GG' : 'Włącz OP.GG'}</button>
-        <button data-toggle-auto-runes>${s.autoRunes && s.autoRunes.enabled ? 'Auto-import run: wł.' : 'Auto-import run: wył.'}</button>
+        ${s.mode==='mayhem'?'':`<button data-toggle-auto-runes>${s.autoRunes && s.autoRunes.enabled ? 'Auto-import run: wł.' : 'Auto-import run: wył.'}</button>`}
         <button data-toggle-auto-item-set>${s.autoItemSet && s.autoItemSet.enabled ? 'Auto-build do sklepu: wł.' : 'Auto-build do sklepu: wył.'}</button>
         <button data-stats-diag>Diagnostyka OP.GG</button>
         <button data-open-data>Edytuj dane</button><button data-reload-data>Wczytaj dane ponownie</button>
       </footer>
     </section>
-    <section class="team enemy"><h3>Przeciwnicy</h3>${s.mode === 'aram' && !s.enemies.length ? '<div class="muted">Na ARAM-ie przeciwników widać dopiero na ekranie ładowania.</div>' : ''}${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
+    <section class="team enemy"><h3>Przeciwnicy</h3>${isAramView(s.mode) && !s.enemies.length ? '<div class="muted">Na ARAM-ie przeciwników widać dopiero na ekranie ładowania.</div>' : ''}${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
   </div>`);
 }
 

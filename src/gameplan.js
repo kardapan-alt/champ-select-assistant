@@ -109,7 +109,7 @@ function gamePlan(allies, enemies, cardFor, game, data, mode = 'classic') {
   const ourStyle = engine.archetypeOf(ours.map((m) => m.info));
   const theirStyle = engine.archetypeOf(theirs.map((m) => m.info));
 
-  if (mode === 'aram') return aramPlan(ours, theirs, ourStyle, theirStyle, enemies, cardFor, game);
+  if (mode === 'aram' || mode === 'mayhem') return aramPlan(ours, theirs, ourStyle, theirStyle, enemies, cardFor, game);
 
   // Początek gry: kto jest mocniejszy wcześnie i jungle.
   const early = [];
@@ -175,7 +175,7 @@ function aramPlan(ours, theirs, ourStyle, theirStyle, enemies, cardFor, game) {
   const mid = [];
   if (ourStyle) mid.push(ARAM_OWN[ourStyle.primary](whoFor(ourStyle.primary, ours)));
   const lateDiff = count(ours, 'scaling') - count(theirs, 'scaling');
-  if (lateDiff >= 2) mid.push('Skalujecie lepiej: przetrwajcie pierwsze walki, po 3 itemach wygrywacie.');
+  if (lateDiff >= 2) mid.push('Wasz skład może zyskać przewagę w dłuższej grze: przetrwajcie pierwsze walki i grajcie wokół kolejnych zakupów.');
   else if (lateDiff <= -2) mid.push('Wróg skaluje lepiej: grajcie agresywnie teraz i kończcie, zanim skompletują buildy.');
 
   const late = [];

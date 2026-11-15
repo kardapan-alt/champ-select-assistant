@@ -7,7 +7,7 @@ function itemAvailable(id, game, mode = 'classic', alias = '') {
   if (!item || item.inStore === false || item.gold?.purchasable === false) return false;
   if (item.requiredChampion && item.requiredChampion !== alias) return false;
   if (item.requiredAlly) return false;
-  const map = mode === 'aram' ? 12 : 11;
+  const map = ['aram', 'mayhem'].includes(mode) ? 12 : 11;
   if (Array.isArray(item.maps) && item.maps.length && !item.maps.map(Number).includes(map)) return false;
   if (item.maps && !Array.isArray(item.maps) && item.maps[String(map)] === false) return false;
   return true;

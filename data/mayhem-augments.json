@@ -1,0 +1,3270 @@
+{
+  "schema": 1,
+  "fetched": "2026-11-15",
+  "sources": [
+    "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/augment-lists.json",
+    "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/cherry-augments.json",
+    "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/pl_pl/v1/cherry-augments.json"
+  ],
+  "augments": [
+    {
+      "id": 1001,
+      "api": "ARAM_ImTheJuggernaut",
+      "name": "Determinacja Kolosa",
+      "english": "Titan's Resolve",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/IAmTheJuggernaut_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1002,
+      "api": "ARAM_ApexInventor",
+      "name": "Genialny Wynalazca",
+      "english": "Apex Inventor",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ApexInventor_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1004,
+      "api": "ARAM_BacktoBasics",
+      "name": "Szkoła Podstawowa",
+      "english": "Back To Basics",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/BackToBasics_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1005,
+      "api": "ARAM_WeeWooWeeWoo",
+      "name": "Eee Ooo Eee Ooo",
+      "english": "Wee Woo Wee Woo",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/WeeWooWeeWoo_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1006,
+      "api": "ARAM_BladeWaltz",
+      "name": "Taniec Ostrzy",
+      "english": "Blade Waltz",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/BladeWaltz_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1007,
+      "api": "ARAM_BluntForce",
+      "name": "Okrutna Siła",
+      "english": "Blunt Force",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/BluntForce_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1011,
+      "api": "ARAM_CantTouchThis",
+      "name": "Nietykalność",
+      "english": "Can't Touch This",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/CantTouchThis_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1013,
+      "api": "ARAM_CelestialBody",
+      "name": "Ciało Astralne",
+      "english": "Celestial Body",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/CelestialBody_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1015,
+      "api": "ARAM_CircleofDeath",
+      "name": "Krąg Śmierci",
+      "english": "Circle of Death",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/CircleOfDeath_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1018,
+      "api": "ARAM_CourageoftheColossus",
+      "name": "Odwaga Kolosa",
+      "english": "Courage of the Colossus",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/CourageOfTheColossus_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1019,
+      "api": "ARAM_Dashing",
+      "name": "Skoczność",
+      "english": "Dashing",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Dashing_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1020,
+      "api": "ARAM_DawnbringersResolve",
+      "name": "Determinacja Zwiastuna Brzasku",
+      "english": "Dawnbringer's Resolve",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/DawnbringersResolve_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1022,
+      "api": "ARAM_Deft",
+      "name": "Chyżość",
+      "english": "Deft",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Deft_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1025,
+      "api": "ARAM_DiveBomber",
+      "name": "Bombowe Zakończenie",
+      "english": "Dive Bomber",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/DiveBomber_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1026,
+      "api": "ARAM_DontBlink",
+      "name": "Nie Mrugaj",
+      "english": "Don't Blink",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/DontBlink_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1027,
+      "api": "ARAM_Earthwake",
+      "name": "Znaczenie Ziemi",
+      "english": "Earthwake",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Earthwake_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1028,
+      "api": "ARAM_Erosion",
+      "name": "Erozja",
+      "english": "Erosion",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Erosion_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1029,
+      "api": "ARAM_EtherealWeapon",
+      "name": "Eteryczna Broń",
+      "english": "Ethereal Weapon",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/EtherealWeapon_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1030,
+      "api": "ARAM_Eureka",
+      "name": "Eureka",
+      "english": "Eureka",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Eureka_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1034,
+      "api": "VeilOfWarding",
+      "name": "Całun Straży",
+      "english": "Veil of Warding",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Poltergeist_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1036,
+      "api": "ARAM_Firebrand",
+      "name": "Znamię Ognia",
+      "english": "Firebrand",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Firebrand_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1037,
+      "api": "ARAM_FirstAidKit",
+      "name": "Apteczka",
+      "english": "First-Aid Kit",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/FirstAidKit_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1038,
+      "api": "ARAM_FromBeginningToEnd",
+      "name": "Od Początku do Końca",
+      "english": "From Beginning To End",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/FromBeginningToEnd_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1041,
+      "api": "ARAM_Goliath",
+      "name": "Goliat",
+      "english": "Goliath",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Goliath_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1044,
+      "api": "ARAM_IceCold",
+      "name": "Zimny jak Lód",
+      "english": "Ice Cold",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/IceCold_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1045,
+      "api": "ARAM_InfernalConduit",
+      "name": "Piekielny Przewodnik",
+      "english": "Infernal Conduit",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/InfernalConduit_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1046,
+      "api": "ARAM_InfernalSoul",
+      "name": "Piekielna Dusza",
+      "english": "Infernal Soul",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/InfernalSoul_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1047,
+      "api": "ARAM_ItsCritical",
+      "name": "Krytyczna Decyzja",
+      "english": "It's Critical",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ItsCritical_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1048,
+      "api": "ARAM_JeweledGauntlet",
+      "name": "Brylantowa Rękawica",
+      "english": "Jeweled Gauntlet",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/JeweledGauntlet_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1051,
+      "api": "ARAM_LightemUp",
+      "name": "Dajmy Im Popalić!",
+      "english": "Light 'Em Up!",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/LightEmUp_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1053,
+      "api": "ARAM_MadScientist",
+      "name": "Szalony Naukowiec",
+      "english": "Mad Scientist",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/MadScientist_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1054,
+      "api": "ARAM_MasterofDuality",
+      "name": "Podwójny Mistrz",
+      "english": "Master of Duality",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/MasterOfDuality_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1056,
+      "api": "ARAM_MindtoMatter",
+      "name": "Umysłowa Przemiana",
+      "english": "Mind to Matter",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/MindToMatter_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1057,
+      "api": "ARAM_MountainSoul",
+      "name": "Górska Dusza",
+      "english": "Mountain Soul",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/MountainSoul_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1058,
+      "api": "ARAM_MysticPunch",
+      "name": "Mistyczny Cios",
+      "english": "Mystic Punch",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/MysticPunch_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1060,
+      "api": "ARAM_OceanSoul",
+      "name": "Oceaniczna Dusza",
+      "english": "Ocean Soul",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/OceanSoul_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1061,
+      "api": "ARAM_OkBoomerang",
+      "name": "Ok, Bumerangu",
+      "english": "Ok Boomerang",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/OKBoomerang_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1062,
+      "api": "ARAM_OmniSoul",
+      "name": "Wszechdusza",
+      "english": "Omni Soul",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/OmniSoul_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1063,
+      "api": "ARAM_OutlawsGrit",
+      "name": "Męstwo Banity",
+      "english": "Outlaw's Grit",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/OutlawsGrit_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1064,
+      "api": "ARAM_Perseverance",
+      "name": "Wytrwałość",
+      "english": "Perseverance",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Perseverance_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1066,
+      "api": "ARAM_QuantumComputing",
+      "name": "Kwantowe Obliczenia",
+      "english": "Quantum Computing",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/QuantumComputing_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1067,
+      "api": "ARAM_RabbleRousing",
+      "name": "Odmłodzenie",
+      "english": "Rejuvenation",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/RabbleRousing_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1068,
+      "api": "ARAM_Recursion",
+      "name": "Rekurencja",
+      "english": "Recursion",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Recursion_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1071,
+      "api": "ARAM_ScopierWeapons",
+      "name": "Bardziej Snajperskie Uzbrojenie",
+      "english": "Scopier Weapons",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ScopierWeapons_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1072,
+      "api": "ARAM_SearingDawn",
+      "name": "Żarliwa Jutrzenka",
+      "english": "Searing Dawn",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SearingDawn_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1073,
+      "api": "ARAM_ShadowRunner",
+      "name": "Cieniobieżca",
+      "english": "Shadow Runner",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ShadowRunner_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1074,
+      "api": "ARAM_ShrinkRay",
+      "name": "Promień Pomniejszający",
+      "english": "Shrink Ray",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ShrinkRay_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1076,
+      "api": "ARAM_SonicBoom",
+      "name": "Grom Dźwiękowy",
+      "english": "Sonic Boom",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SonicBoom_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1077,
+      "api": "ARAM_SoulSiphon",
+      "name": "Pochłanianie Dusz",
+      "english": "Soul Siphon",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SoulSiphon_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1079,
+      "api": "ARAM_SymphonyofWar",
+      "name": "Wojenna Symfonia",
+      "english": "Symphony of War",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SymphonyOfWar_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1080,
+      "api": "ARAM_TankItOrLeaveIt",
+      "name": "Obrona albo Nic",
+      "english": "Tank It Or Leave It",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/TankItOrLeaveIt_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1081,
+      "api": "ARAM_TapDancer",
+      "name": "Szalone Tańcowanie",
+      "english": "Tap Dancer",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/TapDancer_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1084,
+      "api": "ARAM_ThreadtheNeedle",
+      "name": "Przebitka",
+      "english": "Thread the Needle",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ThreadTheNeedle_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1087,
+      "api": "ARAM_Typhoon",
+      "name": "Tajfun",
+      "english": "Typhoon",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Typhoon_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1088,
+      "api": "ARAM_UltimateRevolution",
+      "name": "Superrewolucja",
+      "english": "Ultimate Revolution",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/UltimateRevolution_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1092,
+      "api": "ARAM_Vulnerability",
+      "name": "Wrażliwość",
+      "english": "Vulnerability",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Vulnerability_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1095,
+      "api": "ARAM_WindspeakersBlessing",
+      "name": "Błogosławieństwo Piewcy Wiatrów",
+      "english": "Windspeaker's Blessing",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/WindspeakersBlessing_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1097,
+      "api": "ARAM_WitchfulThinking",
+      "name": "Czarowanie na Zawołanie",
+      "english": "Witchful Thinking",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/WitchfulThinking_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1098,
+      "api": "ARAM_WithHaste",
+      "name": "Pośpiech",
+      "english": "With Haste",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/WithHaste_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1103,
+      "api": "ARAM_BreadAndButter",
+      "name": "Bułka z Masłem",
+      "english": "Bread And Butter",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1104,
+      "api": "ARAM_Minionmancer",
+      "name": "Stworomanta",
+      "english": "Minionmancer",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Minionmancer_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1105,
+      "api": "ARAM_Homeguard",
+      "name": "Obrona Terytorialna",
+      "english": "Homeguard",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Homeguard_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1112,
+      "api": "ARAM_UltimateUnstoppable",
+      "name": "Niepowstrzymana Superumiejętność",
+      "english": "Ultimate Unstoppable",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/UltimateUnstoppable_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1113,
+      "api": "ARAM_SkilledSniper",
+      "name": "Doświadczony Snajper",
+      "english": "Skilled Sniper",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SkilledSniper_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1115,
+      "api": "ARAM_ScopiestWeapons",
+      "name": "Najbardziej Snajperskie Uzbrojenie",
+      "english": "Scopiest Weapons",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ScopiestWeapons_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1116,
+      "api": "ARAM_Flashy",
+      "name": "Zabłysnąć z Przytupem",
+      "english": "Flashy",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Flashy_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1118,
+      "api": "ARAM_CriticalHealing",
+      "name": "Leczenie Krytyczne",
+      "english": "Critical Healing",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/CriticalHealing_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1129,
+      "api": "ARAM_Marksmage",
+      "name": "Czarostrzelec",
+      "english": "Marksmage",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Marksmage_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1133,
+      "api": "ARAM_MagicMissile",
+      "name": "Magiczny Pocisk",
+      "english": "Magic Missile",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/Maps/Particles/Kiwi/MagicMissile_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1134,
+      "api": "ARAM_DrawYourSword",
+      "name": "Dobądź Miecza",
+      "english": "Draw Your Sword",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/DrawYourSword_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1136,
+      "api": "ARAM_SlapAround",
+      "name": "Sponiewieranie",
+      "english": "Slap Around",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SlapAround_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1138,
+      "api": "ARAM_Goredrink",
+      "name": "Chłeptanie Posoki",
+      "english": "Goredrink",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/GoreDrink_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1141,
+      "api": "ARAM_AllForYou",
+      "name": "Wszystko dla Ciebie",
+      "english": "All For You",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/AllForYou_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1149,
+      "api": "ARAM_Impassable",
+      "name": "Nie do Przeskoczenia",
+      "english": "Impassable",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Impassable_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1150,
+      "api": "ARAM_BreadAndJam",
+      "name": "Bułka z Dżemem",
+      "english": "Bread And Jam",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1151,
+      "api": "ARAM_BreadAndCheese",
+      "name": "Bułka z Serem",
+      "english": "Bread and Cheese",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1152,
+      "api": "ARAM_Quest_SteelYourHeart",
+      "name": "Ze Stali Niech Będzie Twe Serce",
+      "english": "Steel Your Heart",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Quest_SteelYourHeart_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1154,
+      "api": "ARAM_Quest_UrfsChampion",
+      "name": "Czempion Urfa",
+      "english": "Urf's Champion",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Quest_UrfsChampion_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1156,
+      "api": "ARAM_Quest_WoogletsWitchcap",
+      "name": "Wiedźmi Kapelusz Woogleta",
+      "english": "Wooglet's Witchcap",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Quest_WoogletsWitchcap_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1170,
+      "api": "ARAM_ScopedWeapons",
+      "name": "Snajperskie Uzbrojenie",
+      "english": "Scoped Weapons",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ScopedWeapons_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1180,
+      "api": "ARAM_BigBrain",
+      "name": "Megamózg",
+      "english": "Big Brain",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/BigBrain_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1181,
+      "api": "ARAM_HeavyHitter",
+      "name": "Mocne Ciosy",
+      "english": "Heavy Hitter",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/HeavyHitter_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1187,
+      "api": "ARAM_Flashbang",
+      "name": "Granat Błyskowy",
+      "english": "Flashbang",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Flashbang_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1194,
+      "api": "ARAM_FeyMagic",
+      "name": "Magiczny Czar",
+      "english": "Fey Magic",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/FeyMagic_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1195,
+      "api": "ARAM_GiantSlayer",
+      "name": "Pogromca Olbrzymów",
+      "english": "Giant Slayer",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/GiantSlayer_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1204,
+      "api": "ARAM_StackosaurusRex",
+      "name": "Ładunkozaurus Rex",
+      "english": "Stackosaurus Rex",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/StackosaurusRex_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1205,
+      "api": "ARAM_ADAPt",
+      "name": "AD-AP-tacja",
+      "english": "ADAPt",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ADAPt_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1206,
+      "api": "ARAM_escAPADe",
+      "name": "EskAPADa",
+      "english": "escAPADe",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Escapade_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1211,
+      "api": "ARAM_ItsKillingTime",
+      "name": "Czas na Mord",
+      "english": "It's Killing Time",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ItsKillingTime_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1214,
+      "api": "ARAM_SpinToWin",
+      "name": "Młyniec",
+      "english": "Spin To Win",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SpinToWin_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1220,
+      "api": "ARAM_FanTheHammer",
+      "name": "Podsycający Młot",
+      "english": "Fan The Hammer",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/FanTheHammer_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1225,
+      "api": "ARAM_DualWield",
+      "name": "Obie Ręce Zajęte",
+      "english": "Dual Wield",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/DualWield_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1237,
+      "api": "ARAM_TransmuteGold",
+      "name": "Transmutacja: Złoto",
+      "english": "Transmute: Gold",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/TransmuteGold_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1238,
+      "api": "ARAM_TransmutePrismatic",
+      "name": "Transmutacja: Pryzmatyczne",
+      "english": "Transmute: Prismatic",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/TransmutePrismatic_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1243,
+      "api": "ARAM_TransmuteChaos",
+      "name": "Transmutacja: Chaos",
+      "english": "Transmute: Chaos",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/TransmuteChaos_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1301,
+      "api": "ARAM_DivineIntervention",
+      "name": "Boska Interwencja",
+      "english": "Divine Intervention",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SlowActingPainkillers_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1305,
+      "api": "ARAM_LegDay",
+      "name": "Dzień Robienia Nóg",
+      "english": "Leg Day",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/LegDay_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1308,
+      "api": "ARAM_Firefox",
+      "name": "Ognisty Lis",
+      "english": "FireFox",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Firfox_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1310,
+      "api": "ARAM_ClownCollege",
+      "name": "Wyższa Szkoła Błaznowania",
+      "english": "Clown College",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/ClownCollege_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1311,
+      "api": "ARAM_Overflow",
+      "name": "Przesyt",
+      "english": "Overflow",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Overflow_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1314,
+      "api": "MightyShield",
+      "name": "Potężna Tarcza",
+      "english": "Mighty Shield",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/MightyShield_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1315,
+      "api": "SwiftAndSafe",
+      "name": "Szybcy i Bezpieczni",
+      "english": "Swift and Safe",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SwiftandSafe_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1318,
+      "api": "ARAM_Upgrade_ZH",
+      "name": "Ulepszenie Zhonyi",
+      "english": "Upgrade Zhonya's",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeZH_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1319,
+      "api": "ARAM_Upgrade_Immolate",
+      "name": "Ulepszenie Pożogi",
+      "english": "Upgrade Immolate",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeImmolate_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1320,
+      "api": "ARAM_Upgrade_Collector",
+      "name": "Ulepszenie Zbieracza",
+      "english": "Upgrade Collector",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeCollector_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1322,
+      "api": "ARAM_GetExcited",
+      "name": "Zabawmy Się!",
+      "english": "Get Excited!",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GetExcited_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1323,
+      "api": "ARAM_Cruelty",
+      "name": "Okrucieństwo",
+      "english": "Cruelty",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Cruelty_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1324,
+      "api": "ARAM_ProteinShake",
+      "name": "Shake Proteinowy",
+      "english": "Protein Shake",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ProteinShake_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1325,
+      "api": "GlassCannon",
+      "name": "Porcelanowe Działo",
+      "english": "Glass Cannon",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GlassCannon_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1326,
+      "api": "Nightstalking",
+      "name": "Nocne Grasowanie",
+      "english": "Nightstalking",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Nightstalking_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1327,
+      "api": "Adamant",
+      "name": "Nieugiętość",
+      "english": "Adamant",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Adamant_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1328,
+      "api": "CriticalRhythm",
+      "name": "Krytyczny Rytm",
+      "english": "Critical Rhythm",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/CriticalRhythm_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1329,
+      "api": "BiggestSnowballEver",
+      "name": "Największa Śnieżka na Świecie",
+      "english": "Biggest Snowball Ever",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/BiggestSnowballEver_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1331,
+      "api": "EmpyreanPromise",
+      "name": "Empirejska Obietnica",
+      "english": "Empyrean Promise",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/EmpyreamPromise_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1332,
+      "api": "OminousPact",
+      "name": "Złowieszczy Pakt",
+      "english": "Ominous Pact",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/WisdomOfAges_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1333,
+      "api": "EscapePlan",
+      "name": "Plan Ucieczki",
+      "english": "Escape Plan",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/EscapePlan_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1334,
+      "api": "SnowballUpgrade",
+      "name": "Ulepszenie Śnieżki",
+      "english": "Snowball Upgrade",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SnowballUpgrade_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1335,
+      "api": "Goldrend",
+      "name": "Złupienie",
+      "english": "Goldrend",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Goldrend_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1336,
+      "api": "ARAM_Upgrade_IE",
+      "name": "Ulepszenie Ostrza Nieskończoności",
+      "english": "Upgrade Infinity Edge",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeIE_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1337,
+      "api": "KingMe",
+      "name": "Królowanie",
+      "english": "King Me",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/KingMe_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1339,
+      "api": "LaserHeal",
+      "name": "Laserowe Leczenie",
+      "english": "Laser Heal",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/LaseHeal_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1342,
+      "api": "SnowballRoulette",
+      "name": "Ruletka Śnieżki",
+      "english": "Snowball Roulette",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SnowballUpgrade_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1343,
+      "api": "Quest_Sneakerhead",
+      "name": "Miłośnik butów",
+      "english": "Sneakerhead",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Sneakerhead_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1344,
+      "api": "FinalForm",
+      "name": "Ostateczna Postać",
+      "english": "Final Form",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/FinalForm_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1345,
+      "api": "ARAM_SpiritualPurification",
+      "name": "Duchowe Oczyszczenie",
+      "english": "Spiritual Purification",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SpiritualPurification_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1346,
+      "api": "Vampirism",
+      "name": "Wampiryzm",
+      "english": "Vampirism",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Vampired_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1347,
+      "api": "Poltergeist",
+      "name": "Poltergeist",
+      "english": "Poltergeist",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Poltergeist_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1348,
+      "api": "Flash2",
+      "name": "Błysk 2",
+      "english": "Flash 2",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Flash2_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1349,
+      "api": "UltimateAwakening",
+      "name": "Ostateczne Przebudzenie",
+      "english": "Ultimate Awakening",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ZeroHour_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1353,
+      "api": "ARAM_TankEngine",
+      "name": "Taran",
+      "english": "Tank Engine",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Tank_Engine_Small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1356,
+      "api": "CriticalMissile",
+      "name": "Krytyczny Pocisk",
+      "english": "Critical Missile",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/CriticalMissile_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1358,
+      "api": "PinballSnowball",
+      "name": "Pinball",
+      "english": "Pinball",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PinballSnowball_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1361,
+      "api": "ARAM_Quest_VoidImmolation",
+      "name": "Upadek Icathii",
+      "english": "Icathia's Fall",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Quest_VoidImmolation_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1372,
+      "api": "BabyKitty",
+      "name": "Jestem Kotkiem, Gdzie Moja Mama?",
+      "english": "I'm a Baby Kitty Where is Mama",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/BabyKitty_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1373,
+      "api": "ShrinkEngine",
+      "name": "Silnik Pomniejszający",
+      "english": "Shrink Engine",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ShrinkEngine_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1375,
+      "api": "SoulEater",
+      "name": "Duszożerca",
+      "english": "Soul Eater",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SoulEater_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1379,
+      "api": "Upgrade_SwordOfBlossom",
+      "name": "Ulepszenie Miecza Kwitnącego Świtu",
+      "english": "Upgrade Sword of Blossoming Dawn",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeMikaelsBlessing_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1384,
+      "api": "Donation",
+      "name": "Dotacja",
+      "english": "Donation",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Donation_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1386,
+      "api": "YouSpinMeRightRound",
+      "name": "Kręć Mnie, Kręć",
+      "english": "Spin Me Right Round",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/YouSpinMeRightRound_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1388,
+      "api": "InfiniteRecursion",
+      "name": "Nieskończona Rekurencja",
+      "english": "Infinite Recursion",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/InfiniteRecursion_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1389,
+      "api": "HandOfBaron",
+      "name": "Namiestnik Barona",
+      "english": "Hand of Baron",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/HandofBaron_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1390,
+      "api": "ARAM_PhenomenalEvil",
+      "name": "Niezwykła Nikczemność",
+      "english": "Phenomenal Evil",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ARAM_PhenomenalEvil_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1392,
+      "api": "GoldenSnowball",
+      "name": "Święta Śnieżka",
+      "english": "Holy Snowball",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GoldenSnowball_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1400,
+      "api": "TrainOfTheDead",
+      "name": "Pociąg Final City",
+      "english": "Final City Transit",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Nightstalking_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1401,
+      "api": "GrowthSpurt",
+      "name": "Gwałtowny Wzrost",
+      "english": "Growth Spurt",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GrowthSpurt_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1402,
+      "api": "ARAM_StatsOnStatsOnStats",
+      "name": "Statystyczne Statystyki Statystyk!",
+      "english": "Stats on Stats on Stats!",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/StatsOnStatsOnStats_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1403,
+      "api": "ARAM_StatsOnStats",
+      "name": "Statystyki Statystyk!",
+      "english": "Stats on Stats!",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/StatsOnStats_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1404,
+      "api": "ARAM_Stats",
+      "name": "Statystyki!",
+      "english": "Stats!",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Stats_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1406,
+      "api": "GrandmasChiliOil",
+      "name": "Pikantny Olej Babuni",
+      "english": "Grandma's Chili Oil",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GrandmasChiliOil_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1409,
+      "api": "ARAM_Poro_Blast",
+      "name": "Miotacz Poro",
+      "english": "Poro Blaster",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PoroBlast_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1413,
+      "api": "ARAM_StuckInHereWithMe",
+      "name": "Tkwisz Tu ze Mną",
+      "english": "Stuck In Here With Me",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/StuckInHereWithMe_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1414,
+      "api": "Dropybara_Active",
+      "name": "Przyzwaniobara",
+      "english": "Droppybara",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/OrbitalLaser_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1415,
+      "api": "Twinfire",
+      "name": "Bliźniaczy Ogień",
+      "english": "Twin Fire",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/TwinFire_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1416,
+      "api": "HextechSoul",
+      "name": "Hextechowa Dusza",
+      "english": "Hextech Soul",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/InfernalSoul_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 1420,
+      "api": "Sonata",
+      "name": "Sonata",
+      "english": "Sonata",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Sonata_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1421,
+      "api": "PromQueen",
+      "name": "Królowa Balu",
+      "english": "Prom Queen",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PromQueen_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1424,
+      "api": "ARAM_MissingPingAugment",
+      "name": "???",
+      "english": "???",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/MissingPing_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 1996,
+      "api": "ARAM_Upgrade_Sheen",
+      "name": "Ulepszenie Blasku",
+      "english": "Upgrade Sheen",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeSheen_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2003,
+      "api": "ARAM_PoroKing",
+      "name": "Podskoki Króla Poro",
+      "english": "Bounce of the Poro King",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PoroKing_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2004,
+      "api": "ARAM_EmpoweredByTheFaithful",
+      "name": "Wzmocnienie Wiarą Wiernych",
+      "english": "Empowered By The Faithful",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/EmpoweredByTheFaithful_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2005,
+      "api": "ARAM_InfernoTriggered",
+      "name": "Rozpętane Piekło",
+      "english": "Triggered Inferno",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/MadScientist_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2006,
+      "api": "ARAM_Dropkick",
+      "name": "Wykop",
+      "english": "Dropkick",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Dropkick_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2007,
+      "api": "ARAM_LittleDevil",
+      "name": "Diabeł na Ramieniu",
+      "english": "Devil on Your Shoulder",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/LittleDevil_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2009,
+      "api": "ARAM_Zealot",
+      "name": "Gorliwiec",
+      "english": "Zealot",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Zealot_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2010,
+      "api": "ARAM_DoubleTap",
+      "name": "Podwójne Klepnięcie",
+      "english": "Double Tap",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/DualWield_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2016,
+      "api": "ARAM_Juiced",
+      "name": "Pompa",
+      "english": "Juiced",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Juiced_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2018,
+      "api": "ARAM_Purist_Caster",
+      "name": "Purysta — mag",
+      "english": "Purist - Caster",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PuristCaster_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2026,
+      "api": "KillSecured",
+      "name": "Zabójstwo Zaklepane",
+      "english": "Kill Secured",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/KillSecure_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2031,
+      "api": "ARAM_DropBear",
+      "name": "Niedźwiedź Mściciel",
+      "english": "DropBear",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Drop_Bear_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2032,
+      "api": "FishBait",
+      "name": "Przynęta na Rekiny",
+      "english": "Shark Bait",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/FishBait_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2034,
+      "api": "SharkTempest",
+      "name": "Nawałnica Rekinów",
+      "english": "Shark Tempest",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SharkTempest_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2042,
+      "api": "BrushPower",
+      "name": "Krycie się w Zaroślach",
+      "english": "Hide on Bush",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/BrushPower_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2043,
+      "api": "NatureIsHealing",
+      "name": "Natura się leczy",
+      "english": "Nature is Healing",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/NatureIsHealing_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2054,
+      "api": "SpellVolley",
+      "name": "Trójstrzał",
+      "english": "Tripleshot",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Prismatic.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2055,
+      "api": "ARAM_Multishot",
+      "name": "Wielostrzał",
+      "english": "Multishot",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Prismatic.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2062,
+      "api": "Ability_SelfAOE_DoubleCast",
+      "name": "Użycie Echa",
+      "english": "Echo Cast",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Prismatic.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2063,
+      "api": "DimensionShift_Active",
+      "name": "Przesunięcie Wymiarowe",
+      "english": "Dimension Shift",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/WhenTheDarknessComes_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2064,
+      "api": "ARAM_Quickstep",
+      "name": "Lekki Krok",
+      "english": "Quickstep",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2065,
+      "api": "ARAM_Terror",
+      "name": "Groza",
+      "english": "Terror",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Desecrator_large.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2072,
+      "api": "Missile_Split",
+      "name": "Podział Zaklęcia",
+      "english": "Spell Split",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Prismatic.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2073,
+      "api": "ARAM_SustainingStrike",
+      "name": "Pochłonięcie",
+      "english": "Siphon",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Silver.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2076,
+      "api": "TitansPulse",
+      "name": "Zachowaj Ferwor",
+      "english": "Stay Resolute",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Silver.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2077,
+      "api": "DarkWind",
+      "name": "Krwiożercze Sidła",
+      "english": "Ravenous Bind",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeHubris_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2078,
+      "api": "ChainReaction",
+      "name": "Reakcja Łańcuchowa",
+      "english": "Chain Reaction",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2080,
+      "api": "Snowbomb",
+      "name": "Śnieżny Wybuch",
+      "english": "Snowblast",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Snowbomb_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2082,
+      "api": "Equilibrium",
+      "name": "Nasze Leczenie",
+      "english": "Our Healing",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Equillibrium_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2083,
+      "api": "BurstingTeeth",
+      "name": "Wróżka Zębuszka",
+      "english": "Tooth Fairy",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/QuestBurstingTeeth_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2087,
+      "api": "ARAM_Archmage",
+      "name": "Arcymag",
+      "english": "Archmage",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Eureka_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2088,
+      "api": "ARAM_Snowday",
+      "name": "Śnieżny Dzień",
+      "english": "Snowday",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Snowday_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2089,
+      "api": "ARAM_YowchMyCoins",
+      "name": "Au, Moje Monety!",
+      "english": "Yowch, My Coins!",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/YouchMyCoins_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2091,
+      "api": "EndlessDecimation",
+      "name": "Nieskończone Zdziesiątkowanie",
+      "english": "Endless Decimation",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/EndlessDecimate_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2096,
+      "api": "LittleExtraHelp",
+      "name": "Drobna Pomoc",
+      "english": "Lil' Extra Help",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2097,
+      "api": "VoidDash",
+      "name": "Doskok Pustki",
+      "english": "Void Dash",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2098,
+      "api": "ARAM_EndlessHunt",
+      "name": "Bicie w Przelocie",
+      "english": "En Passant",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Dashing_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2099,
+      "api": "ARAM_DivineDomain",
+      "name": "Rytuał Wyniesienia",
+      "english": "Rite of Ascension",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GlassCannon_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2100,
+      "api": "ARAM_SpecializedRecursion",
+      "name": "Pogoń za Przyspieszeniem",
+      "english": "Pursuit of Haste",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2102,
+      "api": "PressureCooker",
+      "name": "Pod Ciśnieniem",
+      "english": "Pressure Cooker",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/QuestPressureCooker_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2103,
+      "api": "ARAM_BangBang",
+      "name": "Rakiety ziemia-ziemia",
+      "english": "From Downtown",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/QuestBangBang_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2104,
+      "api": "ARAM_SpiritBomb",
+      "name": "Duchowa Bomba",
+      "english": "Spirit Bomb",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SpiritBomb_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2107,
+      "api": "ARAM_Hellbent",
+      "name": "Piekielna determinacja",
+      "english": "Hellbent",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Hellbent_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2109,
+      "api": "SnapBack",
+      "name": "Odbicie",
+      "english": "Snap Back",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2111,
+      "api": "Bonk",
+      "name": "ŁUBUDU!",
+      "english": "BONK!",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Bonk_large.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2115,
+      "api": "SquishySlappyGrab",
+      "name": "Lepkie Łapki Łapią",
+      "english": "Squishy Slappy Grab",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SquishySlappyGrab_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2116,
+      "api": "SpecializedEmpowerment",
+      "name": "W Pogoni za Potęgą",
+      "english": "Pursuit of Power",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Marksmage_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2119,
+      "api": "Overextender",
+      "name": "Zapuszczający Się Za Daleko",
+      "english": "Overextender",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Overextender_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2123,
+      "api": "Overloaded",
+      "name": "Przeciążenie",
+      "english": "Overloaded",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Prismatic.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2125,
+      "api": "ItsGoTime",
+      "name": "Ruszamy do Akcji",
+      "english": "It's Go Time",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Silver.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2126,
+      "api": "KeepGoing",
+      "name": "Odśwież",
+      "english": "Reload",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/LightningStrikes_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2127,
+      "api": "ForgedByTheMaster",
+      "name": "Wykute Przez Mistrza",
+      "english": "Forged By The Master",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ForgedByTheMaster_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2128,
+      "api": "BloodMoneyBurn",
+      "name": "Płonny Interes",
+      "english": "Combusting Interest",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/BloodMoney2_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2129,
+      "api": "Terraind",
+      "name": "Terenowość",
+      "english": "Terrain'd",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/LightningStrikes_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2131,
+      "api": "DontChangeTheChannel",
+      "name": "Solidne Przygotowanie",
+      "english": "Don't Change the Channel",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/DontChangeTheChannel_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2132,
+      "api": "WarlockJuicebox",
+      "name": "Soczek Czarnoksiężnika",
+      "english": "Warlock Juicebox",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/WarlockJuicebox_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2133,
+      "api": "MercysStrike",
+      "name": "Cios Litości",
+      "english": "Mercy's Strike",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2134,
+      "api": "SurgeField",
+      "name": "Pole Przypływu",
+      "english": "Surge Field",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SurgeField_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2135,
+      "api": "Overkill",
+      "name": "Poduszeczka na Szpilki",
+      "english": "Pin Cushion",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SymphonyOfWar_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2136,
+      "api": "TrustyWeapon",
+      "name": "Zaufana Broń",
+      "english": "Trusty Weapon",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Silver.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2137,
+      "api": "PatOnTheBack",
+      "name": "Poklepanie Po Plecach",
+      "english": "Pat On The Back",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PatOnTheBack_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2138,
+      "api": "WardingWeapon",
+      "name": "Adaptacyjny Totem",
+      "english": "Adaptive Ward",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Silver.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2139,
+      "api": "PinCushion",
+      "name": "Jeżozwierz",
+      "english": "Porcupine",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PinCushion_small.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2140,
+      "api": "Upgrade_Ravenous",
+      "name": "Ulepszenie Krwiożerczej Hydry",
+      "english": "Upgrade Ravenous Hydra",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeSheen_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2141,
+      "api": "Quest_UltraHydra",
+      "name": "Ultra Hydra",
+      "english": "Ultra Hydra",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UltraHydra_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2143,
+      "api": "Upgrade_SunderedSky",
+      "name": "Ulepszenie Rozdartego Nieba",
+      "english": "Upgrade Sundered Sky",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeIE_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 2144,
+      "api": "DoubleDefense",
+      "name": "Umocnienie",
+      "english": "Bolstered",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Silver.png",
+      "pools": [
+        "KIWI",
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2148,
+      "api": "DoubleStrike",
+      "name": "Podwójne Uderzenie",
+      "english": "Double Strike",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Adamant_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 2157,
+      "api": "Upgrade_DeathDance",
+      "name": "Ulepsz Taniec Śmierci",
+      "english": "Upgrade Death's Dance",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeDeathDance_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3004,
+      "api": "GetJinxed",
+      "name": "Jinxuj Się",
+      "english": "Get Jinxed",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Overextender_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3016,
+      "api": "ThirdTimesTheHarm",
+      "name": "Do Trzech Razy Sztuka",
+      "english": "Third Times the Harm",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SilverBeats_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3018,
+      "api": "BigShot",
+      "name": "Gruba Ryba",
+      "english": "Big Shot",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/BigShot_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3025,
+      "api": "Sound_Barrier",
+      "name": "Bariera Dźwięku",
+      "english": "Sound Barrier",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SwiftandSafe_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3036,
+      "api": "DoubleTime",
+      "name": "Szybkie Ruchy",
+      "english": "Double Time",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ARAM_PhenomenalEvil_large.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3039,
+      "api": "Salvation",
+      "name": "Zbawienie",
+      "english": "Salvation",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Salvation_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3048,
+      "api": "BouncingBees",
+      "name": "Skacząca Pszczółka",
+      "english": "Bouncing Bees",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/KingMe_large.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3049,
+      "api": "ArmoredImpact",
+      "name": "Opancerzone Uderzenie",
+      "english": "Armored Impact",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ArmoredImpact_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3051,
+      "api": "BlueBarrier",
+      "name": "Niebieska Bariera",
+      "english": "Blue Barrier",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/BlueNote_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3052,
+      "api": "HandsOffTheTalent",
+      "name": "Łapy Precz od Talentów",
+      "english": "Hands off the Talent",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Bonk_large.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3053,
+      "api": "MoshMonster",
+      "name": "Tańczący Potwór",
+      "english": "Mosh Monster",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Prismatic.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3055,
+      "api": "UltimateRecursion",
+      "name": "Superrekurencja",
+      "english": "Ultimate Recursion",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Zealot_large.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3058,
+      "api": "TickleMonster",
+      "name": "Łaskotkowy Potwór",
+      "english": "Tickle Monster",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/TickleMonster_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3059,
+      "api": "NoManaNoProblem",
+      "name": "Brak Many To Nie Problem",
+      "english": "No Mana, No Problem",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/NoManaNoProblem_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3060,
+      "api": "OneHitWonder",
+      "name": "Artysta Jednego Hitu",
+      "english": "One Hit Wonder",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3063,
+      "api": "GiftoftheDrowned",
+      "name": "Dar Topielców",
+      "english": "Gift of the Drowned",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GiftOfTheDrowned_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3071,
+      "api": "BrassBlast",
+      "name": "Mosiężny Wybuch",
+      "english": "Brass Blast",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Camo_large.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3075,
+      "api": "Recoil",
+      "name": "Odrzut",
+      "english": "Recoil",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3078,
+      "api": "TheBoomAndTheBass",
+      "name": "Bum i Bas",
+      "english": "The Boom and the Bass",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/TheBoomAndTheBass_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3079,
+      "api": "Totentanz",
+      "name": "Taniec Śmierci",
+      "english": "Totentanz",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Totentanz_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3081,
+      "api": "WeaponOfDestiny",
+      "name": "Broń Przeznaczenia",
+      "english": "Weapon of Destiny",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ProtagonistsSignatureWeapon_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3085,
+      "api": "FlowOfSpirit",
+      "name": "Przepływ Duchów",
+      "english": "Flow of Spirit",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3086,
+      "api": "BEES",
+      "name": "PSZCZOŁY!!!",
+      "english": "BEES!!!",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Bees_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3088,
+      "api": "CrimsonCobalt",
+      "name": "SZKARŁATNY KOBALT",
+      "english": "CRIMSON COBALT",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3094,
+      "api": "LichBrain",
+      "name": "Mózg Lisza",
+      "english": "Lich Brain",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/LichBrain_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3116,
+      "api": "TakeemDownDownDown",
+      "name": "Miażdż, Miażdż, Miażdż Ich",
+      "english": "Take'em Down Down Down",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/TakeEmDownDownDown_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3118,
+      "api": "ArcaneAxiom",
+      "name": "Aksjomat Arkanów",
+      "english": "Arcane Axiom",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ArcaneAxiom_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3121,
+      "api": "Fruitify",
+      "name": "Owocowo",
+      "english": "Fruitify",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/FruitSeason_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3123,
+      "api": "JeweledBracelet",
+      "name": "Brylantowa Bransoleta",
+      "english": "Jeweled Bracelet",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/GenericAbilityAugmentIcon_Gold.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3129,
+      "api": "SapMagic",
+      "name": "Wyssanie Magii",
+      "english": "Sap Magic",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/MercysStrike_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3131,
+      "api": "StillHere",
+      "name": "Wciąż Tutaj",
+      "english": "Still Here",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/StillHere_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3132,
+      "api": "HeavyIsTheCrown",
+      "name": "Korona Zawsze Będzie Ciążyć",
+      "english": "Heavy Is The Crown",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/HeavyIsTheCrown_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3134,
+      "api": "LonelyWarrior",
+      "name": "Samotny Wojownik",
+      "english": "Lonely Warrior",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Adamant_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3149,
+      "api": "GroupHug",
+      "name": "Grupowy Przytulas",
+      "english": "Group Hug",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/EmpyreamPromise_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3150,
+      "api": "Upgrade_Stormsurge",
+      "name": "Ulepsz Przepływ Burzy",
+      "english": "Upgrade Stormsurge",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/UpgradeHubris_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3159,
+      "api": "RISE",
+      "name": "POWSTAŃ",
+      "english": "RISE",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/ZeroHour_large.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3163,
+      "api": "EnchantingButterflies",
+      "name": "Czarujące Motyle",
+      "english": "Enchanting Butterflies",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/EnchantedButtery_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3170,
+      "api": "GoH_PentakillAug_Q",
+      "name": "CIĘŻKI",
+      "english": "HEAVY",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Pentakill_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3171,
+      "api": "GoH_PentakillAug_W",
+      "name": "MOC",
+      "english": "POWER",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Pentakill_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3172,
+      "api": "GoH_PentakillAug_E",
+      "name": "ŁOMOT",
+      "english": "THRASH",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Pentakill_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3173,
+      "api": "GoH_PentakillAug_R",
+      "name": "CHAOS",
+      "english": "DOOM",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Pentakill_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 7001,
+      "api": "Upgrade_ZzRotPortal",
+      "name": "Ulepszenie: Portal Zz'Rot",
+      "english": "Upgrade: Zz'Rot Portal",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Upgrade_ZzrotPortal_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7002,
+      "api": "DontStopCleavin",
+      "name": "Nie Przestawaj Rąbać",
+      "english": "Don't Stop Cleavin'",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Dont_Stop_Cleaving_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7003,
+      "api": "DoOrDie",
+      "name": "Teraz albo Nigdy",
+      "english": "Do or Die",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Do_or_Die_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7004,
+      "api": "DrinkUp",
+      "name": "Na zdrowie",
+      "english": "Drink Up",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Drink_Up_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7005,
+      "api": "HasteMakesWaste",
+      "name": "Co nagle, to po diable",
+      "english": "Haste Makes Waste",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Haste_Makes_Waste_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7006,
+      "api": "StabbyStabby",
+      "name": "Ostry dźgacz",
+      "english": "Stabby Stabby",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Stabby_Stabby_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7007,
+      "api": "Upgrade_DeathFireGrasp",
+      "name": "Ulepszenie: Objęcie Ognia",
+      "english": "Upgrade: Deathfire Grasp",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Upgrade_Deathfire_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7008,
+      "api": "DoransBiggestFan",
+      "name": "Największy Fan Dorana",
+      "english": "Doran's Biggest Fan",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Dorans_Fan_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7009,
+      "api": "Upgrade_InnervatingLocket",
+      "name": "Ulepszenie: Wzmacniający Medalion",
+      "english": "Upgrade: Innervating Locket",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Upgrade_Innervating_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7010,
+      "api": "FutureSightHeartsteel",
+      "name": "Zagięcie Czasu: Stalowe Serce",
+      "english": "Time Warp: Heartsteel",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/FS_Heart_Steal_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7011,
+      "api": "TrueEternity",
+      "name": "Prawdziwa Wieczność",
+      "english": "True Eternity",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Do_or_Die_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7012,
+      "api": "HexCore",
+      "name": "Hexrdzeń",
+      "english": "The Hex Core",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Dont_Stop_Cleaving_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7013,
+      "api": "SpiritOfTheJungleMain",
+      "name": "Duch Wielkiego Dżunglera",
+      "english": "Spirit of the Jungle Main",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SpiritualPurification_small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7014,
+      "api": "DipDiveDodge",
+      "name": "Podpuszczenie",
+      "english": "Ragebait",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Stabby_Stabby_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 7015,
+      "api": "SummonersSafari",
+      "name": "Safari Przywoływacza",
+      "english": "Summoner's Safari",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Stabby_Stabby_Small.png",
+      "pools": [
+        "KIWI_JADE"
+      ]
+    },
+    {
+      "id": 12317,
+      "api": "ARAM_PandorasBox",
+      "name": "Pudełko Pandory",
+      "english": "Pandora's Box",
+      "rarity": "kPrismatic",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/Pandoras_Box_Small.png",
+      "pools": [
+        "KIWI"
+      ]
+    }
+  ]
+}

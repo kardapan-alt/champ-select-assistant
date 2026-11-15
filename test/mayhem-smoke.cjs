@@ -1,0 +1,116 @@
+// Prawdziwy main/IPC/renderer, lokalny mock LCU, osobny profil i ukryte okno.
+const { app } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const assert = require('node:assert/strict');
+const profile = path.resolve(__dirname, '../../mayhem-preview/profile');
+fs.mkdirSync(profile, { recursive:true });
+app.setPath('userData', profile); app.disableHardwareAcceleration();
+fs.writeFileSync(path.join(profile,'settings.json'), JSON.stringify({ stats:false, autoRunes:true, autoItemSet:false, autoPopup:false, launchAtLogin:false, keyboardShortcut:'' }));
+fs.writeFileSync(path.join(profile,'choices.json'), '{}');
+fs.writeFileSync(path.join(profile,'mayhem-session.json'), 'null');
+process.argv.push('--background');
+process.env.PORT='0'; process.env.STEP='8';
+const server = require('../mock/mock-lcu');
+const { LcuClient } = require('../src/lcu');
+const originalGet=LcuClient.prototype.get, originalRequest=LcuClient.prototype.request;
+let mode='KIWI', gameId=777, runeWrites=0, win;
+LcuClient.prototype.get=async function(url) {
+  if(url.endsWith('/items.json')) return require('../data/catalog.json').items;
+  const result=await originalGet.call(this,url);
+  if(url==='/lol-gameflow/v1/session' && result) { result.gameData.queue.gameMode=mode; result.gameData.gameId=gameId; }
+  return result;
+};
+LcuClient.prototype.request=async function(method,url,body) {
+  if(method!=='GET' && url.startsWith('/lol-perks/')) runeWrites++;
+  return originalRequest.call(this,method,url,body);
+};
+app.on('browser-window-created',(_e,w)=>{win=w;win.setPosition(-30000,-30000);win.show=()=>{};win.focus=()=>{};});
+const waitFor=async(fn,message)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw Error(message);};
+server.once('listening',async()=>{
+  process.env.LCU_MOCK=`http://127.0.0.1:${server.address().port}`;
+  require('../src/main');
+  try {
+    await waitFor(()=>win&&!win.webContents.isLoading(),'Brak renderera');
+    const evaluate=js=>win.webContents.executeJavaScript(js);
+    const state=()=>evaluate('window.assist.getState()');
+    const step=n=>fetch(`${process.env.LCU_MOCK}/__step?n=${n}`);
+    const capture=async name=>{
+      await evaluate(`(async()=>{document.getElementById('toast').hidden=true; await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await Promise.all(document.getAnimations().filter(a=>a.effect?.getTiming().iterations!==Infinity).map(a=>a.finished.catch(()=>{})));})()`);
+      await new Promise(r=>setTimeout(r,150)); // compositor ukrytego okna
+      fs.writeFileSync(path.resolve(profile,'../'+name+'.png'),(await win.webContents.capturePage()).toPNG());
+    };
+    await waitFor(async()=> (await state())?.final?.build?.mode==='mayhem','Start w trwającym Mayhem nie odtworzył buildu');
+    await waitFor(()=>evaluate('!!lastState?.final?.build?.mayhem?.matchKey'),'Renderer nie odebrał jeszcze stanu meczu');
+    assert.equal(win.isVisible(),false);
+    assert.equal((await state()).final.myChampion.runes.disabled,true);
+    assert.equal((await state()).gamePlan,null);
+    assert.equal((await state()).plan,null);
+    assert.equal(await evaluate('document.querySelectorAll("[data-runes],[data-toggle-auto-runes]").length'),0);
+    const open=async()=>{
+      await evaluate('document.querySelector("[data-mayhem-editor]").click()');
+      await waitFor(()=>evaluate('!!document.querySelector("#mayhem-dialog[open]")'),'Edytor nie został otwarty');
+    };
+    await open();
+    await evaluate(`document.getElementById('augment-search').value='Apex Inventor';document.getElementById('augment-search').dispatchEvent(new Event('input'));document.querySelector('[data-augment-id="1002"]').click();document.querySelector('[name="owned-0"]').value='6655';document.querySelector('[name="owned-boots"]').value='3020';`);
+    await capture('mayhem-editor');
+    assert.equal(await evaluate('document.getElementById("mayhem-dialog").open'),true,'Odświeżenie zamknęło edytor tego samego meczu');
+    await evaluate('document.querySelector("#mayhem-form").requestSubmit()');
+    await waitFor(()=>evaluate('!document.getElementById("mayhem-dialog").open'),'Zapis augmentów nie zakończył się');
+    let current=await state();
+    assert.equal(current.final.build.items[0].id,6655);
+    assert.equal(current.final.build.items[0].owned,true);
+    assert.equal(current.final.build.boots.id,3020);
+    assert.ok([3157,3102,3152].includes(current.final.build.mayhem.nextItem.id));
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(profile,'mayhem-session.json'))).selection.augments,[1002]);
+    const oldKey=current.final.build.mayhem.matchKey;
+    win.setSize(1100,760); await capture('mayhem-build');
+    assert.ok(await evaluate('document.querySelector(".inventory-items").getBoundingClientRect().bottom < innerHeight'),'Build nie mieści się na pierwszym ekranie');
+    await open();
+    await evaluate('document.querySelector("[name=owned-1]").value="6655";document.querySelector("#mayhem-form").requestSubmit()');
+    await waitFor(()=>evaluate('!!document.querySelector("#mayhem-form .form-error").textContent'),'Duplikat itemu przeszedł walidację');
+    await evaluate('document.querySelector("[name=owned-1]").value="0";document.querySelector("#mayhem-form").requestSubmit()');
+    await waitFor(()=>evaluate('!document.getElementById("mayhem-dialog").open'),'Poprawiony formularz nie daje się zapisać');
+    win.setSize(820,640); await capture('mayhem-narrow');
+    assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'),'Poziomy overflow');
+    console.log('PASS: start podczas gry, polsko-angielski edytor, zapis i retry, zachowanie itemów, następny zakup, szeroki i wąski ekran.');
+    await step(7);
+    await waitFor(async()=> (await state())?.status==='champselect','Brak champ select');
+    assert.equal((await state()).myChampion.runes.disabled,true);
+    assert.ok((await state()).aramChoices.every(c=>!c.tier && !c.reasons.some(r=>/tier|na tej roli/.test(r.text))));
+    assert.equal((await evaluate('window.assist.importRunes("Ahri")')).ok,false);
+    assert.equal(runeWrites,0,'Mayhem zapisywał runy');
+    await step(8);
+    await waitFor(async()=> (await state())?.status==='loading-screen','Brak gry');
+    assert.deepEqual((await state()).final.build.mayhem.selection.augments,[1002]);
+    await open();
+    await step(-1);
+    await waitFor(async()=> (await state())?.status==='idle','Brak lobby');
+    assert.equal(await evaluate('document.getElementById("mayhem-dialog").open'),false);
+    gameId=778; await step(8);
+    await waitFor(async()=> (await state())?.final?.build?.mayhem?.matchKey?.startsWith('778:'),'Nowy mecz nie dostał własnych wyborów');
+    assert.deepEqual((await state()).final.build.mayhem.selection.augments,[]);
+    assert.deepEqual((await state()).final.build.mayhem.selection.owned,[]);
+    assert.equal((await evaluate(`window.assist.setMayhem(${JSON.stringify({matchKey:oldKey,selection:{augments:[1002]}})})`)).ok,false);
+    const savedLive=fs.readFileSync(path.join(profile,'mayhem-session.json'),'utf8');
+    await evaluate('document.getElementById("draft-lab").click()');
+    await waitFor(()=>evaluate('!!labView'),'Brak testera');
+    await evaluate('document.querySelector("[data-lab-field=mode]").value="mayhem";document.querySelector("[data-lab-field=mode]").dispatchEvent(new Event("change",{bubbles:true}))');
+    await waitFor(()=>evaluate('labView?.build?.mode === "mayhem"'),'Tester nie obsługuje Mayhem');
+    await open();
+    await evaluate('document.getElementById("augment-search").value="Goliath";document.getElementById("augment-search").dispatchEvent(new Event("input"));document.querySelector("#augment-results input").click();document.querySelector("#mayhem-form").requestSubmit()');
+    await waitFor(()=>evaluate('!document.getElementById("mayhem-dialog").open'),'Tester nie przeliczył augmentu');
+    assert.equal(await evaluate('labView.build.mayhem.hints.length'),1);
+    assert.equal(fs.readFileSync(path.join(profile,'mayhem-session.json'),'utf8'),savedLive,'Tester zmienił trwający mecz');
+    await evaluate('document.getElementById("draft-lab").click()');
+    await step(-1);await waitFor(async()=> (await state())?.status==='idle','Brak lobby');
+    mode='ARAM';gameId=779; await step(8);
+    await waitFor(async()=> (await state())?.mode==='aram','Zwykły ARAM nie został rozpoznany');
+    assert.equal((await state()).plan,null);
+    await evaluate('document.querySelector("[data-loading-tab=players]").click()');
+    assert.equal(await evaluate('document.querySelectorAll(".pcard").length'),0);
+    assert.equal(await evaluate('document.querySelectorAll(".aram-roster > div").length'),10);
+    console.log('PASS: Mayhem bez run i soloQ, pamięć tego samego meczu, reset następnego, odrzucenie starego edytora, zwykły ARAM bez statystyk graczy.');
+    server.close();win.destroy();app.quit();
+  } catch(err) { console.error(err);server.close();app.exit(1); }
+});

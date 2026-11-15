@@ -3,6 +3,7 @@ const engine = require('./engine');
 const { validateChoices } = require('./choices');
 const { itemAvailable } = require('./itemrules');
 const { isBootItem, baseBoots, SUPPORT_ITEMS } = require('./rolequests');
+const mayhem = require('./mayhem');
 const ROLES = ['top', 'jungle', 'middle', 'bottom', 'utility'];
 
 function catalog(game, data, state = { mode: 'classic' }, alias = '') {
@@ -18,7 +19,7 @@ function catalog(game, data, state = { mode: 'classic' }, alias = '') {
 
 function preview(input, game, data) {
   if (!input || !game.championsByAlias.has(input.alias)) throw new Error('Wybierz swojego championa z listy.');
-  if (!ROLES.includes(input.role) || !['classic', 'aram'].includes(input.mode)) throw new Error('Wybierz prawidłową rolę i tryb.');
+  if (!ROLES.includes(input.role) || !['classic', 'aram', 'mayhem'].includes(input.mode)) throw new Error('Wybierz prawidłową rolę i tryb.');
   const validateTeam = (value, limit) => {
     if (!Array.isArray(value) || value.length > limit) throw new Error('Nieprawidłowa liczba championów.');
     const team = value.map(x => String(x || ''));
@@ -34,6 +35,7 @@ function preview(input, game, data) {
   const me = player(input.alias, input.role, true);
   const state = { me, allies: [me, ...allies.map((a,i) => player(a, others[i]))], enemies: enemies.map((a,i) => player(a, ROLES[i])),
     mode: input.mode, roleQuestsEnabled: input.mode === 'classic', bans: new Set(), allLocked: true };
+  if (input.mode === 'mayhem') state.mayhem = mayhem.validateSelection(input.mayhem, game, input.alias);
   const base = engine.buildFor(input.alias, state, game, data);
   state.choices = validateChoices(input.choices || {}, base, input.alias, state, game);
   const view = (p) => { const c = game.championsById.get(p.championId); return { ...p, champion: c ? { ...c, icon: `/lol-game-data/assets/v1/champion-icons/${c.id}.png` } : null }; };
@@ -41,6 +43,6 @@ function preview(input, game, data) {
     myChampion: { alias: input.alias, name: game.championsByAlias.get(input.alias).name, locked: true,
       icon: `/lol-game-data/assets/v1/champion-icons/${me.championId}.png`, runes: engine.runePageFor(input.alias, game, data, state) },
     compositions: engine.compositions(state, game, data), allies: state.allies.map(view), enemies: state.enemies.map(view),
-    choices: state.choices, catalog: catalog(game, data, state, input.alias) };
+    choices: state.choices, mayhem:state.mayhem, catalog: catalog(game, data, state, input.alias) };
 }
 module.exports = { catalog, preview };
