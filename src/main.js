@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, Tray, Menu, nativeImage, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { findCredentials, LcuClient } = require('./lcu');
@@ -10,10 +10,24 @@ const { lanePlan } = require('./laneplan');
 const { gamePlan } = require('./gameplan');
 const crypto = require('crypto');
 const { initUpdates } = require('./updater');
+const { createDesktop, DEFAULT_SHORTCUT } = require('./desktop');
+const { roleQuestsEnabled } = require('./rolequests');
+const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
+const draftlab = require('./draftlab');
+const offlineGame = require('./gamedata').buildGameData(require('../data/catalog.json'));
+const choiceWrites = serialQueue();
+let choicesStore;
+const withChoices = (alias, state) => ({ ...state, choices: choicesStore?.get(alias, state) || {} });
+const buildFor = (alias, state) => ({ ...engine.buildFor(alias, withChoices(alias, state), game, data), scope: choiceKey(alias, state) });
+const runesFor = (alias, state = lastSelectState) => engine.runePageFor(alias, game, data, withChoices(alias, state));
+
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.quit();
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'lcuasset', privileges: { standard: true, secure: true, supportFetchAPI: true } }]);
 
 let win = null;
+let desktop = null;
 let lcu = null;
 let game = null;
 let lastSessionJson = '';
@@ -50,14 +64,16 @@ const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(f
 const writeJson = (file, value) => { try { fs.writeFileSync(file, JSON.stringify(value)); } catch { /* brak zapisu */ } };
 const log = (line) => { try { fs.appendFileSync(userFile('log.txt'), `${new Date().toISOString()} ${line}\n`); } catch { /* brak zapisu */ } };
 
-let settings = { stats: true, autoRunes: true, autoItemSet: true };
+let settings = { stats: true, autoRunes: true, autoItemSet: true, autoPopup: true, launchAtLogin: false, keyboardShortcut: DEFAULT_SHORTCUT };
 // Tryb gry z /lol-gameflow/v1/session: 'aram' (Howling Abyss) albo 'classic'.
 let currentMode = 'classic';
+let currentRoleQuests = false;
 async function detectMode() {
   const flow = await lcu.get('/lol-gameflow/v1/session').catch(() => null);
   const gameMode = String((flow && flow.gameData && flow.gameData.queue && flow.gameData.queue.gameMode) || '').toUpperCase();
   const mapId = flow && flow.map && flow.map.id;
   currentMode = mapId === 12 || ['ARAM', 'KIWI'].includes(gameMode) ? 'aram' : 'classic';
+  currentRoleQuests = roleQuestsEnabled(flow);
   return currentMode;
 }
 let provider = null;
@@ -77,6 +93,11 @@ function scheduleRefresh() {
 }
 
 function initStats() {
+  choicesStore = new ChoiceStore(readJson(userFile('choices.json'), {}), value => {
+    const file = userFile('choices.json');
+    fs.writeFileSync(file + '.tmp', JSON.stringify(value));
+    fs.renameSync(file + '.tmp', file);
+  });
   settings = { ...settings, ...readJson(userFile('settings.json'), {}) };
   provider = new OpggProvider({
     endpoint: process.env.OPGG_ENDPOINT || undefined,
@@ -133,7 +154,7 @@ function requestNeeded(state, picks) {
   // Twój champion i sugestie mają pierwszeństwo: przeciwnik tym samym championem nie podmienia ich analizy.
   const mine = new Set();
   if (state.me && state.me.championId) { const a = aliasOf(state.me.championId); mine.add(a); requestAnalysis(a, myPos || roleOf(a)); }
-  for (const s of picks.list) { mine.add(s.alias); requestAnalysis(s.alias, myPos || roleOf(s.alias)); }
+  for (const s of [...picks.list, ...(picks.masteryList || [])]) { mine.add(s.alias); requestAnalysis(s.alias, myPos || roleOf(s.alias)); }
   for (const e of state.enemies) if (e.championId) { const a = aliasOf(e.championId); requestAnalysis(a, roleOf(a), currentMode, !mine.has(a)); }
   for (const id of state.bench || []) requestAnalysis(aliasOf(id), roleOf(aliasOf(id)));
 }
@@ -179,6 +200,8 @@ async function tick() {
     }
     const phase = await lcu.get('/lol-gameflow/v1/gameflow-phase').catch(() => undefined);
     if (phase === undefined) { lcu = null; return send({ status: 'no-client' }); }
+    // Przejścia faz są niezależne od odświeżania statystyk i zawartości draftu.
+    desktop?.observePhase(phase);
     if (!game) {
       game = await loadGameData(lcu).catch(() => null);
       if (!game) return send({ status: 'loading' });
@@ -202,12 +225,14 @@ async function tick() {
     loading = null;
     if (phase !== 'ChampSelect') {
       lastSessionJson = '';
+      lastImportedRunes = null; lastObservedRunes = null;
       autoRunes = { key: '', done: '', error: '' };
       autoItemSet = { key: '', done: '', error: '' };
       return send({ status: 'idle', phase });
     }
     const session = await lcu.get('/lol-champ-select/v1/session');
     if (!session) return;
+    await choiceWrites(() => preserveManualRunes(engine.readSession(session, currentMode, { roleQuestsEnabled: currentRoleQuests })));
     // Bany i dostępność z osobnych list klienta: akcje w sesji nie zawsze pokazują ban od razu.
     const [pickable, disabled] = await Promise.all([
       lcu.get('/lol-champ-select/v1/pickable-champion-ids').catch(() => null),
@@ -307,12 +332,12 @@ function finalWithEnemies(me) {
   if (!lastFinal || !s) return lastFinal;
   const alias = game.championsById.get(me.championId)?.alias;
   try {
-    return { ...lastFinal, build: { ...engine.buildFor(alias, s, game, data), provisional: false } };
+    return { ...lastFinal, myChampion: { ...lastFinal.myChampion, runes: runesFor(alias, s) }, build: { ...buildFor(alias, s), provisional: false } };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
 
 function buildView(session) {
-  const state = engine.readSession(session, currentMode, session.extra);
+  const state = engine.readSession(session, currentMode, { ...session.extra, roleQuestsEnabled: currentRoleQuests });
   lastSelectState = state;
   const me = state.me;
   const myAlias = me && me.championId ? game.championsById.get(me.championId)?.alias : null;
@@ -335,6 +360,7 @@ function buildView(session) {
     enemies: state.enemies.map((e) => ({ champion: champView(e.championId, e.skinId), locked: e.locked })),
     enemyProfile: engine.enemyProfile(state, game, data),
     suggestions: picks.list.map((s) => ({ ...s, icon: champView(s.championId).icon })),
+    masterySuggestions: (picks.masteryList || []).map((s) => ({ ...s, icon: champView(s.championId).icon })),
     blind: picks.blind,
     laneOpponent: picks.laneOpponent,
     banPhase: state.banPhase,
@@ -351,9 +377,9 @@ function buildView(session) {
     dataFile,
   };
   if (myAlias) {
-    view.myChampion = { ...champView(me.championId, me.skinId), locked: me.locked, provisional: !state.allLocked, runes: engine.runePageFor(myAlias, game, data, state) };
+    view.myChampion = { ...champView(me.championId, me.skinId), locked: me.locked, provisional: !state.allLocked, runes: runesFor(myAlias, state) };
     // Build od razu po wybraniu championa; dopóki nie wszyscy zablokowali, jest wstępny i zmienia się z każdym pickiem wroga.
-    view.build = { ...engine.buildFor(myAlias, state, game, data), provisional: !state.allLocked };
+    view.build = { ...buildFor(myAlias, state), provisional: !state.allLocked };
   }
   // Ostatni build z champ selecta zostaje do wglądu na ekranie ładowania i w trakcie gry.
   if (view.build && state.allLocked) lastFinal = { myChampion: view.myChampion, build: view.build };
@@ -366,9 +392,32 @@ function buildView(session) {
 
 const RUNE_PREFIX = 'CS Assist';
 
-async function importRunes(alias) {
+let lastImportedRunes = null;
+let lastObservedRunes = null;
+async function preserveManualRunes(state) {
+  const alias = game?.championsById.get(state?.me?.championId)?.alias;
+  if (!alias || !lcu) return null;
+  const current = await lcu.get('/lol-perks/v1/currentpage').catch(() => null);
+  try { validateRunes(current, game); } catch { return null; }
+  const scope = choiceKey(alias, state);
+  const previous = lastImportedRunes?.scope === scope ? lastImportedRunes : lastObservedRunes?.scope === scope ? lastObservedRunes : null;
+  if (previous && runeSignature(previous.page) !== runeSignature(current)) {
+    const own = choicesStore.get(alias, state);
+    own.runes = savedRunes(current);
+    choicesStore.set(alias, state, own);
+    lastImportedRunes = null;
+    lastSessionJson = '';
+    autoRunes.done = 'Zachowano runy zmienione w kliencie';
+  }
+  lastObservedRunes = { scope, page: savedRunes(current) };
+  return current;
+}
+async function importRunes(alias, automatic = false) {
   if (!lcu || !game) throw new Error('Brak połączenia z klientem');
-  const page = engine.runePageFor(alias, game, data, lastSelectState);
+  if (automatic && (lastState?.status !== 'champselect' || game.championsById.get(lastSelectState?.me?.championId)?.alias !== alias)) return { ok: true, skipped: true };
+  const currentPage = automatic ? await preserveManualRunes(lastSelectState) : null;
+  const page = runesFor(alias);
+  if (automatic && runeSignature(currentPage) === runeSignature(page)) return { ok: true, name: page.pinned ? 'Zachowane własne runy' : page.name };
   const body = { name: page.name, primaryStyleId: page.primaryStyleId, subStyleId: page.subStyleId, selectedPerkIds: page.selectedPerkIds, current: true };
   const pages = (await lcu.get('/lol-perks/v1/pages')) || [];
   const own = pages.find((p) => p.isDeletable && String(p.name).startsWith(RUNE_PREFIX));
@@ -383,6 +432,7 @@ async function importRunes(alias) {
     }
   }
   if (!res.ok) throw new Error((res.data && res.data.message) || `Klient odrzucił runy (${res.status})`);
+  lastImportedRunes = { scope: choiceKey(alias, lastSelectState), page: savedRunes(page) };
   return { ok: true, name: page.name };
 }
 
@@ -393,17 +443,18 @@ async function autoImportRunes() {
   if (!settings.autoRunes || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
   // Gdy dojdą statystyki OP.GG dla Twojego championa, runy importują się jeszcze raz (już z aktualnego patcha).
-  const key = [alias, ...s.enemies.map((e) => e.championId), statsKey(alias)].join(':');
+  const key = [alias, ...s.enemies.map((e) => e.championId), statsKey(alias), choiceKey(alias, s), JSON.stringify(choicesStore.get(alias, s))].join(':');
   if (!alias || key === autoRunes.key) return;
-  autoRunes = { key, done: '', error: '' };
+  const target = autoRunes = { key, done: '', error: '' };
   try {
-    const res = await importRunes(alias);
-    autoRunes.done = res.name;
+    const res = await choiceWrites(() => importRunes(alias, true));
+    if (res.skipped) target.key = '';
+    else target.done = res.name;
   } catch (err) {
-    autoRunes.error = String(err && err.message || err);
-    log(`auto-import run: ${autoRunes.error}`);
+    target.error = String(err && err.message || err);
+    log(`auto-import run: ${target.error}`);
   }
-  if (lastState && lastState.status === 'champselect') send({ ...lastState, autoRunes: autoRunesView() });
+  if (target === autoRunes && lastState?.status === 'champselect') send({ ...lastState, autoRunes: autoRunesView() });
 }
 const autoRunesView = () => ({ enabled: settings.autoRunes, done: autoRunes.done, error: autoRunes.error });
 
@@ -442,7 +493,7 @@ async function itemSetsUrl() {
 // Zestaw przedmiotów w sklepie: zastępuje poprzedni zestaw tej aplikacji, pozostałe zestawy gracza zostają.
 async function exportItemSet(alias, state = lastSelectState) {
   if (!lcu || !game || !state) throw new Error('Brak aktywnego wyboru postaci');
-  const build = engine.buildFor(alias, state, game, data);
+  const build = buildFor(alias, state);
   const set = engine.itemSetFor(build, alias, state, game, data);
   const { me, url } = await itemSetsUrl();
   const current = (await lcu.get(url)) || {};
@@ -469,21 +520,27 @@ const statsKey = (alias) => (settings.stats && stats.analyses[alias] ? stats.ana
 const autoItemSetView = () => ({ enabled: settings.autoItemSet, done: autoItemSet.done, error: autoItemSet.error, groups: autoItemSet.groups || null });
 async function runAutoItemSet(alias, state, key) {
   if (!alias || key === autoItemSet.key) return;
-  autoItemSet = { key, done: '', error: '' };
+  const target = autoItemSet = { key, done: '', error: '' };
   try {
-    autoItemSet.done = (await exportItemSet(alias, state)).name;
+    const result = await choiceWrites(() => {
+      const active = lastState?.status === 'champselect' || (lastState?.status === 'loading-screen' && currentMode === 'aram');
+      if (!active || game.championsById.get(lastSelectState?.me?.championId)?.alias !== alias || choiceKey(alias, lastSelectState) !== choiceKey(alias, state)) return { skipped: true };
+      return exportItemSet(alias, state);
+    });
+    if (result.skipped) target.key = '';
+    else target.done = result.name;
   } catch (err) {
-    autoItemSet.error = String(err && err.message || err);
-    autoItemSet.groups = (err.extra && err.extra.itemSetGroups) || null;
-    log(`auto-zestaw: ${autoItemSet.error}`);
+    target.error = String(err && err.message || err);
+    target.groups = (err.extra && err.extra.itemSetGroups) || null;
+    log(`auto-zestaw: ${target.error}`);
   }
-  if (lastState && lastState.status === 'champselect') send({ ...lastState, autoItemSet: autoItemSetView() });
+  if (target === autoItemSet && lastState?.status === 'champselect') send({ ...lastState, autoItemSet: autoItemSetView() });
 }
 function autoExportItemSet() {
   const s = lastSelectState;
   if (!settings.autoItemSet || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
-  runAutoItemSet(alias, s, [alias, ...s.enemies.map((e) => e.championId), statsKey(alias)].join(':'));
+  runAutoItemSet(alias, s, [alias, ...s.enemies.map((e) => e.championId), statsKey(alias), choiceKey(alias, s), JSON.stringify(choicesStore.get(alias, s))].join(':'));
 }
 // ARAM: w wyborze postaci nie widać wroga, więc na ekranie ładowania wysyłamy zestaw jeszcze raz, już pod skład wroga.
 function autoExportItemSetForLoading() {
@@ -492,7 +549,7 @@ function autoExportItemSetForLoading() {
   const s = loadingSelectState(me);
   if (!s) return;
   const alias = game.championsById.get(me.championId)?.alias;
-  runAutoItemSet(alias, s, [alias, ...s.enemies.map((e) => e.championId), statsKey(alias)].join(':'));
+  runAutoItemSet(alias, s, [alias, ...s.enemies.map((e) => e.championId), statsKey(alias), choiceKey(alias, s), JSON.stringify(choicesStore.get(alias, s))].join(':'));
 }
 
 const wrap = (fn) => async (_e, ...args) => {
@@ -513,10 +570,54 @@ async function cleanItemSets(group) {
   return { ok: true, removed: sets.length - keep.length };
 }
 ipcMain.handle('clean-item-sets', wrap(cleanItemSets));
-ipcMain.handle('import-runes', wrap(importRunes));
+ipcMain.handle('import-runes', wrap(alias => choiceWrites(() => importRunes(alias))));
 ipcMain.handle('set-spells', wrap(setSpells));
-ipcMain.handle('export-item-set', wrap(exportItemSet));
+ipcMain.handle('export-item-set', wrap(alias => choiceWrites(() => exportItemSet(alias))));
 ipcMain.handle('get-state', () => lastState);
+
+function choiceContext(alias, scope) {
+  if (!game || !lastSelectState || game.championsById.get(lastSelectState.me?.championId)?.alias !== alias) throw new Error('Wybór postaci się zmienił. Odśwież własne wybory.');
+  if (scope && scope !== choiceKey(alias, lastSelectState)) throw new Error('Rola lub tryb się zmieniły. Otwórz własne wybory ponownie.');
+  return lastSelectState;
+}
+function refreshChoices(alias, state) {
+  lastSessionJson = ''; loadingDirty = true; autoItemSet.key = ''; autoRunes.key = '';
+  if (lastState?.status === 'champselect' && lastState.myChampion?.alias === alias) {
+    const next = { ...lastState, build: { ...buildFor(alias, state), provisional: lastState.build?.provisional },
+      myChampion: { ...lastState.myChampion, runes: runesFor(alias, state) } };
+    if (state.allLocked) lastFinal = { build: next.build, myChampion: next.myChampion };
+    send(next);
+  }
+}
+ipcMain.handle('get-choices', wrap((alias) => {
+  const state = choiceContext(alias);
+  return { ok: true, choices: choicesStore.get(alias, state), scope: choiceKey(alias, state), catalog: draftlab.catalog(game, data, state, alias) };
+}));
+ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
+  const state = choiceContext(input.alias, input.scope);
+  let own = choicesStore.get(input.alias, state);
+  if (input.action === 'item') {
+    if (input.slot === 'boots') own.boots = own.boots === Number(input.id) ? null : Number(input.id);
+    else {
+      const slot = Number(input.slot), id = Number(input.id), same = own.items.some(p => p.slot === slot && p.id === id);
+      own.items = own.items.filter(p => p.slot !== slot);
+      if (!same) own.items.push({ slot, id });
+    }
+  } else if (input.action === 'items') { own.items = input.items; own.boots = input.boots; }
+  else if (input.action === 'reset-items') { own.items = []; own.boots = null; }
+  else if (input.action === 'runes') own.runes = savedRunes(runesFor(input.alias, state));
+  else if (input.action === 'client-runes') {
+    if (!lcu) throw new Error('Uruchom klienta i wybierz własną stronę run.');
+    own.runes = validateRunes(await lcu.get('/lol-perks/v1/currentpage'), game);
+  } else if (input.action === 'unpin-runes') { own.runes = null; lastImportedRunes = null; lastObservedRunes = null; }
+  else throw new Error('Nieznana zmiana wyborów.');
+  own = validateChoices(own, engine.buildFor(input.alias, { ...state, choices: {} }, game, data), input.alias, state, game);
+  choicesStore.set(input.alias, state, own);
+  refreshChoices(input.alias, state);
+  return { ok: true, choices: own };
+})));
+ipcMain.handle('draft-catalog', wrap(() => ({ ok: true, ...draftlab.catalog(game || offlineGame, baseData) })));
+ipcMain.handle('preview-draft', wrap((input) => ({ ok: true, ...draftlab.preview(input, game || offlineGame, baseData) })));
 
 // ---------- aktualizacje ----------
 
@@ -638,6 +739,7 @@ ipcMain.handle('stats-diagnostics', wrap(async () => {
 }));
 
 app.whenReady().then(() => {
+  if (!primaryInstance) return;
   ({ data: baseData, file: dataFile } = loadData());
   data = baseData;
   initStats();
@@ -679,12 +781,16 @@ app.whenReady().then(() => {
   });
 
   win = new BrowserWindow({
+    show: false,
     width: 1100, height: 760, minWidth: 820, minHeight: 600,
     backgroundColor: '#0e1116',
     title: 'Champ Select Assistant',
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
+  desktop = createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, settings,
+    saveSettings: () => writeJson(userFile('settings.json'), settings), log,
+    notify: message => { dialog.showMessageBox({ type: 'info', title: 'Skrót klawiaturowy', message }).catch(err => log(err.message)); } });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   updates = initUpdates((u) => {
     update = u;

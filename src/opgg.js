@@ -311,7 +311,7 @@ function interpretAnalysis(raw, game) {
   const root = parsePayload(raw);
   if (!root || typeof root !== 'object') return null;
   const aliasOf = (id) => game.championsById.get(id)?.alias;
-  const result = { counters: [], weakVs: [], matchups: {} };
+  const result = { counters: [], weakVs: [], matchups: {}, matchupEvidence: {} };
 
   for (const list of championRateLists(root)) {
     if (/synerg|ally|duo/.test(list.key)) {
@@ -326,6 +326,7 @@ function interpretAnalysis(raw, game) {
       const alias = aliasOf(r.championId);
       if (!alias || r.winRate == null) continue;
       const myWin = r.winRate;
+      if (r.games >= MIN_GAMES) result.matchupEvidence[alias] = { games: r.games, winRate: myWin };
       if (result.matchups[alias] == null) result.matchups[alias] = Math.round(myWin * 10) / 10;
       if (myWin >= 50 + COUNTER_EDGE) result.counters.push(alias);
       else if (myWin <= 50 - COUNTER_EDGE) result.weakVs.push(alias);
@@ -856,6 +857,7 @@ function mergeStats(base, { meta, analyses = {} } = {}, game) {
     if (a.starters && a.starters.length) merged.starters = a.starters;
     if (a.lateItems && a.lateItems.length) merged.lateItems = a.lateItems;
     if (a.matchups && Object.keys(a.matchups).length) merged.matchupRates = a.matchups;
+    if (a.matchupEvidence) merged.matchupEvidence = a.matchupEvidence;
     if (a.spells) merged.spells = a.spells;
     if (a.skills) merged.skills = a.skills;
     if (a.runes) merged.runes = a.runes;

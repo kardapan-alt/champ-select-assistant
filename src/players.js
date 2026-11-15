@@ -153,10 +153,10 @@ function playerCard(player, summary, game, now = Date.now()) {
     const [topChamp, topCount] = Object.entries(champCount).sort((a, b) => b[1] - a[1])[0];
     if (games.length >= 10 && topCount / games.length >= 0.75) tag(`OTP ${champName(Number(topChamp))}`, 'info');
     if (card.champion.seasonGames >= 100) tag(`Doświadczony (${card.champion.seasonGames} ${gier(card.champion.seasonGames)})`, 'good');
-    else if (card.champion.seasonGames <= 3 && champGames.length <= 1) tag('Mało gier tym championem', 'warn');
+    else if (!season || card.champion.seasonGames < 20) tag('Mała próba danych o championie', 'info');
 
     const deaths = avg(games, (g) => g.deaths);
-    if (deaths != null && deaths >= 7) tag(`Dużo zgonów (śr. ${round(deaths)})`, 'warn');
+    if (games.length >= 10 && deaths != null && deaths >= 7) tag(`Dużo zgonów (śr. ${round(deaths)})`, 'warn');
     const kp = avg(games, (g) => g.kp);
     if (kp != null && kp >= 60) tag(`Wysoki KP (${Math.round(kp)}%)`, 'good');
     // Historia OP.GG nie ma wyniku wizji: wtedy średnia z sezonowych statystyk championów.
@@ -170,7 +170,7 @@ function playerCard(player, summary, game, now = Date.now()) {
     let streak = 0;
     for (const g of games) { if (g.win === games[0].win) streak++; else break; }
     if (streak >= 3) tag(games[0].win ? `Seria ${streak} wygranych` : `Seria ${streak} porażek`, games[0].win ? 'good' : 'warn');
-    if (mainRole && player.position && normPosition(mainRole[0]) !== player.position && mainRole[1] / games.length >= 0.6) tag('Gra poza swoją rolą', 'warn');
+    if (games.length >= 10 && mainRole && player.position && normPosition(mainRole[0]) !== player.position && mainRole[1] / games.length >= 0.6) tag('Inna rola niż w ostatnich grach', 'info');
   }
   return card;
 }

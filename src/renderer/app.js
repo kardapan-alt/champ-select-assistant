@@ -54,7 +54,7 @@ function suggestionsPanel(s) {
   if (!s.suggestions.length) {
     return `<div class="panel"><h3>Sugerowane picki</h3><div class="muted">Brak sugestii dla tej roli w danych. Możesz dopisać championów w pliku danych.</div></div>`;
   }
-  const list = [...s.suggestions];
+  const list = [...(sortMode === 'mastery' ? (s.masterySuggestions || s.suggestions) : s.suggestions)];
   if (sortMode === 'mastery') list.sort((x, y) => y.mastery.points - x.mastery.points || y.score - x.score);
   const mode = s.blind
     ? '<span class="mode blind">Blind pick · nie widać jeszcze przeciwnika z linii</span>'
@@ -63,8 +63,9 @@ function suggestionsPanel(s) {
     <div class="sugg">
       <img src="${esc(g.icon)}" alt="">
       <div>
-        <div class="top"><span class="rank">${i + 1}.</span><strong>${esc(g.name)}</strong>${tierBadge(g.tier)}<span class="score">${g.score} pkt</span>${masteryBadge(g.mastery)}</div>
+        <div class="top"><span class="rank">${i + 1}.</span><strong>${esc(g.name)}</strong>${tierBadge(g.tier)}<span class="score" title="Względne dopasowanie do draftu; to nie procent szans na wygraną.">${g.score} pkt dopasowania</span>${masteryBadge(g.mastery)}</div>
         <div class="reasons">${g.reasons.length ? g.reasons.map((r) => `<span class="tag ${r.good ? 'good' : 'bad'}">${esc(r.text)}</span>`).join('') : '<span class="muted">solidny wybór na tę rolę</span>'}</div>
+        ${g.dataNote ? `<div class="data-note">${esc(g.dataNote)}</div>` : ''}
       </div>
       <button data-runes="${esc(g.alias)}">Importuj runy</button>
     </div>`).join('');
@@ -151,6 +152,7 @@ function myChampionPanel(m, readonly = false, auto = null) {
     <div class="rune-names muted">Odłamki: ${r.shards.map((x) => esc(x.name)).join(', ')}</div>
     ${r.adaptations.length ? `<div class="adapt"><h4>Dopasowane ${r.laneOpponent ? `pod ${esc(r.laneOpponent)} i skład wroga` : 'pod skład wroga'}</h4>${r.adaptations.map((a) => `<div>• ${esc(a)}</div>`).join('')}</div>` : ''}
     <div class="spells-line">${r.spells.map((x) => img(x.icon, 'spell', x.name)).join('')}<span>${r.spells.map((x) => esc(x.name)).join(' + ')}${r.spellsWhy ? ` <span class="muted">· ${esc(r.spellsWhy)}</span>` : ''}</span></div>
+    <div class="actions rune-choice-actions"><button data-choice="${r.pinned ? 'unpin-runes' : 'runes'}">${r.pinned ? 'Odblokuj runy' : 'Przypnij te runy'}</button>${!labActive ? '<button data-choice="client-runes">Zachowaj moje runy z klienta</button>' : ''}</div>
     ${readonly ? '' : `<div class="actions">
       <button class="primary" data-runes="${esc(m.alias)}">Importuj runy</button>
       <button data-spells="${esc(m.alias)}">Ustaw czary przywoływacza</button>
@@ -169,11 +171,17 @@ function enemyBar(e) {
   </div>`;
 }
 
-const whyTile = (i) => itemTile(i, `<div class="why">${esc(i.why)}</div>`, i.situational ? 'situ' : '');
+const whyTile = (i) => itemTile(i, `${i.pinControl ? `<button class="item-pin ${i.pinned ? 'on' : ''}" data-pin-item="${i.id}" data-slot="${i.slot}" aria-label="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}" title="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}">${i.pinned ? '●' : '○'}</button>` : ''}${i.priority ? '<span class="priority-label">Wcześniej</span>' : ''}<div class="why">${esc(i.why)}</div>`, i.situational ? 'situ' : '');
 // Kolejność buildu: numer na rogu ikony (buty jako drugi item, jak w zestawie do sklepu).
 const buildTiles = (b) => {
   const [first, ...rest] = b.items;
-  return [first, b.boots, ...rest].filter(Boolean).map((it, i) => whyTile({ ...it, step: i + 1 })).join('');
+  const outside = b.inventory?.bootsSlot === 'quest';
+  const ordered = outside ? b.items : [first, b.boots, ...rest].filter(Boolean);
+  const main = ordered.map((it, i) => whyTile({ ...it, pinControl: true, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1 })).join('');
+  const reserved = b.reservedSlot ? `<div class="item reserved-item"><div class="reserved-icon">◈</div><div class="item-name">${esc(b.reservedSlot)}</div><div class="why">Zostaje w ekwipunku</div></div>` : '';
+  const side = b.quest?.slotItem;
+  return `<div class="build-inventory ${side ? 'with-quest-slot' : ''}"><div class="items path inventory-items">${main}${reserved}</div>
+    ${side ? `<aside class="quest-slot"><div class="quest-slot-label">Slot questa</div>${whyTile({ ...side, pinControl: outside, slot: 'boots', pinned: b.boots.pinned })}</aside>` : ''}</div>`;
 };
 // "Q > W > E" jako klawisze.
 const skillKeys = (order) => String(order || '').split('>').map((k) => k.trim()).filter(Boolean)
@@ -219,17 +227,15 @@ function itemSetStatus(b, auto) {
 
 function buildPanel(b, readonly = false, auto = null) {
   const aram = b.mode === 'aram';
-  return `<div class="panel">
+  return `<div class="panel build-panel">
     <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
-    <div class="muted" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: najpopularniejszy build z OP.GG, sloty sytuacyjne dobrane pod skład wroga.' : 'Baza: wbudowane dane, sloty sytuacyjne dobrane pod skład wroga.'}</div>
-    ${b.enemy && b.enemy.count ? `<div class="build-row"><h4>Skład wroga</h4>${enemyBar(b.enemy)}</div>` : ''}
-    <div class="build-row"><h4>Pełny build pod ten skład</h4><div class="items path">${buildTiles(b)}</div></div>
-    ${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}
-    ${b.alternatives.length ? `<div class="build-row" style="margin-top:14px"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}
-    <div class="build-row"><h4>Czary</h4><div class="items">${b.spells.map((s) => itemTile(s)).join('')}</div>${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}</div>
-    <div class="build-row"><h4>Kolejność umiejętności</h4><div class="skills">${skillKeys(b.skills)}</div></div>
+    <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
+    <div class="build-row build-primary"><h4>Kolejność zakupów${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
+    <div class="build-essentials"><div><span class="muted">Umiejętności</span><div class="skills">${skillKeys(b.skills)}</div></div><div><span class="muted">Czary</span><div class="spells-line">${b.spells.map((s) => img(s.icon, 'spell', s.name)).join('')}<span>${b.spells.map((s) => esc(s.name)).join(' + ')}</span></div></div></div>
+    ${disclosure('build-details', 'Dlaczego te zakupy? · własne wybory', `${buildExplanation(b)}${b.enemy && b.enemy.count ? `<div class="build-row"><h4>Szacowany profil obrażeń wroga</h4>${enemyBar(b.enemy)}</div>` : ''}${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}${b.alternatives.length ? `<div class="build-row"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}`)}
+    ${readonly ? '<div class="shop-hint">W sklepie szukaj zestawu <b>CS Assist</b> · Zestawy przedmiotów</div>' : ''}
     ${readonly ? '' : `<div class="actions" style="margin-top:12px;align-items:center">
       <button class="primary" data-itemset="${esc(b.alias)}">${auto && auto.done ? 'Wyślij ponownie' : 'Wyślij build do sklepu w grze'}</button>
       ${itemSetStatus(b, auto)}
@@ -243,20 +249,25 @@ const gier = (n) => (n === 1 ? 'gra' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 
 const pctClass = (v) => (v == null ? '' : v >= 55 ? 'good' : v < 48 ? 'bad' : '');
 
 // Blok statystyki: duży procent wygranych (kolor zależny od wyniku), nazwa, liczba gier i pasek.
-function stat(value, title, caption) {
+function stat(value, title, caption, sample = 0) {
   const v = value == null ? null : Math.max(0, Math.min(100, value));
+  const small = v != null && sample < 20;
+  const cls = small ? '' : pctClass(v);
   return `<div class="stat">
-    <div class="stat-v ${pctClass(v)}">${v == null ? '–' : `${v}%`}</div>
+    <div class="stat-v ${cls}">${v == null ? '–' : `${v}%`}</div>
     <div class="stat-t">${title}</div>
-    <div class="stat-c">${caption}</div>
-    <div class="stat-bar"><i class="${pctClass(v)}" style="width:${v ?? 0}%"></i></div>
+    <div class="stat-c">${caption}${small ? '<span class="sample-note">mała próba</span>' : ''}</div>
+    <div class="stat-bar"><i class="${cls}" style="width:${v ?? 0}%"></i></div>
   </div>`;
 }
 
 // Rozwinięte listy championów (pamiętane między odświeżeniami widoku).
 const expanded = new Map();
 // Zakładka na ekranie ładowania i w trakcie gry: gracze albo build z champion selecta.
-let loadingTab = 'players';
+let loadingTab = 'overview';
+function disclosure(key, label, html) {
+  return `<details class="disclosure" data-detail="${esc(key)}"${expanded.get(`detail:${key}`) ? ' open' : ''}><summary>${esc(label)}</summary><div class="disclosure-body">${html}</div></details>`;
+}
 const champIcon = (id) => `lcuasset://lcu/lol-game-data/assets/v1/champion-tiles/${id}/${id * 1000}.jpg`;
 
 function champTable(list, withKda) {
@@ -266,7 +277,7 @@ function champTable(list, withKda) {
       ${img(champIcon(c.championId), 'pool-icon', c.name)}
       <span class="pool-name">${esc(c.name)}</span>
       <span class="pool-games">${c.games} ${gier(c.games)}</span>
-      <span class="pool-wr ${pctClass(c.winRate)}">${c.winRate != null ? `${c.winRate}%` : '–'}</span>
+      <span class="pool-wr ${c.games >= 20 ? pctClass(c.winRate) : ''}"${c.games < 20 ? ' title="Mała próba gier"' : ''}>${c.winRate != null ? `${c.winRate}%` : '–'}</span>
       ${withKda ? `<span class="pool-kda">${esc(c.kda)}</span>` : ''}
     </div>`).join('')}</div>`;
 }
@@ -296,9 +307,9 @@ function playerCardHtml(p, side) {
     : !p.loaded
       ? '<div class="muted pc-wait">Brak danych gracza</div>'
       : `<div class="stats">
-          ${stat(r ? r.winRate : null, 'Sezon', r && r.games ? games(r.games) : 'brak gier')}
-          ${stat(c.seasonWinRate, 'Champion', c.seasonBelow ? `&lt; ${c.seasonBelow} ${gier(c.seasonBelow)}` : games(c.seasonGames))}
-          ${stat(rec.last30WinRate, '30 dni', rec.last30More ? `${rec.last30Days}+ ${gier(rec.last30Days)}` : games(rec.last30Days))}
+          ${stat(r ? r.winRate : null, 'Sezon', r && r.games ? games(r.games) : 'brak gier', r?.games)}
+          ${stat(c.seasonWinRate, 'Champion', c.seasonBelow ? `&lt; ${c.seasonBelow} ${gier(c.seasonBelow)}` : games(c.seasonGames), c.seasonGames)}
+          ${stat(rec.last30WinRate, 'Ostatnie 30 dni', rec.last30More ? `próba ${games(rec.last30Days)}` : games(rec.last30Days), rec.last30Days)}
         </div>
         ${c.kda ? `<div class="pc-kda">KDA championem <b>${c.kda.k} / <span class="bad">${c.kda.d}</span> / ${c.kda.a}</b></div>` : ''}
         ${tags.length ? `<div class="pc-tags">${tags.map((t) => `<span class="tag ${t.kind === 'good' ? 'good' : t.kind === 'warn' ? 'bad' : ''}">${esc(t.text)}</span>`).join('')}</div>` : ''}
@@ -346,24 +357,58 @@ function gamePlanPanel(g) {
     <div class="gp-styles"><span class="ally-c">Wy</span>${styles(g.ourStyle)}<span class="enemy-c">Wróg</span>${styles(g.theirStyle)}</div>
     ${g.phases.map((ph) => `<div class="gp-phase"><h4>${esc(ph.title)}</h4><ul class="plan-tips">${ph.tips.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>`).join('')}
     ${people('Uważajcie na', g.threats, 'bad')}
-    ${people('Słaby punkt wroga', g.targets, 'good')}
+    ${people('Kontekst danych · bez oceny umiejętności', g.targets, 'muted')}
   </div>`;
 }
 
+function priorityAdvicePanel(s) {
+  const b = s.final?.build || s.build;
+  const tips = [];
+  if (s.plan?.tips?.[0]) tips.push({ label: 'Na linii', text: s.plan.tips[0] });
+  const mid = s.gamePlan?.phases?.find((p) => /Środek|Wasz styl|Walki drużynowe/.test(p.title));
+  if (mid?.tips?.[0]) tips.push({ label: 'W walkach', text: mid.tips[0] });
+  const priority = b?.items?.find((i) => i.priority);
+  if (priority) tips.push({ label: 'Priorytet zakupów', text: `${priority.name} wcześniej — ${priority.why}.` });
+  for (const x of (b?.situations || []).filter((x) => x.item?.mine)) {
+    if (tips.length >= 3) break;
+    if (priority?.id === x.item.id) continue;
+    tips.push({ label: 'Dla Ciebie', text: `${x.text}. ${x.item.name}: ${x.item.inBuild ? 'uwzględniony w buildzie' : 'opcja sytuacyjna'}.` });
+  }
+  if (!tips.length) return '';
+  return `<section class="panel priority-advice"><h3>Najważniejsze na ten mecz</h3><div class="priority-grid">${tips.slice(0, 3).map((t, i) => `<div class="priority-tip"><span class="tip-number">${i + 1}</span><div><h4>${esc(t.label)}</h4><p>${esc(t.text)}</p></div></div>`).join('')}</div></section>`;
+}
+
+function runeSummary(m) {
+  if (!m?.runes) return '';
+  const r = m.runes;
+  return `<div class="rune-summary">${img(r.keystone.icon, 'rune', r.keystone.name)}<div><b>${esc(r.keystone.name)}</b><span class="muted"> · ${esc(r.primaryStyle)} + ${esc(r.subStyle)}</span>${r.adaptations.length ? `<div class="note">${esc(r.adaptations[0])}${r.adaptations.length > 1 ? ` · +${r.adaptations.length - 1} zmian w szczegółach` : ''}</div>` : '<div class="note">Baza run dla championa i roli</div>'}</div></div>`;
+}
+
+function adviceDetails(list) {
+  const mine = (list || []).filter((x) => x.item?.mine);
+  const team = (list || []).filter((x) => !x.item?.mine);
+  return (mine.length ? disclosure('my-advice', 'Wszystkie odpowiedzi na zagrożenia dla Ciebie', situationsPanel(mine, 'Dla Twojej postaci')) : '')
+    + (team.length ? disclosure('team-advice', 'Porady i zakupy dla drużyny', situationsPanel(team, 'Dla drużyny')) : '');
+}
+
 function loadingScreen(s) {
-  const tab = s.final ? loadingTab : 'players';
-  const tabs = s.final ? `<div class="seg loading-tabs">
-      <button data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">Plan i gracze</button>
-      <button data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">Build i runy</button>
-    </div>` : '';
-  const body = tab === 'build'
-    ? `<div class="final">${s.final.myChampion ? myChampionPanel(s.final.myChampion, true) : ''}<div>${s.final.build ? situationsPanel(s.final.build.situations) + buildPanel(s.final.build, true) : ''}</div></div>`
-    : `${s.plan || s.gamePlan ? `<div class="plans${s.plan && s.gamePlan ? '' : ' single'}">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : ''}
-    ${situationsPanel((s.final && s.final.build && s.final.build.situations) || (s.gamePlan && s.gamePlan.situations))}
-    <h3 class="ally-h">Twoja drużyna</h3>
-    <div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div>
-    <h3 class="enemy-h">Przeciwnicy</h3>
-    <div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`;
+  const tab = loadingTab;
+  const tabs = `<div class="seg loading-tabs" role="tablist" aria-label="Widok meczu">
+      <button role="tab" aria-selected="${tab === 'overview'}" data-loading-tab="overview" class="${tab === 'overview' ? 'on' : ''}">Build i plan</button>
+      <button role="tab" aria-selected="${tab === 'build'}" data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">Runy i szczegóły</button>
+      <button role="tab" aria-selected="${tab === 'players'}" data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">Gracze i statystyki</button>
+    </div>`;
+  const plans = `${s.plan || s.gamePlan ? `<div class="plans${s.plan && s.gamePlan ? '' : ' single'}">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : '<p class="muted">Plan pojawi się po odczytaniu składów.</p>'}`;
+  const list = s.final?.build?.situations || s.gamePlan?.situations || [];
+  const body = tab === 'players'
+    ? `<p class="note">Winrate opisuje widoczną próbę gier. Mała próba i inna rola nie przesądzają o umiejętnościach gracza.</p><h3 class="ally-h">Twoja drużyna</h3><div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div><h3 class="enemy-h">Przeciwnicy</h3><div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`
+    : tab === 'build'
+      ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane run.</p>'}${priorityAdvicePanel(s)}${disclosure('full-plan', 'Pełny plan na linię i grę', plans)}${adviceDetails(list)}`
+    : `${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
+      ${priorityAdvicePanel(s)}
+      ${runeSummary(s.final?.myChampion)}
+      ${disclosure('full-plan', 'Pełny plan na linię i grę', plans)}
+      ${adviceDetails(list)}`;
   return `<div class="loading-screen">
     ${tabs}
     ${body}
@@ -394,7 +439,14 @@ function patch(el, html) {
 
 function render(s) {
   if (!s) return;
+  const previous = lastState;
   lastState = s;
+  if (labActive) {
+    if (s.status === 'champselect' && previous?.status !== 'champselect') {
+      labActive = false; labRevision++; document.getElementById('draft-lab').textContent = 'Tester draftów';
+      document.getElementById('choices-dialog')?.close(); editorContext = null; toast('Rozpoczął się Twój champion select');
+    } else return;
+  }
   const [label, live] = STATUS[s.status] || ['', false];
   $status.textContent = s.status === 'error' ? `${label}: ${s.message}` : label;
   $status.className = 'status' + (live ? ' live' : '');
@@ -411,7 +463,8 @@ function render(s) {
       error: ['Coś poszło nie tak', 'Spróbuję połączyć się ponownie za chwilę.'],
     }[s.status] || ['', ''];
     const diag = s.status === 'idle' ? '<div class="actions" style="justify-content:center;margin-top:18px"><button data-stats-diag>Diagnostyka OP.GG</button></div>' : '';
-    patch($app, `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>${diag}</div>`);
+    patch($app, `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>
+      <p class="muted">Krzyżyk chowa aplikację do zasobnika obok zegara.<br>Pod jej ikoną ustawisz start z Windowsem i pokazywanie okna przy wyborze postaci.</p>${diag}</div>`);
     return;
   }
 
@@ -419,13 +472,14 @@ function render(s) {
   const center = [
     bansPanel(s),
     s.mode === 'aram' ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
-    s.build ? situationsPanel(s.build.situations) : '',
-    s.myChampion ? myChampionPanel(s.myChampion, false, s.autoRunes) : '',
     s.build ? buildPanel({ ...s.build, mode: s.mode }, false, s.autoItemSet) : '',
-    compPanel(s.compositions),
+    s.build ? priorityAdvicePanel(s) : '',
+    s.myChampion ? disclosure('runes', 'Runy, czary i dopasowanie do matchupu', myChampionPanel(s.myChampion, false, s.autoRunes)) : '',
+    s.build ? adviceDetails(s.build.situations) : '',
+    disclosure('compositions', 'Style obu drużyn', compPanel(s.compositions)),
   ].join('');
 
-  patch($app, `<div class="layout">
+  patch($app, `<div class="layout${meLocked ? ' locked' : ''}">
     <section class="team ally"><h3>Twoja drużyna</h3>${s.allies.map((p) => slot(p, false)).join('')}</section>
     <section class="center">${center}
       <footer>
@@ -440,6 +494,10 @@ function render(s) {
     <section class="team enemy"><h3>Przeciwnicy</h3>${s.mode === 'aram' && !s.enemies.length ? '<div class="muted">Na ARAM-ie przeciwników widać dopiero na ekranie ładowania.</div>' : ''}${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
   </div>`);
 }
+
+$app.addEventListener('toggle', (e) => {
+  if (e.target.matches('details[data-detail]')) expanded.set(`detail:${e.target.dataset.detail}`, e.target.open);
+}, true);
 
 $app.addEventListener('click', async (e) => {
   const btn = e.target.closest('button');
@@ -528,3 +586,5 @@ window.assist.onState((s) => {
   render(s);
 });
 window.assist.getState().then(render);
+
+$app.addEventListener('error', e => { if (e.target.tagName !== 'IMG') return; const i=e.target; const fallback=document.createElement('span'); fallback.className=i.className + ' icon-fallback'; fallback.textContent=(i.alt || 'LoL').slice(0,3); fallback.title=i.alt; i.replaceWith(fallback); }, true);

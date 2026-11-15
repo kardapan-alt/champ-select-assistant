@@ -79,7 +79,8 @@ test('statystyki wroga zmieniają sugestie, a build dalej się adaptuje', async 
   const build = engine.buildFor('Ahri', vsAd, game, merged);
   console.log('Ahri (OP.GG) vs AD:', build.boots.id, build.items.map((i) => `${i.id}(${i.why})`).join(', '));
   assert.equal(build.fromStats, true);
-  assert.deepEqual(build.items.slice(0, 2).map((i) => i.id), [3165, 6653]);
+  assert.equal(build.items[0].id, 3165, 'pierwszy zakup OP.GG pozostaje bazą');
+  assert.ok(build.items.some((i) => i.id === 3157 && i.priority), 'odpowiedź na zabójcę może wejść przed drugi item OP.GG');
   // Zhonya z konkretnym powodem: kto w składzie wroga jest zabójcą AD.
   const zhonya = build.items.find((i) => i.id === 3157);
   assert.ok(zhonya && /^zabójcy AD: .*Zed/.test(zhonya.why), zhonya && zhonya.why);

@@ -10,7 +10,7 @@ const toDataRole = (pos) => ({ utility: 'support', mid: 'middle', adc: 'bottom',
 // Jak grać własnym stylem składu (środek gry).
 const OWN_STYLE = {
   dive: (who) => `Wasz skład to dive: wchodźcie razem na carry wroga${who ? ` (inicjuje ${who})` : ''}, gdy ich CC jest zużyte.`,
-  engage: (who) => `Wasz skład wygrywa walki 5 na 5: szukajcie walk przy smoku i Baronie${who ? `, engage od ${who}` : ''}.`,
+  engage: (who) => `Wasz skład sprzyja walkom 5 na 5: przygotujcie wizję i szukajcie wspólnego wejścia${who ? `, engage od ${who}` : ''}.`,
   poke: () => 'Wasz skład pokuje: osłabiajcie ich przed walką, oblegajcie wieże i nie wchodźcie, póki mają pełne HP.',
   protect: (who) => `Grajcie wokół ${who || 'swojego carry'}: trzymajcie się przy nim i chrońcie go w walkach.`,
   pick: () => 'Łapcie pojedynczych przeciwników: wardy w ich jungli, zasadzki w krzakach przed obiektami.',
@@ -95,10 +95,8 @@ function playersToWatch(enemies, cardFor, game) {
     else if (c.seasonGames >= 20 && c.seasonWinRate >= 58) threats.push({ who, why: `${c.seasonWinRate}% wygranych tym championem`, weight: 2 });
     else if (card.recent && card.recent.games >= 10 && card.recent.winRate >= 65) threats.push({ who, why: `wygrywa ${card.recent.winRate}% ostatnich gier`, weight: 1 });
 
-    const streak = tags.find((t) => t.startsWith('Seria') && t.includes('porażek'));
-    if (tags.includes('Mało gier tym championem')) targets.push({ who, why: 'mało gier tym championem' });
-    else if (tags.includes('Gra poza swoją rolą')) targets.push({ who, why: 'zwykle gra inną rolę' });
-    else if (streak) targets.push({ who, why: streak.toLowerCase() });
+    if (tags.some((t) => t.startsWith('Mała próba') || t === 'Mało gier tym championem')) targets.push({ who, why: 'mała próba danych — bez oceny umiejętności' });
+    else if (tags.some((t) => t.startsWith('Inna rola') || t === 'Gra poza swoją rolą')) targets.push({ who, why: 'inna rola niż w ostatnich grach — wskazówka, nie ocena' });
   }
   threats.sort((a, b) => b.weight - a.weight);
   return { threats: threats.slice(0, 2).map(({ who, why }) => ({ who, why })), targets: targets.slice(0, 2) };

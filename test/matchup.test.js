@@ -136,7 +136,7 @@ test('plan na grę: fazy gry ze składów, groźni gracze przed słabymi punktam
   assert.ok(plan.phases.every((p) => p.tips.length >= 1));
   assert.ok(plan.ourStyle.length >= 1);
   assert.deepEqual(plan.threats.map((t) => t.who), ['Cień Midu (Zed)', 'Wilk z Zaun (Warwick)'], 'doświadczenie przed dobrą serią');
-  assert.deepEqual(plan.targets, [{ who: 'Topowy Młot (Mordekaiser)', why: 'mało gier tym championem' }]);
+  assert.deepEqual(plan.targets, [{ who: 'Topowy Młot (Mordekaiser)', why: 'mała próba danych — bez oceny umiejętności' }]);
   // Bez widocznych przeciwników nie ma planu.
   assert.equal(gamePlan(players.allies, [], cardFor, game, data), null);
   console.log('plan gry:', plan.phases.map((p) => p.tips).flat());

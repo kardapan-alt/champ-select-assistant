@@ -1,6 +1,7 @@
 // Dane gry (championy, runy, itemy, czary) pobierane z lokalnego klienta, więc zawsze pasują do patcha.
 
 const MASTERY_PATH = '/lol-champion-mastery/v1/local-player/champion-mastery';
+const ITEM_MAPS = require('../data/item-maps.json').maps;
 
 function emptyGameData() {
   return {
@@ -19,7 +20,7 @@ function buildGameData({ champions, perkstyles, perks, items, spells, owned, mas
   }
   for (const s of (perkstyles && perkstyles.styles) || []) g.styles.set(s.id, s);
   for (const p of perks || []) g.perks.set(p.id, p);
-  for (const i of items || []) g.items.set(i.id, i);
+  for (const i of items || []) g.items.set(i.id, { ...i, maps: i.maps || ITEM_MAPS[i.id] });
   for (const s of spells || []) g.spells.set(s.id, s);
   for (const c of owned || []) if (c.id > 0) g.owned.add(c.id);
   g.mastery = masteryMap(mastery);

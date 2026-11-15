@@ -63,10 +63,9 @@ function lanePlan(me, enemies, cardFor, game, data) {
   const has = (prefix) => tags.find((t) => t.startsWith(prefix));
   const playerTip = [
     [has('Dużo zgonów'), `${player} często ginie ${(has('Dużo zgonów') || '').replace('Dużo zgonów ', '')}: szukaj zabójstwa, gdy wyjdzie za daleko.`],
-    [has('Mało gier tym championem'), `${player} rzadko gra ${laneName}: karz jego błędy na początku gry.`],
-    [has('Gra poza swoją rolą'), `${player} zwykle gra inną rolę: na linii może być słabszy niż w statystykach.`],
+    [has('Mała próba danych') || has('Mało gier tym championem'), `Mało danych o ${laneName} u tego gracza: oceniaj jego zachowanie na linii, nie sam winrate.`],
+    [has('Inna rola') || has('Gra poza swoją rolą'), `${player} ostatnio grał głównie inną rolę; to nie przesądza o jego umiejętnościach na tej linii.`],
     [has('OTP') || has('Doświadczony'), `${player} zna ${laneName} bardzo dobrze: nie licz na proste błędy, graj pewnie.`],
-    [has('Seria') && has('Seria').includes('porażek'), `${player} ma serię porażek: może grać ryzykownie, cierpliwość się opłaci.`],
   ].find(([when]) => when);
   if (playerTip) tips.push(playerTip[1]);
 

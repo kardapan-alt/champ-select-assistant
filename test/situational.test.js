@@ -69,7 +69,7 @@ test('niewidzialni: wskazówka o Oracle Lens bez itemu w buildzie', () => {
   assert.equal(s.level, 2);
   assert.equal(s.myItem, null);
   assert.equal(s.general, 3364);
-  assert.equal(s.text, 'Vayne, Akali i Shaco stają się niewidzialni');
+  assert.equal(s.text, 'Vayne, Akali i Shaco korzystają z ukrycia');
 });
 
 test('tanki rozpoznane po cechach championów', () => {

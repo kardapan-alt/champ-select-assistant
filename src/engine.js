@@ -2,6 +2,9 @@
 // Czyste funkcje, bez Electrona i sieci, żeby dało się je testować.
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
+const { itemAvailable, itemsCompatible } = require('./itemrules');
+const { roleQuestFor, BOOT_UPGRADES, SUPPORT_ITEMS, baseBoots, isBootItem } = require('./rolequests');
+const { normalizePins, validateRunes } = require('./choices');
 
 const POSITION_LABELS = {
   top: 'Top', jungle: 'Jungle', middle: 'Mid', bottom: 'ADC', utility: 'Support', '': 'Brak roli',
@@ -70,7 +73,8 @@ function readSession(session, mode = 'classic', extra = {}) {
   const banPhase = phase === 'PLANNING' || banActions.some((a) => a.isInProgress && !a.completed);
   const myBanTurn = banActions.some((a) => a.actorCellId === me && a.isInProgress && !a.completed);
 
-  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, pickable, phase, allLocked, banPhase, myBanTurn, mode: aram ? 'aram' : 'classic', bench };
+  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, pickable, phase, allLocked, banPhase, myBanTurn, mode: aram ? 'aram' : 'classic', bench,
+    roleQuestsEnabled: aram ? false : extra.roleQuestsEnabled };
 }
 
 // ---------- informacje o championach ----------
@@ -82,13 +86,13 @@ function champInfo(alias, game, data) {
   if (known) return { alias, ...known };
   // Champion spoza wbudowanych danych: przybliżenie po klasie z klienta.
   const summary = game.championsByAlias.get(alias);
-  const lcuRoles = (summary && summary.roles) || [];
+  const lcuRoles = ((summary && summary.roles) || []).map((r) => String(r).toLowerCase());
   const has = (trait) => ((data.championTraits || {})[trait] || []).includes(alias);
-  let cls = CLASS_FROM_ROLES[lcuRoles[0]] || 'fighter';
+  let cls = lcuRoles.includes('marksman') ? 'adc' : CLASS_FROM_ROLES[lcuRoles[0]] || 'fighter';
   if (has('tank')) cls = 'tank';
   else if (has('support')) cls = 'support';
-  const ap = has('ap') || lcuRoles.includes('mage') || cls === 'support';
-  const dmg = ap ? 'ap' : cls === 'tank' ? 'mixed' : 'ad';
+  const ap = has('ap') || (lcuRoles.includes('mage') && cls !== 'adc');
+  const dmg = ap ? 'ap' : ['tank', 'support'].includes(cls) ? 'mixed' : 'ad';
   const traits = [];
   if (cls === 'tank') traits.push('frontline', 'tank', 'engage');
   for (const t of ['heal', 'cc', 'burst']) if (has(t)) traits.push(t);
@@ -301,10 +305,16 @@ function suggestPicks(state, game, data, options = {}) {
     if (tier === 'S' || (tier === 'A' && blind)) reasons.push({ good: true, text: `mocny w mecie (tier ${tier})` });
 
     if (blind) {
-      const counters = counterCount(alias, data);
-      score += Math.max(-8, 6 - counters * 2);
-      if (counters <= 3) reasons.push({ good: true, text: `bezpieczny blind pick (${counters} kontr)` });
-      else if (counters >= 6) reasons.push({ good: false, text: `łatwy do skontrowania (${counters} kontr)` });
+      // Brak wpisów nie jest dowodem bezpieczeństwa. Porównujemy tylko matchupy
+      // z wystarczającą próbą, a nie długości niepełnych list kontr.
+      const rates = Object.values(champ.matchupEvidence || {}).filter((m) => m.games >= 100);
+      if (rates.length >= 8) {
+        const bad = rates.filter((m) => m.winRate <= 48.5).length;
+        const ratio = bad / rates.length;
+        score += ratio <= 0.15 ? 4 : ratio >= 0.4 ? -6 : 0;
+        if (ratio <= 0.15) reasons.push({ good: true, text: `mało trudnych matchupów w danych (${bad}/${rates.length})` });
+        else if (ratio >= 0.4) reasons.push({ good: false, text: `wiele trudnych matchupów w danych (${bad}/${rates.length})` });
+      }
     }
 
     for (const e of enemyInfos) {
@@ -333,7 +343,7 @@ function suggestPicks(state, game, data, options = {}) {
 
     const t = champ.traits || [];
     if (ally.count >= 2) {
-      if (ally.ap === 0 && champ.dmg === 'ap') { score += 10; reasons.push({ good: true, text: 'drużynie brakuje obrażeń magicznych' }); }
+      if (ally.ap === 0 && champ.dmg === 'ap' && !['tank', 'support'].includes(champ.class)) { score += 10; reasons.push({ good: true, text: 'uzupełnia obrażenia magiczne drużyny' }); }
       if (ally.ad === 0 && champ.dmg === 'ad') { score += 10; reasons.push({ good: true, text: 'drużynie brakuje obrażeń fizycznych' }); }
       if (ally.ap >= 3 && champ.dmg === 'ap') { score -= 6; reasons.push({ good: false, text: 'drużyna ma już dużo AP' }); }
       if (ally.ad >= 3 && champ.dmg === 'ad') { score -= 6; reasons.push({ good: false, text: 'drużyna ma już dużo AD' }); }
@@ -371,10 +381,12 @@ function suggestPicks(state, game, data, options = {}) {
     results.push({
       alias, championId: summary.id, name: summary.name, score: Math.round(score), tier,
       mastery: masteryOf(summary.id, game), reasons: reasons.slice(0, 5),
+      dataNote: blind && Object.values(champ.matchupEvidence || {}).filter((m) => m.games >= 100).length < 8 ? 'Ograniczone dane matchupów' : '',
     });
   }
   results.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-  return { position, blind, laneOpponent: laneOpponent ? name(laneOpponent.alias) : null, list: results.slice(0, limit) };
+  const masteryList = [...results].sort((a, b) => b.mastery.points - a.mastery.points || b.score - a.score).slice(0, limit);
+  return { position, blind, laneOpponent: laneOpponent ? name(laneOpponent.alias) : null, list: results.slice(0, limit), masteryList };
 }
 
 // ARAM: który champion z ławki (albo obecny) najlepiej pasuje do składu drużyny.
@@ -505,10 +517,10 @@ function matchContext(alias, state, game, data) {
   const champ = roleAdjusted(base, position, data);
   const enemyInfos = state ? teamInfos(state.enemies || [], game, data) : [];
   const lane = position === 'jungle' || aram ? null : laneOpponentOf(state, game, data);
-  return { champ, position, lane, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
+  return { champ, position, lane, enemyInfos, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
 }
 
-const PERK = { secondWind: 8444, bonePlating: 8473, overgrowth: 8451, resolve: 8400 };
+const PERK = { secondWind: 8444, bonePlating: 8473, overgrowth: 8451, revitalize: 8453, conditioning: 8429, unflinching: 8242, cutDown: 8017, resolve: 8400 };
 const SHARD = { health: 5011, tenacity: 5013 };
 
 // Drobne zmiany strony run pod przeciwnika z linii i skład wroga.
@@ -520,7 +532,7 @@ function adaptRunes(page, ctx, game) {
   const perkName = (id) => game.perks.get(id)?.name || String(id);
   const regularSlots = (styleId) => (game.styles.get(styleId)?.slots || []).filter((s) => s.type !== 'kStatMod');
   const swap = (want, why) => {
-    for (let i = 0; i < out.perks.length; i++) {
+    for (let i = 1; i < out.perks.length; i++) {
       const slot = regularSlots(i < 4 ? out.p : out.s).find((s) => s.perks.includes(out.perks[i]));
       if (slot && slot.perks.includes(want)) {
         if (out.perks[i] !== want) {
@@ -537,24 +549,37 @@ function adaptRunes(page, ctx, game) {
   if (lane) {
     const laneName = nameOf(lane.alias, game);
     const lt = lane.traits || [];
-    const poke = isRanged(lane) || lt.includes('poke');
     const allIn = lane.class === 'assassin' || lt.includes('burst') || (lt.includes('early') && !isRanged(lane));
-    if (!isRanged(champ) && poke) {
-      const why = `${laneName} zadaje obrażenia z dystansu`;
+    const poke = lt.includes('poke') || (isRanged(lane) && !allIn && !isRanged(champ));
+    if (poke || allIn) {
+      const want = poke ? PERK.secondWind : PERK.bonePlating;
+      const why = poke ? `powtarzające się obrażenia i poke ${laneName}` : `krótkie wymiany i burst ${laneName}`;
       const resolve = regularSlots(PERK.resolve);
       // Brak Determinacji na stronie: na górnej i środkowej linii bierzemy ją jako drugie drzewko.
-      if (!swap(PERK.secondWind, why) && out.p !== PERK.resolve && ['top', 'middle'].includes(ctx.position)
-        && resolve[2] && resolve[2].perks.includes(PERK.secondWind) && resolve[3]) {
+      if (!swap(want, why) && !isRanged(champ) && out.p !== PERK.resolve && ['top', 'middle'].includes(ctx.position)
+        && resolve[2] && resolve[2].perks.includes(want) && resolve[3]) {
         const before = game.styles.get(out.s)?.name || '';
         const last = resolve[3].perks.includes(PERK.overgrowth) ? PERK.overgrowth : resolve[3].perks[0];
         out.s = PERK.resolve;
-        out.perks = [...out.perks.slice(0, 4), PERK.secondWind, last];
-        changes.push(`${game.styles.get(PERK.resolve).name} zamiast ${before} jako drugie drzewko (${perkName(PERK.secondWind)}): ${why}`);
+        out.perks = [...out.perks.slice(0, 4), want, last];
+        changes.push(`${game.styles.get(PERK.resolve).name} zamiast ${before} jako drugie drzewko (${perkName(want)}): ${why}`);
       }
-    } else if (allIn) {
-      swap(PERK.bonePlating, `krótkie wymiany i burst ${laneName}`);
+    } else if (ctx.enemyCount >= 4 && ['tank', 'fighter'].includes(champ.class)) {
+      swap(PERK.conditioning, 'spokojniejsza linia, odporności na późniejsze walki');
     }
   }
+
+  if (ctx.position === 'aram') {
+    const pokeCount = (ctx.enemyInfos || []).filter((e) => (e.traits || []).includes('poke')).length;
+    if (pokeCount >= 2) swap(PERK.secondWind, 'ARAM: kilku przeciwników z poke');
+    else if (ctx.enemy.burst >= 2) swap(PERK.bonePlating, 'ARAM: burst kilku przeciwników');
+  }
+  if (ctx.enemy.tanks >= 2 && !['tank', 'support'].includes(champ.class)) {
+    swap(PERK.cutDown, 'wielu tanków: więcej obrażeń na początku walki, gdy mają dużo zdrowia');
+  }
+  const healing = (champ.traits || []).some((t) => ['heal', 'enchanter', 'sustain'].includes(t));
+  if (healing) swap(PERK.revitalize, 'wzmocnienie leczenia i tarcz Twojej postaci');
+  else if (ctx.enemy.cc >= 3 && !isRanged(champ)) swap(PERK.unflinching, 'dodatkowe odporności podczas CC w walce z bliska');
 
   // Odłamki: trzeci rząd (obrona).
   const def = (game.styles.get(out.p)?.slots || []).filter((s) => s.type === 'kStatMod')[2];
@@ -636,8 +661,17 @@ function runePageFor(alias, game, data, state = null) {
   const champ = champInfo(alias, game, data);
   const ctx = matchContext(alias, state, game, data);
   const source = ctx.champ;
-  const { page, changes } = adaptRunes(normalizeRunes(resolveRunes(source, data), game), ctx, game);
-  if (source.roleFrom) {
+  let { page, changes } = adaptRunes(normalizeRunes(resolveRunes(source, data), game), ctx, game);
+  let pinned = false;
+  if (state?.choices?.runes) {
+    try {
+      const own = validateRunes(state.choices.runes, game);
+      page = { p: own.primaryStyleId, s: own.subStyleId, perks: own.selectedPerkIds.slice(0, 6), shards: own.selectedPerkIds.slice(6) };
+      changes = ['Zachowane własne runy — zmiany draftu i statystyk ich nie nadpiszą.'];
+      pinned = true;
+    } catch { changes.unshift('Zapisana strona run nie pasuje do aktualnych danych. Sprawdź własne wybory.'); }
+  }
+  if (source.roleFrom && !pinned) {
     const role = POSITION_LABELS[ctx.position === 'support' ? 'utility' : ctx.position] || ctx.position;
     changes.unshift(`Runy, czary i build pod rolę ${role} jak u ${nameOf(source.roleFrom, game)}: ${(source.roles || [])[0] && source.roles[0] !== ctx.position ? `${nameOf(alias, game)} gra zwykle na innej roli` : `brak danych o ${nameOf(alias, game)} na tej roli`}`);
   }
@@ -647,6 +681,7 @@ function runePageFor(alias, game, data, state = null) {
   return {
     name: `CS Assist: ${name}${ctx.lane ? ` vs ${nameOf(ctx.lane.alias, game)}` : ''}`.slice(0, 50),
     primaryStyleId: page.p,
+    pinned,
     subStyleId: page.s,
     selectedPerkIds: [...page.perks, ...page.shards],
     primaryStyle: game.styles.get(page.p)?.name || String(page.p),
@@ -669,34 +704,42 @@ function itemPoolKey(champ) {
   return champ.class === 'adc' || champ.class === 'assassin' ? champ.class : 'fighter';
 }
 
-const FULL_BUILD = 5; // + buty = 6 slotów
-const FIXED_CORE = 2; // pierwsze itemy championa zostają zawsze, reszta konkuruje z itemami sytuacyjnymi
+const FIXED_CORE = 2; // spokojny draft: 2 itemy bazowe; mocne zagrożenie: pierwszy item + wcześniejsza odpowiedź
 
 // Adaptacyjny build: każdy item dostaje punkty za to, jak odpowiada na zagrożenia w składzie wroga.
 // Po wybraniu itemu dane zagrożenie słabnie, więc przy skrajnym składzie (np. 4 AP) wejdzie kilka itemów na MR,
 // a przy zbalansowanym tylko jeden.
 function buildFor(alias, state, game, data) {
-  const champ = matchContext(alias, state, game, data).champ;
+  const ctx = matchContext(alias, state, game, data);
+  const champ = ctx.champ;
   const tpl = data.classTemplates[champ.class] || data.classTemplates.fighter;
   const aliasOf = (id) => game.championsById.get(id)?.alias;
   const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
   const enemy = teamProfile(enemyInfos);
   const threats = threatWeights(enemy);
-  const exists = (id) => !game.items.size || game.items.has(id);
+  const exists = (id) => itemAvailable(id, game, state.mode, alias);
+  const quest = roleQuestFor(state);
+  const bootsInQuest = quest?.extraSlot === 'boots';
+  const reservedSlots = ctx.position === 'support' ? 1 : 0;
+  const fullBuild = 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
+  const isBuildItem = (id) => exists(id) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id));
+  const { pins, warnings } = normalizePins(state.choices, fullBuild, isBuildItem);
+  const pinIds = pins.map(p => p.id);
 
   // Buty
-  let boots = champ.boots || tpl.boots;
+  let boots = baseBoots(champ.boots || tpl.boots);
   let bootsWhy = 'standardowe';
   const durable = ['fighter', 'tank', 'assassin'].includes(champ.class);
   if (durable && (enemy.apShare >= 0.6 || (enemy.cc >= 3 && enemy.apShare >= 0.45))) { boots = data.boots.vsAp; bootsWhy = 'MR i odporność na CC'; }
   else if (durable && enemy.adShare >= 0.6) { boots = data.boots.vsAd; bootsWhy = 'pancerz przeciw AD'; }
   else if (champ.class === 'mage' && enemy.apShare >= 0.65 && enemy.cc >= 3) { boots = data.boots.vsAp; bootsWhy = 'MR i odporność na CC'; }
 
-  const core = (champ.items || tpl.items).filter(exists);
-  // Ze statystykami OP.GG cały rdzeń (3 itemy) jest z aktualnego patcha, więc zostaje w całości.
-  const fixed = core.slice(0, champ.statsBuild ? 3 : FIXED_CORE);
+  if (!exists(boots)) boots = [tpl.boots, data.boots.vsAd, data.boots.vsAp].find(exists);
+  const bootsPinned = !!state.choices?.boots && exists(state.choices.boots) && isBootItem(state.choices.boots, game);
+  if (bootsPinned) { boots = baseBoots(state.choices.boots); bootsWhy = 'Twój przypięty wybór'; }
+  const core = (champ.items || tpl.items).filter(isBuildItem).filter((id, i, all) => itemsCompatible(id, all.slice(0, i)));
   const pooledTags = (id) => (Object.values(data.itemPools || {}).flat().find((it) => it.id === id) || {}).tags || {};
-  const lateStats = (champ.lateItems || []).filter((it) => exists(it.id));
+  const lateStats = (champ.lateItems || []).filter((it) => isBuildItem(it.id));
   const topLate = Math.max(1, ...lateStats.map((it) => it.score));
   // Pozostałe itemy rdzenia i popularne późniejsze itemy z OP.GG startują z wysoką bazą,
   // żeby itemy sytuacyjne z wbudowanej puli wchodziły tylko przy wyraźnie jednostronnym składzie wroga.
@@ -708,6 +751,15 @@ function buildFor(alias, state, game, data) {
   }).filter(Boolean);
   // Na ARAM-ie nie ma wardów ani Oracle Lens, więc niewidzialność nie ma odpowiedzi w sklepie.
   const situations = detectSituations(enemyList, itemPoolKey(champ), exists).filter((s) => !(state.mode === 'aram' && s.vision));
+  // Mortal Reminder odpowiada równocześnie na leczenie i pancerz. Nie dodajemy
+  // obok niego drugiego, niekompatybilnego ulepszenia Last Whisper.
+  const healing = situations.find((s) => s.key === 'heal' && s.level === 2);
+  const tanks = situations.find((s) => s.key === 'tanks');
+  if (itemPoolKey(champ) === 'adc' && healing?.myItem === 3033 && tanks) tanks.myItem = 3033;
+  const urgent = situations.filter((s) => s.level === 2 && s.myItem);
+  // Zachowujemy pierwszy zakup definiujący championa. Mocne zagrożenia mogą
+  // przesunąć drugi i trzeci przedmiot rdzenia, również przy danych OP.GG.
+  const fixed = core.filter(id => itemsCompatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, urgent.length ? 1 : FIXED_CORE));
   const situationByTag = new Map();
   const situational = new Map();
   let forced = 0;
@@ -716,13 +768,13 @@ function buildFor(alias, state, game, data) {
     const tag = `s:${s.key}`;
     const strong = s.level === 2 && forced < 2;
     if (strong) forced += 1;
-    threats[tag] = strong ? 4 : 1.2;
+    threats[tag] = strong ? 7 + Math.min(s.weight, 4) * 0.4 : 1.2;
     situationByTag.set(tag, s);
     const prev = situational.get(s.myItem);
     situational.set(s.myItem, { id: s.myItem, tags: { ...(prev ? prev.tags : pooledTags(s.myItem)), [tag]: 1 } });
   }
   const reasonOf = (tag) => (situationByTag.has(tag) ? reasonFor(situationByTag.get(tag)) : THREAT_REASONS[tag]);
-  const coreRest = core.slice(fixed.length);
+  const coreRest = core.filter(id => !fixed.includes(id) && itemsCompatible(id, pinIds));
   const candidates = [
     ...[...situational.values()].map((it) => (coreRest.includes(it.id) ? { ...it, tags: { ...it.tags, late: 1.6 }, core: true } : it)),
     ...coreRest.map((id) => ({ id, tags: { ...pooledTags(id), late: 1.6 }, core: true })),
@@ -730,27 +782,32 @@ function buildFor(alias, state, game, data) {
     ...((data.itemPools || {})[itemPoolKey(champ)] || []).filter((it) => !it.only || it.only.includes(champ.class))
       // Przy statystykach OP.GG item z puli nie wygrywa samą „późną grą”, tylko odpowiedzią na zagrożenie.
       .map((it) => (lateStats.length ? { ...it, tags: { ...it.tags, late: 0 } } : it)),
-  ].filter((it, i, arr) => exists(it.id) && !fixed.includes(it.id) && arr.findIndex((x) => x.id === it.id) === i);
+  ].filter((it, i, arr) => isBuildItem(it.id) && !fixed.includes(it.id) && arr.findIndex((x) => x.id === it.id) === i);
 
   const left = { ...threats };
   const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0);
   const chosen = [];
   const pool = [...candidates];
-  while (chosen.length < FULL_BUILD - fixed.length && pool.length) {
+  while (chosen.length < fullBuild - fixed.length - pins.length && pool.length) {
+    const selected = [...pinIds, ...fixed, ...chosen.map((x) => x.id)];
+    for (let i = pool.length - 1; i >= 0; i--) if (!itemsCompatible(pool[i].id, selected)) pool.splice(i, 1);
+    if (!pool.length) break;
     pool.sort((a, b) => scoreOf(b) - scoreOf(a));
     const best = pool.shift();
     const contributions = Object.entries(best.tags).map(([tag, v]) => [tag, v * (left[tag] || 0)]).sort((a, b) => b[1] - a[1]);
     // Konkretna sytuacja (np. "zabójcy AD: Zed") jest czytelniejsza niż ogólny powód, więc ma pierwszeństwo.
     const specific = contributions.find(([tag, v]) => tag.startsWith('s:') && v > 0);
     const mainTag = specific ? specific[0] : contributions[0] && contributions[0][1] > 0 ? contributions[0][0] : 'late';
-    chosen.push({ ...best, situational: mainTag.startsWith('s:'), why: best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : reasonOf(mainTag) });
+    const priority = urgent.some((s) => s.myItem === best.id);
+    chosen.push({ ...best, priority, situational: mainTag.startsWith('s:'), why: best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : reasonOf(mainTag) });
     // Każdy item częściowo zaspokaja zagrożenie: przy skrajnym składzie zostaje miejsce na kolejny item tego typu.
     for (const [tag, v] of Object.entries(best.tags)) {
-      left[tag] = tag === 'late' ? (left[tag] || 0) * 0.85 : Math.max(0, (left[tag] || 0) - v * 0.55);
+      left[tag] = tag.startsWith('s:') ? 0 : tag === 'late' ? (left[tag] || 0) * 0.85 : Math.max(0, (left[tag] || 0) - v * 0.55);
     }
   }
   pool.sort((a, b) => scoreOf(b) - scoreOf(a));
-  const alternatives = pool.filter((it) => scoreOf(it) > 0.5 && Object.keys(it.tags).some((t) => t !== 'late' && threats[t] > 0.6)).slice(0, 3);
+  const selectedIds = [...pinIds, ...fixed, ...chosen.map(c => c.id)];
+  const alternatives = pool.filter((it) => !selectedIds.includes(it.id) && scoreOf(it) > 0.5 && Object.keys(it.tags).some((t) => t !== 'late' && threats[t] > 0.6)).slice(0, 3);
 
   const item = (id) => {
     const it = game.items.get(id);
@@ -760,32 +817,57 @@ function buildFor(alias, state, game, data) {
 
   const spells = spellsFor(alias, state, game, data);
   const notes = [];
-  const replacedCore = core.slice(FIXED_CORE).filter((id) => !chosen.some((c) => c.id === id));
-  if (replacedCore.length) notes.push(`${replacedCore.map((id) => item(id).name).join(', ')} wypada z buildu na rzecz odpowiedzi na skład wroga.`);
+  const automatic = [...fixed.map(id => {
+    const sit = situations.find(s => s.myItem === id);
+    return { ...item(id), why: sit ? reasonFor(sit) : 'rdzeń championa', situational: !!sit, source: 'core' };
+  }), ...chosen.map(c => ({ ...item(c.id), why: c.why, priority: c.priority, situational: c.situational, source: c.situational ? 'rule' : c.popular ? 'stats' : 'core' }))];
+  const finalItems = Array.from({ length: fullBuild }, (_, slot) => {
+    const pin = pins.find(p => p.slot === slot);
+    return pin ? { ...item(pin.id), why: 'Twój przypięty wybór', pinned: true, source: 'pinned', slot } : automatic.length ? { ...automatic.shift(), slot } : null;
+  }).filter(Boolean);
+  const finalIds = finalItems.map(i => i.id);
+  const replacedCore = core.filter((id) => !finalIds.includes(id));
+  if (replacedCore.length) notes.push(`${replacedCore.map((id) => item(id).name).join(', ')} wypada z buildu po dopasowaniu do draftu${pins.length ? ' i Twoich przypiętych wyborów' : ''}.`);
+  const decisions = finalItems.map((it, index) => {
+    const step = index === 0 ? 1 : index + 2;
+    const timing = it.pinned ? 'Utrzymany na wybranym miejscu' : it.priority ? 'Przyspieszony zakup' : index >= 4 ? 'Uzupełnienie na późną grę' : 'Zakup w podstawowej kolejności';
+    return { id: it.id, name: it.name, step, source: it.source, text: `${timing}: ${it.why}.` };
+  });
+  const moved = core.map((id, index) => ({ id, from: index, to: finalIds.indexOf(id) })).filter(x => x.to > x.from);
+  const changes = [
+    ...moved.map(x => `${item(x.id).name}: przesunięty z ${x.from + 1}. na ${x.to + 1}. miejsce wśród przedmiotów bez butów.`),
+    ...replacedCore.map(id => `${item(id).name}: pominięty w docelowym zestawie.`),
+  ];
+  const firstPriority = finalItems.find(it => it.priority);
+  const decisionSummary = firstPriority ? `${firstPriority.name} wcześniej: ${firstPriority.why}.`
+    : pins.length ? `${pins.length} przypiętych wyborów; reszta dopasowana do draftu.` : 'Zachowany rdzeń; dalsze zakupy dopasowane do składu wroga.';
   const defensive = chosen.filter((c) => [THREAT_REASONS.mr, THREAT_REASONS.armor].includes(c.why));
   if (defensive.length >= 2) notes.push(`Skład wroga jest jednostronny, dlatego build ma ${defensive.length} itemy obronne.`);
+  if (quest) notes.push(quest.detail);
+  else if (reservedSlots) notes.push('Jeden slot zostaje na przedmiot wsparcia. Control Wardy w tym trybie wymagają miejsca w ekwipunku.');
+  const bootsUpgrade = quest?.role === 'middle' && game.items.has(BOOT_UPGRADES[boots]) ? item(BOOT_UPGRADES[boots]) : null;
+  if (bootsUpgrade) notes.push(`Po queście mida: ${item(boots).name} → ${bootsUpgrade.name}, za darmo w tym samym slocie.`);
+  const priorityItems = chosen.filter((c) => c.priority);
+  if (priorityItems.length) notes.push(`Wcześniejszy zakup: ${priorityItems.map((c) => `${item(c.id).name} (${c.why})`).join('; ')}.`);
 
   return {
     alias,
+    mode: state.mode || 'classic',
+    decisions, changes, decisionSummary, choiceWarnings: warnings,
+    inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: bootsInQuest ? 'quest' : 'inventory' },
+    quest: quest ? { ...quest, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
+      : quest.extraSlot === 'control-wards' && exists(2055) ? { ...item(2055), why: 'Po queście: do 2 szt.' } : null } : null,
     name: game.championsByAlias.get(alias)?.name || alias,
     estimated: !!champ.unknown || (champ.fromStats && !champ.statsBuild),
     fromStats: !!champ.statsBuild,
     enemy: describeEnemy(enemy),
     spells: spells.ids.map(spell),
     spellsWhy: spells.why,
-    boots: { ...item(boots), why: bootsWhy },
-    items: [
-      // Item rdzenia, który przy okazji odpowiada na mocne zagrożenie (np. Zhonya przeciw AD), dostaje ten powód.
-      ...fixed.map((id) => {
-        const sit = situations.find((s) => s.myItem === id && situationByTag.has(`s:${s.key}`));
-        if (sit) return { ...item(id), why: reasonFor(sit), situational: true };
-        const strong = Object.entries(pooledTags(id)).filter(([t, v]) => t !== 'late' && v * (threats[t] || 0) >= 1.5).sort((a, b) => b[1] * threats[b[0]] - a[1] * threats[a[0]])[0];
-        return { ...item(id), why: strong ? THREAT_REASONS[strong[0]] : 'rdzeń championa' };
-      }),
-      ...chosen.map((c) => ({ ...item(c.id), why: c.why, ...(c.situational ? { situational: true } : {}) })),
-    ],
+    reservedSlot: reservedSlots ? 'Przedmiot wsparcia' : null,
+    boots: { ...item(boots), why: bootsWhy, pinned: bootsPinned, slot: 'boots' },
+    items: finalItems,
     alternatives: alternatives.map((a) => ({ ...item(a.id), why: reasonOf(Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]) })),
-    situations: situations.map((s) => situationView(s, game, [...fixed, ...chosen.map((c) => c.id)])),
+    situations: situations.map((s) => situationView(s, game, finalIds)),
     skills: champ.skills || 'Q > W > E',
     notes,
   };
@@ -798,7 +880,7 @@ const shortTitle = (t) => { const x = String(t).replace(/\s+/g, ' ').trim(); ret
 // Zestaw przedmiotów do sklepu w grze (format /lol-item-sets). Nazwy bloków tłumaczą, skąd wziął się item.
 function itemSetFor(build, alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
-  const exists = (id) => id && (!game.items.size || game.items.has(id));
+  const exists = (id) => itemAvailable(id, game, state.mode, alias);
   const list = (ids) => [...new Set(ids)].filter(exists).map((id) => ({ id: String(id), count: 1 }));
   const laneName = ctx.lane ? nameOf(ctx.lane.alias, game) : '';
   const startKey = ctx.position === 'jungle' ? 'jungle' : ctx.position === 'support' ? 'support' : itemPoolKey(ctx.champ);
@@ -820,8 +902,12 @@ function itemSetFor(build, alias, state, game, data) {
     const comp = ctx.lane.dmg === 'ap' ? data.earlyDefense.ap : ctx.lane.dmg === 'ad' ? data.earlyDefense.ad : null;
     if (comp) block('Gdy przegrywasz linię', [comp, 2055]);
   }
-  const [first, ...rest] = build.items;
+  // Szósty przedmiot bota pojawia się w osobnym bloku, żeby kolejność
+  // zakupów przed questem nie obiecywała siedmiu zwykłych slotów.
+  const beforeQuest = build.inventory?.bootsSlot === 'quest' ? build.items.slice(0, 5) : build.items;
+  const [first, ...rest] = beforeQuest;
   block('Build (kolejno)', [first && first.id, build.boots.id, ...rest.map((i) => i.id)]);
+  if (build.inventory?.bootsSlot === 'quest') block('6. item po queście bota', build.items.slice(5).map((i) => i.id));
   // Każdy powód osobnym blokiem, np. "kryty: Yasuo, Jhin".
   const reasons = new Map();
   for (const it of [build.boots, ...build.items]) {
