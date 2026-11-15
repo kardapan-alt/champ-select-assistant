@@ -5,16 +5,30 @@ function mayhemPanel(b) {
   const live = m.live;
   const liveText = { live:'Ekwipunek wykrywany automatycznie', waiting:'Czekam na dane ekwipunku z gry', stale:'Brak połączenia z grą — ostatni odczyt ekwipunku', manual:'Ekwipunek ustawiany ręcznie' };
   const screenText={off:'Odczyt augmentów wyłączony',waiting:'Czekam na czytelny obraz gry',paused:'Odczyt ruszy po powrocie do okna gry',scanning:'Automatyczne augmenty · czekam na karty wyboru',offers:'Karty rozpoznane · wybierz augment w grze',confirming:'Potwierdzam wybrany augment',detected:'Augment rozpoznany · build przeliczony',reading:'Czytam nazwę · zapis po 3 zgodnych odczytach',ambiguous:'Kilka nazw w obszarze — popraw ustawienie OCR',unreadable:'Najedź na własny augment na około 3 sekundy',layout:'Rozdzielczość się zmieniła — ustaw OCR ponownie',conflict:'Niejednoznaczny zestaw — sprawdź augmenty ręcznie',language:'Brak polskiego lub angielskiego OCR w Windows'};
+  screenText.undone='Rozpoznanie cofnięte · możesz wskazać poprawny augment w edytorze';
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
     ${live ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)}</p>` : ''}
     ${m.screen && !labActive ? `<div class="augment-screen-controls"><span title="Czytam nazwy kart i Twój wybór w oknie gry. Bez najeżdżania i kalibracji. Niepewne wybory możesz poprawić w edytorze.">${esc(screenText[m.screen.status] || screenText.waiting)}</span>${m.screen.config?.mode!=='auto'?'<button data-augment-auto>Tryb automatyczny</button>':''}<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button></div>` : ''}
-    <div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Wybierz augment w grze — rozpoznany wybór pojawi się tutaj.</span>'}</div>
+    ${selected.length||!m.comparison?`<div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Wybierz augment w grze — rozpoznany wybór pojawi się tutaj.</span>'}</div>`:''}
+    ${m.undo&&!labActive?`<button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Poprawia zapis w asystencie, nie zmienia wyboru w LoL-u. Ekwipunek i pozostałe augmenty zostają. Ten odczyt nie zostanie ponownie dodany w tym meczu.">Cofnij odczyt: ${m.undo.names.map(esc).join(', ')}</button>`:''}
+    ${m.comparison&&!labActive?augmentComparison(m.comparison):''}
     ${m.nextItem ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b>${m.nextItem.components ? ` · masz komponenty za ${m.nextItem.components.credit} złota, do ukończenia ${m.nextItem.components.remaining}` : ''}</p>` : ''}
     ${live?.auto && live.inventory ? disclosure('live-inventory', 'Odczytany ekwipunek · '+live.inventory.items.length+' zajętych slotów', live.inventory.items.length ? `<div class="live-items">${live.inventory.items.map(i=>`<span class="tag" title="${esc(i.name)}">${i.icon?`<img src="${esc(i.icon)}" alt="">`:''}${esc(i.name)}${i.count>1?' ×'+i.count:''}${i.kind==='component'?' · komponent':i.kind==='unknown'?' · poza katalogiem':''}</span>`).join('')}</div><p class="note">Gotowe przedmioty zostają w buildzie. Komponenty i mikstury są śledzone osobno.</p>` : '<p class="note">Ekwipunek jest pusty.</p>') : ''}
     ${live?.auto && live.inventory?.items.some(i=>i.kind==='unknown') ? '<p class="note">Przedmiot spoza katalogu: widoczny w odczycie, ale jeszcze nieuwzględniony w planie zakupów.</p>' : ''}
     ${m.unknown.length ? `<p class="note">${m.unknown.length} augmentów bez reguły zakupów — możesz wskazać ich efekt w edytorze.</p>` : ''}
     ${selected.length ? disclosure('augment-reasons', 'Wpływ augmentów na zakupy', selected.map(a => `<p><b>${esc(a.name)}:</b> ${esc(a.summary)}${!a.supported ? ' Automatyczna kolejność pozostaje bez zmian dla tego augmentu.' : ''}</p>`).join('')) : ''}
   </section>`;
+}
+
+function augmentComparison(comparison){
+  const status={strong:'Dużo synergii',fit:'Pasuje do buildu',conditional:'Warunkowe',independent:'Efekt niezależny od buildu',unknown:'Brak oceny',conflict:'Konflikt',selected:'Już wybrany'};
+  return `<section class="augment-comparison" aria-label="Porównanie oferowanych augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${comparison.paused?'Ostatni odczyt · wróć do gry, aby odświeżyć':'Kolejność jak w grze'}</span></div>
+    <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer ${c.recommended?'recommended':''}" data-offer-id="${c.id}">
+      <div class="offer-position">${['Lewa','Środkowa','Prawa'][i]} · ${esc(c.recommended?'Najwięcej synergii':status[c.status]||status.unknown)}</div>
+      <b title="${esc(c.english)}">${esc(c.name)}</b>
+      <p class="${c.warnings.length?'offer-warning':''}">${esc(c.warnings[0]||c.reasons[0]||'Sprawdź opis efektu.')}</p>
+      ${disclosure('offer-'+c.id,'Dlaczego?',`<p>${esc(c.summary)}</p>${c.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${c.warnings.map(w=>`<p class="offer-warning">${esc(w)}</p>`).join('')}`)}
+    </article>`).join('')}</div><p class="offer-note">${esc(comparison.note)}</p></section>`;
 }
 
 async function openMayhemEditor() {
@@ -93,7 +107,7 @@ async function openMayhemEditor() {
         if(!result.ok)throw Error(result.error);
         labInput=next;labView=result;renderLabResults();
       }else{
-        const result=await window.assist.setMayhem({matchKey:context.matchKey,selection,autoInventory:values.has('auto-inventory'),knownScreenAugments:context.screenAugments || []});if(!result.ok)throw Error(result.error);
+        const result=await window.assist.setMayhem({matchKey:context.matchKey,selection,autoInventory:values.has('auto-inventory'),knownScreenAugments:context.screenAugments || [],screenUndoRevision:context.screenUndoRevision||0});if(!result.ok)throw Error(result.error);
       }
       dialog.close();toast('Build dopasowany do augmentów i posiadanych przedmiotów');
     }catch(err){error(err.message);}finally{button.disabled=false;}

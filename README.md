@@ -2,6 +2,16 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.21
+
+- **Porównanie trzech oferowanych augmentów.** Po dwóch zgodnych odczytach kart pojawia się zestawienie w kolejności lewej, środkowej i prawej karty. Ocena uwzględnia profil postaci, kupione i zaplanowane przedmioty, wspólne zakupy z już wybranymi augmentami, konflikty mechanik oraz przedmioty potrzebne do questów. **Dlaczego?** rozwija uzasadnienie i warunki działania.
+- Wyróżnienie **Najwięcej synergii** pojawia się przy wyraźnej przewadze dopasowania bez wykrytych zastrzeżeń. Remisy nie mają wymuszonego zwycięzcy. Jest to porównanie dopasowania do obecnego buildu, bez statystycznego rankingu siły i winrate’ów. Augmenty niezależne od zakupów otrzymują osobną informację; brak premii za synergię nie oznacza, że są słabe. Porównanie samo nie wybiera augmentu i nie zmienia buildu.
+- Otwórz asystenta przez **Ctrl+X**, aby obejrzeć karty i powody. Podczas przeglądania aplikacja pokazuje oznaczony ostatni odczyt przez maksymalnie 30 sekund. Powrót do gry odświeża dane; przerzut, wybór, nieczytelny obraz, wyłączenie odczytu i zakończenie meczu usuwają nieaktualne porównanie.
+- **Cofnij odczyt: [nazwa]** usuwa ostatni augment dopisany automatycznie przez asystenta. Ekwipunek i pozostałe wybory zostają. Historia obejmuje do pięciu nowych rozpoznań i jest zapisywana dla tego meczu, także po restarcie. Cofnięty odczyt nie dopisze się sam ponownie; można świadomie przywrócić augment przez **Augmenty i ekwipunek**.
+- Cofanie poprawia zapis w asystencie, a nie wybór dokonany w LoL-u. Ręczne wybory nie otrzymują przycisku cofania odczytu. Stary przycisk nie cofa nowszego rozpoznania, a formularz otwarty przed cofnięciem prosi o ponowne otwarcie. Nowy mecz resetuje historię oraz wyjątki. Historia cofania zaczyna się od rozpoznań wykonanych w 0.6.21.
+
+Weryfikacja: `npm test` obejmuje porównanie ról, własne przedmioty, questy, konflikty, remisy, cały katalog obu pul, cofanie, ponowne odczyty i zapis po restarcie. `npm run test:offers` sprawdza prawdziwy OCR Windows w symulowanym meczu, renderer porównania, cofanie przyciskiem, stary formularz, przerzut, zatrzymany podgląd po zmianie aktywnego okna i izolację kolejnego meczu. Źródło obrazu oraz wejście myszy są w tym teście symulowane.
+
 ## Wersja 0.6.20
 
 - **Automatyczne rozpoznawanie wybranego augmentu bez Overwolfa, najeżdżania i kalibracji (eksperymentalne).** W meczu Mayhem asystent odczytuje polskie/angielskie nazwy trzech kart, odnajduje ich ramki i rozpoznaje klikniętą kartę. Dopisuje augment i przelicza build dopiero po zniknięciu kart na dwóch czytelnych obrazach. Zwykle zajmuje to około 1–2 sekund po kliknięciu; wolniejszy komputer może potrzebować więcej czasu.

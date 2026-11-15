@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('assist', {
   mayhemCatalog: (pool) => ipcRenderer.invoke('mayhem-catalog', pool),
   getMayhem: () => ipcRenderer.invoke('get-mayhem'),
   setMayhem: (input) => ipcRenderer.invoke('set-mayhem', input),
+  undoAugmentRecognition: input => ipcRenderer.invoke('undo-augment-recognition',input),
   augmentScreenSource: key => ipcRenderer.invoke('augment-screen-source',key),
   setAugmentScreen: input => ipcRenderer.invoke('set-augment-screen',input),
   augmentScreenFrame: input => ipcRenderer.invoke('augment-screen-frame',input),

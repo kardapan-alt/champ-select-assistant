@@ -1,6 +1,6 @@
 {
   "name": "champ-select-assistant",
-  "version": "0.6.20",
+  "version": "0.6.21",
   "description": "Asystent wyboru postaci do League of Legends",
   "main": "src/main.js",
   "scripts": {

@@ -133,10 +133,14 @@ async function openAugmentCalibration(){
   }catch(err){augmentCalibrationOpen=false;stopAugmentCapture();throw err;}
 }
 document.getElementById('app').addEventListener('click',async e=>{
-  const button=e.target.closest('[data-augment-screen],[data-augment-screen-toggle],[data-augment-auto]');if(!button)return;
+  const button=e.target.closest('[data-augment-screen],[data-augment-screen-toggle],[data-augment-auto],[data-augment-undo]');if(!button)return;
   e.stopImmediatePropagation();button.disabled=true;
   try{
-    if(button.hasAttribute('data-augment-screen'))await openAugmentCalibration();
+    if(button.hasAttribute('data-augment-undo')){
+      const m=lastState.final.build.mayhem,result=await window.assist.undoAugmentRecognition({matchKey:m.matchKey,token:button.dataset.augmentUndo});
+      if(!result.ok)throw Error(result.error);toast('Cofnięto rozpoznanie. Ekwipunek i pozostałe wybory zostały zachowane.');
+    }
+    else if(button.hasAttribute('data-augment-screen'))await openAugmentCalibration();
     else{const m=lastState.final.build.mayhem,config=button.hasAttribute('data-augment-auto')?{enabled:true,mode:'auto'}:{...m.screen.config,enabled:!m.screen.enabled};
       const result=await window.assist.setAugmentScreen({matchKey:m.matchKey,config});if(!result.ok)throw Error(result.error);stopAugmentCapture();}
   }catch(err){toast(err.message,true);}finally{button.disabled=false;}
