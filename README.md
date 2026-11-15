@@ -2,6 +2,14 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.25
+
+- **Status odczytu nad zakupami:** osobno ekwipunek i złoto, zakupy wrogów, zapisane augmenty oraz Headliner. Czas ostatniego odczytu rośnie również bez nowych danych. Po sześciu sekundach bez potwierdzonego ekwipunku widok ukrywa zakup za stare złoto. Brak złota, nieznane przedmioty i augmenty bez reguł są oznaczane osobno.
+- **Dlaczego zmienił się build:** pod kolejnością przedmiotów pojawia się ostatnia faktyczna zmiana, jej powód i rozwijane porównanie przed/po z konkretnymi zakupami wroga. Samo przybywanie złota nie tworzy komunikatów. Pierwszy odczyt ustala punkt odniesienia; przerwa w połączeniu nie jest traktowana jako sprzedaż. Porównanie dotyczy potwierdzonych danych jednego meczu i resetuje się w następnym meczu lub po ponownym uruchomieniu aplikacji.
+- Liczba zapisanych augmentów nie jest deklaracją kompletności rozpoznania. Wstrzymany albo nieaktualny OCR jest widoczny obok tej liczby; ustalony wcześniej Headliner pozostaje zapisany.
+
+Walidacja: 194 testy logiki, pełny przepływ z niezależną przerwą odczytu przeciwników, widoki 820 i 1100 px oraz rzeczywisty Windows OCR na symulowanych komunikatach. Klient był poza meczem; test OCR w rzeczywistym Mayhem pozostaje do wykonania.
+
 ## Wersja 0.6.24
 
 - **Automatyczny Headliner z obrazu gry:** istniejący OCR odczytuje nazwę wraz z właściwym opisem wydarzenia w centralnej części okna gry. Wymagane są trzy zgodne odczyty. Obsługiwane są polskie i angielskie komunikaty dziewięciu Headlinerów, w tym Superfans. Sama nazwa przedmiotu/skina, nazwa bez opisu lub niejednoznaczny zestaw nie wystarczają.

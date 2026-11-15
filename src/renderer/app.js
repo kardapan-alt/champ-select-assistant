@@ -228,28 +228,30 @@ function itemSetStatus(b, auto) {
 }
 
 function liveShopPanel(b) {
-  const s=b.shop;
+  let s=b.shop;
   if (!s || labActive) return '';
+  if(b.readout?.inventory.status==='live'&&!freshRead(b.readout.inventory))s={status:'stale',gold:null};
   const messages={waiting:'Czekam na aktualne złoto i ekwipunek.',stale:'Odczyt z gry przerwany — czekam na aktualne złoto.',manual:'Włącz automatyczny odczyt ekwipunku, aby zobaczyć zakup za aktualne złoto.',complete:'Docelowy build jest już kupiony.',unavailable:'Następny przedmiot wymaga odblokowania w grze.', 'unknown-price':'Brak pewnej ceny w katalogu gry — sprawdź sklep.'};
   const purchase=s.purchase;
   const content=purchase ? `${img(purchase.icon,'shop-icon',purchase.name)}<div><b>${esc(purchase.name)} · ${purchase.cost} złota</b><span>${purchase.component?`Komponent do ${esc(s.target.name)}`:'Ukończ ten przedmiot'}${purchase.credit?` · uwzględniono komponenty za ${purchase.credit}`:''} · zostanie ${s.remaining}</span></div>`
     : `<div><b>${esc(s.status==='save'?`Odłóż jeszcze ${s.missing} złota`:s.status==='full'?'Brakuje miejsca w ekwipunku':messages[s.status]||messages.waiting)}</b>${s.target?`<span>${s.status==='save'?`Na ${esc(s.savingFor.name)} · `:''}Cel: ${esc(s.target.name)} (${s.target.cost} złota do ukończenia)</span>`:''}</div>`;
-  const changes=(b.liveAdaptation||[]).filter(a=>b.items.some(i=>i.id===a.item&&!i.owned));
-  return `<section class="live-shop" aria-label="Kup teraz"><div class="shop-heading"><b>Kup teraz</b>${s.gold!=null?`<span>Masz <strong>${s.gold}</strong> złota</span>`:''}</div><div class="shop-purchase">${content}</div>
+  return `<section class="live-shop" data-fresh="${s.gold!=null}" aria-label="Kup teraz"><div class="shop-heading"><b>Kup teraz</b>${s.gold!=null?`<span>Masz <strong>${s.gold}</strong> złota</span>`:''}</div><div class="shop-purchase">${content}</div>
     ${purchase?'<p class="shop-note">Gdy możesz korzystać ze sklepu. Kupujesz ręcznie w grze.</p>':''}
     ${s.comparison?.length>1?disclosure('shop-comparison','Porównaj ścieżki zakupów',`<div class="purchase-options">${s.comparison.map(o=>`<article><small>${{plan:'Trzymaj się planu',later:'Przyspiesz późniejszy zakup',alternative:'Sytuacyjna alternatywa'}[o.kind]}</small><b>${esc(o.target.name)}</b><p>Do ukończenia: <strong>${o.target.cost} złota</strong>${o.target.credit?` · komponenty pokrywają ${o.target.credit}`:''}</p><p>${o.purchase?`Teraz: ${esc(o.purchase.name)} za ${o.purchase.cost} · zostanie ${o.remaining}`:o.status==='save'?`Brakuje ${o.missing} do ${esc(o.savingFor.name)}`:'Brak miejsca na zakup'}</p><p><b>Profil celu:</b> ${esc(o.focus.join(', ') || 'efekt sytuacyjny')}</p><p><b>Po co:</b> ${esc(o.benefit)}</p><p class="muted">${esc(o.tradeoff)}</p></article>`).join('')}</div><p class="note">Każdą ścieżkę liczę osobno z tego samego ekwipunku i złota. Komponentów ani budżetów nie sumuj między opcjami. Porównanie nie zmienia Twojego planu.</p>`):''}
-    ${changes.length?`<div class="shop-reaction" title="${esc(changes.flatMap(a=>a.evidence.map(e=>e.name+': '+e.items.map(i=>i.name).join(', '))).join('; '))}">${changes.slice(0,2).map(a=>esc(a.text)).join(' · ')} → build przeliczony</div>`:s.enemies==='waiting'&&s.gold!=null?'<p class="shop-note">Zakupy wrogów jeszcze niepotwierdzone · build według składu.</p>':''}</section>`;
+    ${s.enemies==='waiting'&&s.gold!=null?'<p class="shop-note">Zakupy wrogów jeszcze niepotwierdzone · build według składu.</p>':''}</section>`;
 }
 
 function buildPanel(b, readonly = false, auto = null) {
   const aram = isAramView(b.mode);
   return `<div class="panel build-panel">
     <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
+    ${readoutPanel(b)}
     ${liveShopPanel(b)}
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
     <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
     <div class="build-row build-primary"><h4>Kolejność zakupów${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
+    ${buildChangePanel(b)}
     ${mayhemPanel(b)}
     <div class="build-essentials"><div><span class="muted">Umiejętności</span><div class="skills">${skillKeys(b.skills)}</div></div><div><span class="muted">Czary</span><div class="spells-line">${b.spells.map((s) => img(s.icon, 'spell', s.name)).join('')}<span>${b.spells.map((s) => esc(s.name)).join(' + ')}</span></div></div></div>
     ${disclosure('build-details', 'Dlaczego te zakupy? · własne wybory', `${buildExplanation(b)}${b.enemy && b.enemy.count ? `<div class="build-row"><h4>Szacowany profil obrażeń wroga</h4>${enemyBar(b.enemy)}</div>` : ''}${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}${b.alternatives.length ? `<div class="build-row"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}`)}

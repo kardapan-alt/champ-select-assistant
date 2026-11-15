@@ -1,10 +1,8 @@
-## Champ Select Assistant 0.6.24
+## Champ Select Assistant 0.6.25
 
-- Automatyczne wykrywanie Headlinera z widocznej nazwy i opisu wydarzenia. Dziewięć Headlinerów, polskie i angielskie teksty, trzy zgodne odczyty Windows OCR. Bez Overwolfa, najeżdżania i kalibracji.
-- Ręczna korekta ma pierwszeństwo; wykryty Headliner nie znika po zapisaniu starszego formularza augmentów. Ustawienia są ograniczone do jednego meczu.
-- Automatyczny wynik z komunikatu końca gry lub danych klienta, z ponawianiem odczytu i sprawdzeniem historii tego samego meczu. Brak danych pozostaje nieznanym wynikiem.
-- Otwarty panel podsumowania aktualizuje wynik po nadejściu danych. Opcjonalna ręczna korekta i powrót do automatycznego wyniku.
+- Status odczytu w jednym miejscu: ekwipunek i złoto, zakupy przeciwników, augmenty oraz Headliner. Widoczny czas odczytu, przerwy, brakujące złoto i dane bez reguł.
+- Po sześciu sekundach bez świeżych danych widok nie pokazuje zakupu za nieaktualne złoto, również gdy nie docierają nowe komunikaty z aplikacji.
+- Wyjaśnienie ostatniej faktycznej zmiany buildu z porównaniem przed/po i zakupami wroga, które wpłynęły na plan.
+- Samo złoto nie tworzy powiadomień o zmianie buildu; przerwa w odczycie nie udaje sprzedaży. Historia ostatniej zmiany jest ograniczona do bieżącego meczu i uruchomienia aplikacji.
 
-Headliner wymaga czytelnego komunikatu wydarzenia i włączonego automatycznego OCR. Wzmocniona umiejętność Pentakill oraz modyfikatory HEARTSTEEL nadal wymagają osobnej oceny. Odczyt Headlinera jest eksperymentalny; nie był jeszcze testowany w rzeczywistym meczu.
-
-Walidacja: 186 testów logiki, testy całej aplikacji na symulowanych meczach i prawdziwy OCR Windows na testowych komunikatach. Format wyniku sprawdzono na danych historii w lokalnym kliencie.
+194 testy logiki oraz testy aplikacji i Windows OCR na symulowanych meczach. Automatyczny Headliner nadal wymaga czytelnego komunikatu wydarzenia; nie był jeszcze testowany w rzeczywistym meczu.

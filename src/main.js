@@ -29,6 +29,7 @@ const {compareAugments}=require('./mayhem-compare');
 const {headlinerView}=require('./headliners');
 const {synergies}=require('./augment-synergies');
 const {MatchReview}=require('./match-review');
+const {readoutFor,BuildChanges}=require('./build-insight');
 const {ownerKey,ResultResolver}=require('./match-result');
 const resultResolver=new ResultResolver();
 const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
@@ -352,6 +353,9 @@ async function syncLiveInventory() {
     target.liveSnapshot=snapshot;
     if (snapshot) {
       target.liveAt=Date.now();
+      if(Array.isArray(snapshot.enemies))target.enemiesAt=target.liveAt;
+      // Refresh the timestamp even when the contents of a snapshot are equal.
+      loadingDirty=true;
       if (currentMode === 'mayhem') { if (mayhemSession.setInventory(state.mayhemKey,result.inventory)) loadingDirty=true; }
       else { target.liveInventory=result.inventory; }
     }
@@ -461,6 +465,12 @@ function finalWithEnemies(me) {
         build.mayhem.comparison=comparison?{...comparison,paused:!augmentClicks.active()}:null;
       }
     }
+    const insightContext={key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,status:liveStatus,
+      liveAt:loading.liveAt,enemiesAt:loading.enemiesAt,enemies:s.liveEnemies,inventory:s.liveInventory,
+      gold:loading.liveSnapshot?.gold,session:currentMode==='mayhem'?mayhemSession.value:null,screenAt:loading.visionAt};
+    build.readout=readoutFor(build,insightContext);
+    loading.buildChanges ||= new BuildChanges();
+    build.lastChange=loading.buildChanges.observe(build,insightContext);
     if(liveStatus==='live')matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
       alias,name:game.championsById.get(me.championId)?.name||alias,mode:currentMode,snapshot:loading.liveSnapshot,build,
       gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid)});
@@ -813,6 +823,10 @@ function visionStatus(status) {
   if(!loading || loading.visionStatus===status&&!loadingDirty)return;
   loading.visionStatus=status;loadingDirty=false;send(buildLoadingView());
 }
+function noteVisionRead(){
+  const now=Date.now();loading.visionAt=now;
+  if(now-(loading.visionReportedAt||0)>=2000){loading.visionReportedAt=now;loadingDirty=true;}
+}
 ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   const state=mayhemContext(matchKey);
   if(await lcu.get('/lol-gameflow/v1/gameflow-phase')!=='InProgress')throw Error('Odczyt obrazu działa podczas meczu Mayhem.');
@@ -874,7 +888,8 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
   return choiceWrites(async()=>{
   mayhemContext(input.matchKey);
   if(!visionConfig?.enabled || input.token!==visionToken || input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
-  if(!result?.readings){visionConsensus.reset();visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    if(!result?.readings){visionConsensus.reset();visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    noteVisionRead();
   const matches=[augmentVision.recognizeText(result.readings,visionCatalog,state.mayhemPool)];
   const stable=visionConsensus.observe(`${state.mayhemKey}:${visionRevision}:${visionToken}`,matches);
   if(stable.some(Boolean)){
@@ -903,6 +918,7 @@ async function readAutomaticAugment(input,state){
     mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
     if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    if(augmentClicks.active())noteVisionRead();
     if(augmentClicks.active()&&automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
       const headliner=headlinerConsensus.observe(`${state.mayhemKey}:${visionToken}:${visionRevision}`,result,input.at);
       const patch=headliner&&applyHeadliner(mayhemSession.value,headliner);

@@ -9,7 +9,7 @@ const server=require('../mock/mock-lcu');
 const {LcuClient}=require('../src/lcu'),{LiveClient}=require('../src/liveclient');
 const catalog=require('../data/catalog.json');
 let win,mode='KIWI',gameId=870,gold=1000,ownItems=[6655,3020,1026],enemyItems=[4401,3111],connected=true,pending=null,requests=0;
-let flow,champions=[],flowFailure=false,phaseOverride=null,endReady=false,currentSummoner;
+let flow,champions=[],flowFailure=false,enemyReadFailure=false,phaseOverride=null,endReady=false,currentSummoner;
 const originalGet=LcuClient.prototype.get,readInventory=LiveClient.prototype.inventory;
 LcuClient.prototype.get=async function(url){
   if(url==='/lol-end-of-game/v1/eog-stats-block')return endReady?{gameId,localPlayer:{puuid:currentSummoner.puuid,championId:flow.gameData.teamOne.find(p=>p.puuid===currentSummoner.puuid).championId,stats:{WIN:1}}}:null;
@@ -27,7 +27,7 @@ LiveClient.prototype.inventory=async function(...args){
     assert.equal(endpoint,'/liveclientdata/allgamedata');requests++;
     const snapshot=connected?{activePlayer:{riotId:'Daniel#EUNE',currentGold:gold},gameData:{gameMode:mode,gameTime:300},
       allPlayers:[...flow.gameData.teamOne.map(p=>({...p,team:'ORDER'})),...flow.gameData.teamTwo.map(p=>({...p,team:'CHAOS'}))].map(p=>({
-        riotId:`${p.gameName}#${p.tagLine}`,team:p.team,rawChampionName:`game_character_displayname_${champions.find(c=>c.id===p.championId).alias}`,
+        riotId:`${p.gameName}#${p.tagLine}`,team:p.team,rawChampionName:`game_character_displayname_${enemyReadFailure&&p.gameName==='Gwiezdna'?'Unknown':champions.find(c=>c.id===p.championId).alias}`,
         items:(p.gameName==='Daniel'?ownItems:p.gameName==='Gwiezdna'?enemyItems:[]).map((itemID,slot)=>({itemID,slot,count:1}))}))}:null;
     if(pending){const hold=pending;pending=null;await hold.promise;}
     return snapshot;
@@ -47,6 +47,27 @@ server.once('listening',async()=>{
     assert.ok(b.shop.purchase.cost<=1000);assert.equal(b.shop.enemies,'live');assert.equal(b.items[0].id,6655);assert.equal(b.items[0].owned,true);
     assert.ok(b.liveAdaptation.some(a=>a.item===3135));
     assert.ok(b.shop.comparison.length>=2);
+    assert.equal(b.lastChange,null,'Pierwszy odczyt nie jest zmianą buildu');
+    assert.equal(b.readout.inventory.status,'live');assert.equal(b.readout.enemies.status,'live');
+    assert.equal(b.readout.screen.count,0);
+    assert.ok(await evaluate('document.querySelector(".readout").textContent.includes("Headliner")'));
+    enemyItems=[];
+    await waitFor(async()=>!(await state()).final.build.liveAdaptation.length,'Brak wycofania reakcji na zakupy');
+    enemyItems=[4401,3111];
+    await waitFor(async()=>(await state()).final.build.lastChange?.evidence.length,'Brak wyjaśnienia zmiany po zakupach wroga');
+    b=(await state()).final.build;
+    assert.ok(b.lastChange.causes.some(c=>c.includes('odporność')));assert.ok(b.lastChange.title.includes(b.shop.target.name));
+    fs.writeFileSync(path.join(out,'readout-state.json'),JSON.stringify(await state()));
+    assert.ok(await evaluate('!!document.querySelector(".build-change")'));
+    const changeAt=b.lastChange.at,enemiesAt=b.readout.enemies.at;
+    enemyReadFailure=true;
+    await waitFor(async()=>(await state()).final.build.readout.enemies.status==='stale','Brak osobnego statusu zakupów wrogów');
+    b=(await state()).final.build;
+    assert.equal(b.readout.inventory.status,'live');assert.equal(b.readout.enemies.at,enemiesAt);assert.equal(b.lastChange.at,changeAt);
+    fs.writeFileSync(path.join(out,'enemy-gap-state.json'),JSON.stringify(await state()));
+    enemyReadFailure=false;
+    await waitFor(async()=>(await state()).final.build.readout.enemies.status==='live','Zakupy wrogów nie wróciły');
+    assert.equal((await state()).final.build.lastChange.at,changeAt,'Przerwa nie może udawać sprzedaży i zakupu');
     await evaluate(`document.querySelector('.live-shop details').open=true;void 0`);
     await new Promise(r=>setTimeout(r,250));
     fs.writeFileSync(path.join(out,'comparison.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
@@ -59,6 +80,7 @@ server.once('listening',async()=>{
     const augmentIds=['Goliath','HeavyHitter','Deft','ApexInventor','ItsCritical','JeweledGauntlet'].map(k=>augmentCatalog.find(a=>a.api.replace(/^ARAM_/,'')===k).id);
     const set=await evaluate(`(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({matchKey:c.matchKey,selection:{...c.selection,augments:${JSON.stringify(augmentIds)}},autoInventory:true,knownScreenAugments:c.screenAugments,screenUndoRevision:c.screenUndoRevision});})()`);
     assert.ok(set.ok);assert.equal((await state()).final.build.mayhem.hints.length,6);assert.ok((await state()).final.build.mayhem.synergies.length);
+    assert.equal((await state()).final.build.readout.screen.count,6);assert.equal((await state()).final.build.readout.headliner.source,'manual');
     // Restore the starting build for existing recipe assertions.
     await evaluate(`(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({matchKey:c.matchKey,selection:{...c.selection,augments:[]},autoInventory:true,knownScreenAugments:c.screenAugments,screenUndoRevision:c.screenUndoRevision});})()`);
     for(const [width,height] of [[1100,760],[820,640]]){
@@ -70,14 +92,19 @@ server.once('listening',async()=>{
       fs.writeFileSync(path.join(out,`shop-${width}.png`),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
     }
     gold=2200;
+    const beforeGoldChange=(await state()).final.build.lastChange.at;
     await waitFor(async()=> (await state()).final.build.shop.gold===2200,'Złoto nie odświeżyło podpowiedzi');
     b=(await state()).final.build;assert.equal(b.shop.purchase.id,3135);assert.equal(b.shop.purchase.cost,2150);
+    assert.equal(b.lastChange.at,beforeGoldChange,'Samo złoto nie zmienia planu');
     gold=50;ownItems=[6655,3020,3135];
     await waitFor(async()=> (await state()).final.build.items.some(i=>i.id===3135&&i.owned),'Zakup nie zachowany');
     b=(await state()).final.build;assert.equal(b.shop.gold,50);assert.notEqual(b.shop.purchase?.id,3135);
     connected=false;
     await waitFor(async()=> (await state()).final.build.shop.status==='stale','Brak oznaczenia starego złota');
     b=(await state()).final.build;assert.equal(b.shop.gold,null);assert.equal(b.shop.purchase,undefined);assert.deepEqual(b.liveAdaptation,[]);
+    fs.writeFileSync(path.join(out,'readout-stale-state.json'),JSON.stringify(await state()));
+    assert.equal(b.readout.inventory.status,'stale');assert.equal(b.readout.enemies.status,'stale');
+    assert.ok(await evaluate('document.querySelector("[data-readout=inventory]").textContent.includes("Przerwa")'));
     assert.ok(b.items.some(i=>i.id===3135&&i.owned));
     connected=true;gold=1200;enemyItems=[];
     await waitFor(async()=> (await state()).final.build.shop.gold===1200,'Brak ponownego połączenia');
@@ -92,6 +119,7 @@ server.once('listening',async()=>{
     await waitFor(()=>requests>count,'Brak oczekującego odczytu');gameId++;connected=false;release();
     await waitFor(async()=> (await state()).final.build.mayhem?.matchKey?.startsWith(gameId+':'),'Nowy mecz nie odizolował odczytu');
     b=(await state()).final.build;assert.equal(b.shop.gold,null);assert.equal(b.items.some(i=>i.owned),false);
+    assert.equal(b.lastChange,null);assert.equal(b.readout.inventory.at,null);assert.equal(b.readout.enemies.at,null);
     // Te same zakupy działają w zwykłym ARAM i na SR bez nakładki Mayhem.
     for(const nextMode of ['ARAM','CLASSIC']){
       await step(-1);await waitFor(async()=> (await state())?.status==='idle','Brak lobby');
