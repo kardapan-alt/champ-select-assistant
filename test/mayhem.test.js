@@ -69,8 +69,8 @@ test('konwersja AP/AD zmienia dalsze zakupy, ale nie sprzedaje posiadanych przed
   const b=build('Jinx',{augments:[aug('ADAPt')],owned:[3031]});assert.equal(b.items[0].id,3031);assert.ok(b.items.some(i=>i.id===3089));
   assert.throws(()=>state('Ahri',{augments:[aug('ADAPt'),aug('escAPADe')]}),/konwersji/);
 });
-test('walidacja blokuje obce augmenty, duplikaty, szósty augment, nielegalne itemy i stare zadania', () => {
-  for(const input of [{augments:[41]},{augments:[1041,1041]},{augments:catalog.slice(0,6).map(a=>a.id)},
+test('walidacja blokuje obce augmenty, duplikaty, nadmiarowy zapis, nielegalne itemy i stare zadania', () => {
+  for(const input of [{augments:[41]},{augments:[1041,1041]},{augments:catalog.slice(0,13).map(a=>a.id)},
     {owned:[3089,3089]},{owned:[2055]},{owned:[3006]},{owned:[3036,3033]},{ownedBoots:3089},
     {completed:[1041]},{augments:[1041],effects:{1041:['bad']}}])assert.throws(()=>state('Ahri',input));
 });

@@ -237,6 +237,7 @@ function liveShopPanel(b) {
   const changes=(b.liveAdaptation||[]).filter(a=>b.items.some(i=>i.id===a.item&&!i.owned));
   return `<section class="live-shop" aria-label="Kup teraz"><div class="shop-heading"><b>Kup teraz</b>${s.gold!=null?`<span>Masz <strong>${s.gold}</strong> złota</span>`:''}</div><div class="shop-purchase">${content}</div>
     ${purchase?'<p class="shop-note">Gdy możesz korzystać ze sklepu. Kupujesz ręcznie w grze.</p>':''}
+    ${s.comparison?.length>1?disclosure('shop-comparison','Porównaj ścieżki zakupów',`<div class="purchase-options">${s.comparison.map(o=>`<article><small>${{plan:'Trzymaj się planu',later:'Przyspiesz późniejszy zakup',alternative:'Sytuacyjna alternatywa'}[o.kind]}</small><b>${esc(o.target.name)}</b><p>Do ukończenia: <strong>${o.target.cost} złota</strong>${o.target.credit?` · komponenty pokrywają ${o.target.credit}`:''}</p><p>${o.purchase?`Teraz: ${esc(o.purchase.name)} za ${o.purchase.cost} · zostanie ${o.remaining}`:o.status==='save'?`Brakuje ${o.missing} do ${esc(o.savingFor.name)}`:'Brak miejsca na zakup'}</p><p><b>Profil celu:</b> ${esc(o.focus.join(', ') || 'efekt sytuacyjny')}</p><p><b>Po co:</b> ${esc(o.benefit)}</p><p class="muted">${esc(o.tradeoff)}</p></article>`).join('')}</div><p class="note">Każdą ścieżkę liczę osobno z tego samego ekwipunku i złota. Komponentów ani budżetów nie sumuj między opcjami. Porównanie nie zmienia Twojego planu.</p>`):''}
     ${changes.length?`<div class="shop-reaction" title="${esc(changes.flatMap(a=>a.evidence.map(e=>e.name+': '+e.items.map(i=>i.name).join(', '))).join('; '))}">${changes.slice(0,2).map(a=>esc(a.text)).join(' · ')} → build przeliczony</div>`:s.enemies==='waiting'&&s.gold!=null?'<p class="shop-note">Zakupy wrogów jeszcze niepotwierdzone · build według składu.</p>':''}</section>`;
 }
 
@@ -487,7 +488,7 @@ function render(s) {
       error: ['Coś poszło nie tak', 'Spróbuję połączyć się ponownie za chwilę.'],
     }[s.status] || ['', ''];
     const diag = s.status === 'idle' ? '<div class="actions" style="justify-content:center;margin-top:18px"><button data-stats-diag>Diagnostyka OP.GG</button></div>' : '';
-    patch($app, `<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>
+    patch($app, `${s.recentMatch?recentMatchCard(s.recentMatch):''}<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>
       <p class="muted">Krzyżyk chowa aplikację do zasobnika obok zegara.<br>Pod jej ikoną ustawisz start z Windowsem i pokazywanie okna przy wyborze postaci.</p>${diag}</div>`);
     return;
   }
@@ -611,4 +612,4 @@ window.assist.onState((s) => {
 });
 window.assist.getState().then(render);
 
-$app.addEventListener('error', e => { if (e.target.tagName !== 'IMG') return; const i=e.target; const fallback=document.createElement('span'); fallback.className=i.className + ' icon-fallback'; fallback.textContent=(i.alt || 'LoL').slice(0,3); fallback.title=i.alt; i.replaceWith(fallback); }, true);
+document.addEventListener('error', e => { if (e.target.tagName !== 'IMG') return; const i=e.target; const fallback=document.createElement('span'); fallback.className=i.className + ' icon-fallback'; fallback.textContent=(i.alt || 'LoL').slice(0,3); fallback.title=i.alt; i.replaceWith(fallback); }, true);

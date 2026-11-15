@@ -7,6 +7,7 @@ function mayhemPanel(b) {
   const screenText={off:'Odczyt augmentów wyłączony',waiting:'Czekam na czytelny obraz gry',paused:'Odczyt ruszy po powrocie do okna gry',scanning:'Automatyczne augmenty · czekam na karty wyboru',offers:'Karty rozpoznane · wybierz augment w grze',confirming:'Potwierdzam wybrany augment',detected:'Augment rozpoznany · build przeliczony',reading:'Czytam nazwę · zapis po 3 zgodnych odczytach',ambiguous:'Kilka nazw w obszarze — popraw ustawienie OCR',unreadable:'Najedź na własny augment na około 3 sekundy',layout:'Rozdzielczość się zmieniła — ustaw OCR ponownie',conflict:'Niejednoznaczny zestaw — sprawdź augmenty ręcznie',language:'Brak polskiego lub angielskiego OCR w Windows'};
   screenText.undone='Rozpoznanie cofnięte · możesz wskazać poprawny augment w edytorze';
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
+    ${m.headliner?`<div class="headliner-tip"><b>Headliner: ${esc(m.headliner.name)}${m.headliner.ability?' · '+esc(m.headliner.ability):''}</b><p>${esc(m.headliner.tip)}</p>${m.headliner.warning?`<p class="bad">${esc(m.headliner.warning)}</p>`:''}</div>`:'<p class="note">Headlinera ustawisz w „Augmenty i ekwipunek”.</p>'}
     ${live ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)}</p>` : ''}
     ${m.screen && !labActive ? `<div class="augment-screen-controls"><span title="Czytam nazwy kart i Twój wybór w oknie gry. Bez najeżdżania i kalibracji. Niepewne wybory możesz poprawić w edytorze.">${esc(screenText[m.screen.status] || screenText.waiting)}</span>${m.screen.config?.mode!=='auto'?'<button data-augment-auto>Tryb automatyczny</button>':''}<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button></div>` : ''}
     ${selected.length||!m.comparison?`<div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Wybierz augment w grze — rozpoznany wybór pojawi się tutaj.</span>'}</div>`:''}
@@ -17,6 +18,7 @@ function mayhemPanel(b) {
     ${live?.auto && live.inventory?.items.some(i=>i.kind==='unknown') ? '<p class="note">Przedmiot spoza katalogu: widoczny w odczycie, ale jeszcze nieuwzględniony w planie zakupów.</p>' : ''}
     ${m.unknown.length ? `<p class="note">${m.unknown.length} augmentów bez reguły zakupów — możesz wskazać ich efekt w edytorze.</p>` : ''}
     ${selected.length ? disclosure('augment-reasons', 'Wpływ augmentów na zakupy', selected.map(a => `<p><b>${esc(a.name)}:</b> ${esc(a.summary)}${!a.supported ? ' Automatyczna kolejność pozostaje bez zmian dla tego augmentu.' : ''}</p>`).join('')) : ''}
+    ${m.synergies?.length?disclosure('augment-pairs','Synergie wybranych augmentów',m.synergies.map(p=>`<p><b>${esc(p.names.join(' + '))}</b><br>${esc(p.text)}</p>`).join('')):''}
   </section>`;
 }
 
@@ -27,7 +29,7 @@ function augmentComparison(comparison){
       <div class="offer-position">${['Lewa','Środkowa','Prawa'][i]} · ${esc(c.recommended?'Najwięcej synergii':status[c.status]||status.unknown)}</div>
       <b title="${esc(c.english)}">${esc(c.name)}</b>
       <p class="${c.warnings.length?'offer-warning':''}">${esc(c.warnings[0]||c.reasons[0]||'Sprawdź opis efektu.')}</p>
-      ${disclosure('offer-'+c.id,'Dlaczego?',`<p>${esc(c.summary)}</p>${c.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${c.warnings.map(w=>`<p class="offer-warning">${esc(w)}</p>`).join('')}`)}
+      ${disclosure('offer-'+c.id,'Dlaczego?',`<p>${esc(c.summary)}</p>${c.fit?`<dl class="augment-fit"><dt>Postać</dt><dd>${esc(c.fit.champion)}</dd><dt>Już kupione</dt><dd>${esc(c.fit.owned.join(', ')||'Brak bezpośredniego dopasowania')}</dd><dt>Planowane</dt><dd>${esc(c.fit.planned.join(', ')||'Brak bezpośredniego dopasowania')}</dd><dt>Inne augmenty</dt><dd>${(c.synergies||[]).map(p=>esc(p.names.join(' + ')+': '+p.text)).join('<br>')||'Brak potwierdzonej interakcji efektów'}</dd></dl>`:''}${c.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${c.warnings.map(w=>`<p class="offer-warning">${esc(w)}</p>`).join('')}`)}
     </article>`).join('')}</div><p class="offer-note">${esc(comparison.note)}</p></section>`;
 }
 
@@ -47,6 +49,7 @@ async function openMayhemEditor() {
   const options = (list,id) => '<option value="0">Brak / jeszcze nie kupiony</option>' + list.map(i => `<option value="${i.id}" ${i.id === id ? 'selected' : ''}>${esc(i.name)}</option>`).join('');
   dialog.innerHTML = `<form id="mayhem-form"><div class="panel-head"><h2>Mayhem · ${esc(build.name)}</h2><button type="button" data-mayhem-cancel>Zamknij</button></div>
     <p class="muted">${wasLab ? 'Symulacja — wybory nie zmienią trwającego meczu.' : 'Wybory dotyczą tylko tego meczu. Zaznacz augmenty otrzymane w grze.'} Wpływ na zakupy dobieram automatycznie.</p>
+    <div class="headliner-editor"><label>Headliner · wybierz ręcznie<select name="headliner"><option value="">Jeszcze nie wybrany / nie wiem</option>${(context.headliners||[]).map(h=>`<option value="${h.id}" ${selection.headliner?.id===h.id?'selected':''}>${esc(h.name)}</option>`).join('')}</select></label><label id="headliner-ability" ${selection.headliner?.id==='pentakill'?'':'hidden'}>Wzmacniana umiejętność<select name="headliner-ability"><option value="">Nie wiem</option>${['Q','W','E','R'].map(k=>`<option ${selection.headliner?.ability===k?'selected':''}>${k}</option>`).join('')}</select></label><p id="headliner-description" class="note"></p></div>
     <div id="mayhem-selected"></div><label class="augment-search">Szukaj augmentu po polskiej lub angielskiej nazwie<input type="search" id="augment-search" placeholder="np. Goliath, Apex Inventor…" autocomplete="off"></label>
     <div id="augment-results" class="augment-results"></div>
     <details class="owned-editor"><summary>Odczyt ekwipunku${wasLab ? ' · symulacja' : ''}</summary>
@@ -58,7 +61,7 @@ async function openMayhemEditor() {
   const error = message => { dialog.querySelector('.form-error').textContent=message; };
   const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/ł/g,'l');
   const renderSelected = () => {
-    dialog.querySelector('#mayhem-selected').innerHTML = `<h4>Wybrane augmenty: ${selection.augments.length}/5</h4>${selection.augments.map(id => {
+    dialog.querySelector('#mayhem-selected').innerHTML = `<h4>Wybrane augmenty: ${selection.augments.length} · również dodatkowe z Headlinera</h4>${selection.augments.map(id => {
       const a=chosen.get(id); if(!a)return '';
       const manual=Object.hasOwn(selection.effects,id), value=manual ? selection.effects[id][0] || 'none' : 'auto';
       return `<div class="selected-augment"><div><b>${esc(a.name)}</b> <span class="muted">${esc(a.english)}</span><button type="button" data-remove-augment="${id}" aria-label="Usuń ${esc(a.name)}">×</button></div>
@@ -76,10 +79,16 @@ async function openMayhemEditor() {
   dialog.querySelector('[data-mayhem-cancel]').onclick=()=>dialog.close();
   dialog.onchange=e=>{
     const t=e.target;
+    if(t.name==='headliner'||t.name==='headliner-ability'){
+      const id=dialog.querySelector('[name=headliner]').value;
+      selection.headliner=id?{id,ability:id==='pentakill'?dialog.querySelector('[name=headliner-ability]').value:''}:null;
+      dialog.querySelector('#headliner-ability').hidden=id!=='pentakill';
+      dialog.querySelector('#headliner-description').textContent=context.headliners.find(h=>h.id===id)?.tip||'';
+    }
     if(t.name==='auto-inventory')dialog.querySelector('.manual-inventory').disabled=t.checked;
     if(t.dataset.augmentId){
       const id=Number(t.dataset.augmentId);
-      if(t.checked && selection.augments.length>=5){t.checked=false;error('Możesz zaznaczyć maksymalnie 5 augmentów.');return;}
+      if(t.checked && selection.augments.length>=context.maxAugments){t.checked=false;error('Limit zapisu augmentów — sprawdź wcześniejsze rozpoznania.');return;}
       selection.augments=t.checked?[...selection.augments,id]:selection.augments.filter(x=>x!==id);
       if(!t.checked){selection.completed=selection.completed.filter(x=>x!==id);delete selection.effects[id];}
       error('');renderSelected();
@@ -112,6 +121,7 @@ async function openMayhemEditor() {
       dialog.close();toast('Build dopasowany do augmentów i posiadanych przedmiotów');
     }catch(err){error(err.message);}finally{button.disabled=false;}
   };
+  dialog.querySelector('#headliner-description').textContent=context.headliners?.find(h=>h.id===selection.headliner?.id)?.tip||'';
   renderSelected();renderResults();dialog.showModal();
 }
 document.getElementById('app').addEventListener('click',async e=>{

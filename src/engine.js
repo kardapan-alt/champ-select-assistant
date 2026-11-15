@@ -888,6 +888,7 @@ function buildFor(alias, state, game, data) {
     alias,
     mode: state.mode || 'classic',
     mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats],
+      headliner:require('./headliners').headlinerView(state.mayhem?.headliner,state.mayhem),synergies:require('./augment-synergies').synergies(state.mayhem),
       nextItem:augmentation.upgrades.find(u=>exists(u.to)) ? { ...item(augmentation.upgrades.find(u=>exists(u.to)).to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
     liveAdaptation:live.map(s=>({ text:s.text, item:s.myItem, evidence:s.evidence })),

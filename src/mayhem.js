@@ -15,6 +15,7 @@ const EFFECTS = {
   shield:'Przedmioty z tarczą', move:'Prędkość ruchu', slow:'Spowolnienia', stackitems:'Przedmioty na stacki', jungleitem:'Przedmioty Spirit',
 };
 const RULES = require('./mayhem-rules');
+const headliners = require('./headliners');
 
 const ruleFor = augment => RULES[augment.api.replace(/^ARAM_/, '')];
 const repeatItems = augments => new Set((augments || []).flatMap(id=>ruleFor(byId.get(Number(id)) || {api:''})?.repeat || []));
@@ -29,7 +30,7 @@ function ownedAvailable(id, game, alias = '', mode = 'mayhem') {
     && (isBootItem(id,game) || item.priceTotal>=1500 || [773041,773513,773514,773515,773516].includes(Number(id)));
 }
 function choicesCatalog(pool = 'KIWI') {
-  return { fetched: catalog.fetched, effects: EFFECTS, augments: catalog.augments.filter(a => a.pools.includes(pool)).map(a => {
+  return { fetched: catalog.fetched, effects: EFFECTS, headliners:headliners.catalog, maxAugments:headliners.MAX_AUGMENTS, augments: catalog.augments.filter(a => a.pools.includes(pool)).map(a => {
     const r = ruleFor(a);
     return { ...a, effects: r?.effects || [], supported: !!r, neutral:!!r?.neutral, quest: !!r?.quest,
       summary: r?.summary || 'Brak sprawdzonej reguły zakupów. Zachowam bazowy build; opcjonalnie wskaż efekt poniżej.' };
@@ -43,9 +44,9 @@ function validateSelection(input = {}, game, alias, pool = 'KIWI') {
     if (out.some((id,i)=>!valid(id) || (!repeats.has(id) && out.indexOf(id)!==i))) throw Error(message);
     return out;
   };
-  const augments = ids(input.augments || [], 5, id => byId.get(id)?.pools.includes(pool), 'Wybierz do 5 różnych augmentów z puli tego trybu.');
+  const augments = ids(input.augments || [], headliners.MAX_AUGMENTS, id => byId.get(id)?.pools.includes(pool), 'Nieprawidłowy zestaw augmentów z puli tego trybu.');
   if (augments.filter(id => ruleFor(byId.get(id))?.conversion).length > 1) throw Error('Nie łącz przeciwnych konwersji AP i AD.');
-  const completed = ids(input.completed || [], 5, id => augments.includes(id) && ruleFor(byId.get(id))?.quest, 'Nieprawidłowe ukończone zadanie augmentu.');
+  const completed = ids(input.completed || [], headliners.MAX_AUGMENTS, id => augments.includes(id) && ruleFor(byId.get(id))?.quest, 'Nieprawidłowe ukończone zadanie augmentu.');
   const repeats = repeatItems(augments);
   const owned = ids(input.owned || [], 5, id => {
     const i = game.items.get(id);
@@ -61,7 +62,8 @@ function validateSelection(input = {}, game, alias, pool = 'KIWI') {
     if (!Array.isArray(value) || value.length > 3 || value.some(v => !Object.hasOwn(EFFECTS,v))) throw Error('Nieprawidłowy efekt augmentu.');
     effects[id] = [...new Set(value)];
   }
-  return { augments, completed, owned, ownedBoots, effects };
+  const headliner=headliners.validateHeadliner(input.headliner);
+  return { augments, completed, owned, ownedBoots, effects, ...(headliner?{headliner}:{}) };
 }
 function adaptation(selection, champion, context = {}) {
   const s = selection || {}, picked = (s.augments || []).map(id => byId.get(id)).filter(Boolean);

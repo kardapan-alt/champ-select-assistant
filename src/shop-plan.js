@@ -18,7 +18,7 @@ function recipeFor(id, inventory, game) {
   return visit(id,new Set(),true);
 }
 
-function shopPlan(build, snapshot, game, status = 'waiting') {
+function singlePlan(build, snapshot, game, status = 'waiting') {
   if (status !== 'live' || !snapshot?.inventory || !Number.isFinite(snapshot.gold) || snapshot.gold<0)
     return { status:status==='live'?'waiting':status, gold:null };
   const gold = Math.floor(snapshot.gold), inventory = snapshot.inventory;
@@ -70,4 +70,31 @@ function shopPlan(build, snapshot, game, status = 'waiting') {
     savingFor:{...itemView(cheapest.id),cost:cheapest.cost} };
 }
 
+function shopPlan(build,snapshot,game,status='waiting'){
+  const main=singlePlan(build,snapshot,game,status);
+  if(!main.target||status!=='live')return main;
+  const labels={SpellDamage:'AP',Damage:'AD',Armor:'pancerz',SpellBlock:'odporność na magię',Health:'zdrowie',Mana:'mana',
+    AbilityHaste:'haste',CooldownReduction:'haste',MagicPenetration:'przebicie magiczne',ArmorPenetration:'przebicie pancerza',
+    CriticalStrike:'kryty',AttackSpeed:'szybkość ataku',LifeSteal:'kradzież życia',Movement:'ruch'};
+  const focus=id=>[...new Set((game.items.get(id)?.categories||[]).map(c=>labels[c]).filter(Boolean))];
+  const mainFocus=focus(main.target.id);
+  const later=build.items.filter(i=>!i.owned&&i.id!==main.target.id).map(i=>({...i,kind:'later'}));
+  const alternatives=(build.alternatives||[]).filter(i=>!i.owned&&i.id!==main.target.id).map(i=>({...i,kind:'alternative'}));
+  const seen=new Set([main.target.id]);
+  const options=[{...main,kind:'plan',focus:mainFocus,benefit:main.target.why,tradeoff:'Zachowujesz bieżącą kolejność buildu.'}];
+  // One later planned purchase and one compatible engine alternative, if available.
+  for(const pool of [later,alternatives]){
+    for(const candidate of pool){
+      if(seen.has(candidate.id))continue;
+      const option=singlePlan({...build,items:[candidate],boots:null,mayhem:null},snapshot,game,status);
+      if(!option.target)continue;
+      seen.add(candidate.id);
+      const candidateFocus=focus(candidate.id),delayed=mainFocus.filter(x=>!candidateFocus.includes(x));
+      options.push({...option,kind:candidate.kind,focus:candidateFocus,benefit:candidate.why||'Sytuacyjna alternatywa z Twojego buildu.',
+        tradeoff:`Odkładasz ${main.target.name}: ${main.target.why}.${delayed.length?' Później rozwiniesz: '+delayed.join(', ')+'.':''}`});
+      break;
+    }
+  }
+  return {...main,comparison:options};
+}
 module.exports = { recipeFor, shopPlan };

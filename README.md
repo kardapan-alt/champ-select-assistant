@@ -2,6 +2,18 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.23
+
+- **Porównanie zakupów:** bieżący plan, wcześniejszy zakup późniejszego itemu i sytuacyjna alternatywa. Każda ścieżka ma osobno policzone komponenty, dostępne złoto, wolne sloty, uzasadnienie i koszt odłożenia obecnego celu. Rozwinięcie „Porównaj ścieżki zakupów” nie zmienia przypiętych wyborów.
+- **Synergie augmentów:** porównanie rozdziela dopasowanie do postaci, posiadanych i planowanych itemów oraz potwierdzone interakcje par. Uwzględnia m.in. HP z Heavy Hitter/Pressure Cooker, DoT z Vulnerability, leczenie z Circle of Death i haste z One Hit Wonder. Ręczna korekta efektów lub kolidująca konwersja wyłącza odpowiednią automatyczną regułę pary. To ocena dopasowania, nie winrate ani symulacja DPS.
+- **Headliner wybierany ręcznie** w „Augmenty i ekwipunek”, również w testerze: K/DA, HEARTSTEEL, True Damage, Pentakill, Disco, Cafe Cuties, Bees, Command Line oraz „Inny / nowy”. Pentakill pozwala zapisać wzmacniane Q/W/E/R i ostrzega o konflikcie R z Back To Basics. HEARTSTEEL wyraźnie oznacza brak oceny dodatkowego modyfikatora. Dodatkowe augmenty nie są blokowane po piątym wyborze; limit 12 wpisów jest zabezpieczeniem magazynu danych, nie deklaracją limitu gry. Brakujące wartości bonusów nie są zgadywane.
+- **Po meczu:** lokalnie zapisane ostatnie 10 meczów z historią zmian ekwipunku, augmentów, Headlinera i celu zakupów. Zapis rozpoczyna się od pierwszego poprawnego odczytu, oznacza przerwy, przetrwa restart i nie zawiera nazw kont przeciwników. Historia do 200 zdarzeń na mecz; starsze są oznaczane jako pominięte. Wynik oraz ocenę przydatności porad wpisujesz samodzielnie. Zmiana ekwipunku nie jest automatycznie nazywana zakupem (może być nagrodą lub połączeniem części).
+- **Informacja o Riot** jest dostępna przyciskiem w nagłówku: wymagany tekst o braku poparcia Riot, odnośnik do zasad oraz brak deklaracji zatwierdzenia tej aplikacji. Nie jest to certyfikat zgodności ani gwarancja braku sankcji.
+
+Mechaniki Headlinerów: [Riot 26.21](https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-21-notes/) i [26.22](https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-22-notes/). [Riot General Policies](https://support-developer.riotgames.com/hc/en-us/articles/22698591841939-General-Policies) wymagają rejestracji i oceny produktu oraz nowych funkcji w Developer Portal. Ta aktualizacja nie rejestruje produktu i nie przesądza akceptacji OCR/rozpoznawania kliknięć przez Riot.
+
+Weryfikacja: `npm test`, `npm run test:shop` (pełny przepływ zakupy → edytor Headlinera → sześć augmentów → podsumowanie → zapis oceny, symulowane mecze), testy Mayhem, OCR ofert i interfejsu. Brak testu nowych funkcji w rzeczywistym meczu.
+
 ## Wersja 0.6.22
 
 - **Build reagujący na zakupy przeciwników** w Mayhem, ARAM i na Summoner’s Rift. Gotowe itemy z pancerzem przyspieszają przebicie dla AD, odporność magiczna — dla AP, kryty — Randuina na frontlinie, szybkość ataku — Frozen Heart. Jest też odpowiedź na zdrowie i kradzież życia. Reguły dobierają przedmiot do klasy postaci i respektują augmenty, wykluczające się rodziny itemów oraz własne przypięcia. Kupione przedmioty zostają w planie.

@@ -459,3 +459,33 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 .shop-icon { width:36px; height:36px; border-radius:6px; flex-shrink:0; }
 .shop-note { margin:4px 0 0; font-size:11px; color:var(--muted); }
 .shop-reaction { margin-top:5px; font-size:12px; color:#c8d8c8; }
+
+/* Comparison stays collapsed so the build remains visible at small window sizes. */
+.purchase-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
+.purchase-options article { padding:10px; border:1px solid var(--line-2); border-radius:8px; min-width:0; }
+.purchase-options article > b,.purchase-options small { display:block; }
+.purchase-options small { color:var(--gold); margin-bottom:6px; }
+.purchase-options p { font-size:12px; margin:8px 0 0; overflow-wrap:anywhere; }
+.headliner-tip { border-left:2px solid var(--gold); padding:6px 10px; margin:8px 0; font-size:12px; }
+.headliner-tip p { margin:4px 0; color:var(--muted); }
+.headliner-editor { padding:12px; border:1px solid var(--line); border-radius:8px; margin:12px 0; }
+.headliner-editor label { display:block; margin-bottom:8px; }
+.headliner-editor [hidden] { display:none; }
+.headliner-editor select { margin-left:10px; max-width:100%; }
+.augment-fit { font-size:12px; }
+.augment-fit dt { color:var(--gold); margin-top:8px; }
+.augment-fit dd { margin:2px 0; }
+#review-dialog { width:min(900px,94vw); }
+#riot-dialog { width:min(700px,94vw); }
+#review-dialog,#riot-dialog { max-height:90vh; overflow:auto; }
+#review-match { max-width:100%; }
+.review-items { display:flex; flex-wrap:wrap; gap:12px; }
+.review-items > div { display:flex; flex-direction:column; align-items:center; width:100px; text-align:center; font-size:12px; gap:5px; }
+.review-timeline { margin:20px 0; }
+.review-timeline ol { padding-left:24px; }
+.review-timeline li { padding:6px; }
+.review-timeline time { color:var(--gold); margin-right:8px; }
+.recent-match { max-width:900px; margin:18px auto; }
+.recent-match + .empty { margin-top:30px; }
+header { gap:8px; flex-wrap:wrap; }
+@media(max-width:850px) { .purchase-options { grid-template-columns:1fr; } header { padding:10px 14px; } header .brand { margin-right:auto; } }

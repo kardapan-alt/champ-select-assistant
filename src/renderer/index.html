@@ -10,13 +10,22 @@
   <header>
     <div class="brand">Champ Select <span>Assistant</span> <small id="version" class="version"></small></div>
     <div id="update" class="update" hidden></div>
+    <button id="match-history">Po meczu</button><button id="riot-info">Informacja o Riot</button>
     <button id="draft-lab" class="lab-toggle">Tester draftów</button>
     <div id="status" class="status">Uruchamianie…</div>
   </header>
   <main id="app"></main>
   <div id="toast" class="toast" hidden></div>
+  <dialog id="riot-dialog"><div class="panel-head"><h2>Informacja o Riot Games</h2><button data-close-riot>Zamknij</button></div>
+    <p>Champ Select Assistant jest niezależną aplikacją. Nie mamy potwierdzenia jej zatwierdzenia przez Riot Games. Sama obecność tej informacji nie oznacza zgody Riot ani gwarancji braku sankcji.</p>
+    <p>Riot wymaga rejestracji i oceny produktu oraz nowych funkcji w Developer Portal. Rekomendacje pozostawiają wybór graczowi; zakupy i wybór augmentu wykonujesz samodzielnie w grze.</p>
+    <p>Odczyt ekranu (OCR) i rozpoznawanie wyboru nie stanowią potwierdzenia zgodności tej aplikacji z zasadami Riot. Odczyt augmentów możesz wyłączyć w panelu Mayhem.</p>
+    <p lang="en">Champ Select Assistant isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games, and all associated properties are trademarks or registered trademarks of Riot Games, Inc.</p>
+    <p class="note">Źródło: Riot Developer Relations · General Policies</p><button id="open-riot-policy">Przeczytaj zasady na stronie Riot</button>
+  </dialog>
   <script src="mayhem.js"></script>
   <script src="lab.js"></script>
+  <script src="review.js"></script>
   <script src="app.js"></script>
   <script src="../augment-vision.js"></script>
   <script src="augment-screen.js"></script>

@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('assist', {
   onState: (cb) => ipcRenderer.on('state', (_e, state) => cb(state)),
   getState: () => ipcRenderer.invoke('get-state'),
+  matchReviews: () => ipcRenderer.invoke('match-reviews'),
+  openRiotPolicy: () => ipcRenderer.invoke('open-riot-policy'),
+  reviewFeedback: input => ipcRenderer.invoke('review-feedback',input),
   getChoices: (alias) => ipcRenderer.invoke('get-choices', alias),
   editChoices: (input) => ipcRenderer.invoke('edit-choices', input),
   draftCatalog: () => ipcRenderer.invoke('draft-catalog'),

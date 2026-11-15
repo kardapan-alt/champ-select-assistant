@@ -26,6 +26,10 @@ const {AugmentClicks}=require('./augment-clicks');
 const augmentClicks=new AugmentClicks();
 const augmentOffers=require('./augment-offers');
 const {compareAugments}=require('./mayhem-compare');
+const {headlinerView}=require('./headliners');
+const {synergies}=require('./augment-synergies');
+const {MatchReview}=require('./match-review');
+let matchReview;
 const offerTracker=new augmentOffers.OfferTracker();
 const visionCatalog=require('../data/mayhem-augments.json').augments;
 const visionConsensus = new augmentVision.Consensus();
@@ -125,6 +129,10 @@ function initStats() {
     fs.writeFileSync(file + '.tmp', JSON.stringify(value)); fs.renameSync(file + '.tmp', file);
   });
   settings = { ...settings, ...readJson(userFile('settings.json'), {}) };
+  matchReview = new MatchReview(readJson(userFile('match-review.json'), {}), value => {
+    const file=userFile('match-review.json');fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
+  });
+  if(matchReview.value.active)matchReview.gap();
   provider = new OpggProvider({
     endpoint: process.env.OPGG_ENDPOINT || undefined,
     cache: readJson(userFile('opgg-cache.json'), {}),
@@ -187,6 +195,7 @@ function requestNeeded(state, picks) {
 }
 
 function send(state) {
+  if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.list()[0]||null;
   if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
     ||state.final.build.mayhem.matchKey!==lastState?.final?.build?.mayhem?.matchKey))stopVisionWorkers();
   lastState = state;
@@ -228,7 +237,7 @@ async function tick() {
       game = null;
     }
     const phase = await lcu.get('/lol-gameflow/v1/gameflow-phase').catch(() => undefined);
-    if (phase === undefined) { lcu = null; return send({ status: 'no-client' }); }
+    if (phase === undefined) { matchReview?.gap(); lcu = null; return send({ status: 'no-client' }); }
     if(visionToken && phase!=='InProgress')stopVisionWorkers();
     // Przejścia faz są niezależne od odświeżania statystyk i zawartości draftu.
     desktop?.observePhase(phase);
@@ -252,11 +261,14 @@ async function tick() {
       if (phase === 'InProgress') await syncLiveInventory();
       if (!loading) return;
       if (loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)>=6000) {
-        loading.liveStatus='stale'; loading.liveSnapshot=null; loadingDirty=true;
+        loading.liveStatus='stale'; loading.liveSnapshot=null; loadingDirty=true;matchReview?.gap();
       }
       if (loadingDirty) { loadingDirty = false; send(buildLoadingView()); }
       return;
     }
+    if(['PreEndOfGame','EndOfGame','WaitingForStats','None','Lobby','ChampSelect','Matchmaking','ReadyCheck'].includes(phase))
+      matchReview?.finish(['PreEndOfGame','EndOfGame','WaitingForStats'].includes(phase)?'ended':'left');
+    else matchReview?.gap();
     loading = null;
     if (phase !== 'ChampSelect') {
       lastSessionJson = '';
@@ -289,6 +301,7 @@ async function tick() {
     autoImportRunes();
     autoExportItemSet();
   } catch (err) {
+    matchReview?.gap();
     send({ status: 'error', message: String(err && err.message || err) });
     lcu = null;
   } finally {
@@ -327,6 +340,7 @@ async function syncLiveInventory() {
     const status = result.status === 'live' && result.inventory ? 'live' : oldInventory ? 'stale' : 'waiting';
     if (target.liveStatus !== status) { target.liveStatus=status; loadingDirty=true; }
     const snapshot = status === 'live' ? result : null;
+    if(!snapshot)matchReview?.gap();
     if (JSON.stringify(target.liveSnapshot) !== JSON.stringify(snapshot)) loadingDirty=true;
     target.liveSnapshot=snapshot;
     if (snapshot) {
@@ -425,6 +439,7 @@ function finalWithEnemies(me) {
         if (credit > 0) next.components = { credit, remaining:Math.max(0,(game.items.get(next.id)?.priceTotal || 0)-credit) };
       }
       build.mayhem = { ...build.mayhem, matchKey:s.mayhemKey, pool:s.mayhemPool,
+        headliner:headlinerView(s.mayhem?.headliner,s.mayhem),synergies:synergies(s.mayhem),
         live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null },
         screen:{ enabled:!!visionConfig?.enabled, config:visionConfig, revision:visionRevision,
           status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off' } };
@@ -437,6 +452,8 @@ function finalWithEnemies(me) {
         build.mayhem.comparison=comparison?{...comparison,paused:!augmentClicks.active()}:null;
       }
     }
+    if(liveStatus==='live')matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
+      alias,name:game.championsById.get(me.championId)?.name||alias,mode:currentMode,snapshot:loading.liveSnapshot,build});
     return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
@@ -728,6 +745,9 @@ ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
 ipcMain.handle('draft-catalog', wrap(() => ({ ok: true, ...draftlab.catalog(game || offlineGame, baseData) })));
 ipcMain.handle('preview-draft', wrap((input) => ({ ok: true, ...draftlab.preview(input, game || offlineGame, baseData) })));
 ipcMain.handle('mayhem-catalog', wrap(pool => ({ ok:true, ...mayhem.choicesCatalog(pool === 'KIWI_JADE' ? pool : 'KIWI') })));
+ipcMain.handle('match-reviews',wrap(()=>({ok:true,matches:matchReview.list()})));
+ipcMain.handle('open-riot-policy',wrap(async()=>{await require('electron').shell.openExternal('https://support-developer.riotgames.com/hc/en-us/articles/22698591841939-General-Policies');return {ok:true};}));
+ipcMain.handle('review-feedback',wrap(input=>({ok:true,match:matchReview.feedback(input?.key,input)})));
 function mayhemContext(key) {
   if (currentMode !== 'mayhem' || lastState?.status !== 'loading-screen' || !loading) throw Error('Augmenty meczu można zmieniać po rozpoczęciu Mayhem. Do symulacji użyj testera draftów.');
   const state = loadingSelectState(loading.allies.find(p => p.isMe));

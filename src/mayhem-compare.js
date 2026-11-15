@@ -2,6 +2,8 @@ const mayhem=require('./mayhem');
 const rules=require('./mayhem-rules');
 const catalog=require('../data/mayhem-augments.json').augments;
 const byId=new Map(catalog.map(a=>[a.id,a]));
+const {synergies}=require('./augment-synergies');
+const {MAX_AUGMENTS}=require('./headliners');
 const ruleFor=a=>rules[a?.api?.replace(/^ARAM_/,'')];
 
 // This compares evidenced build fit, not win rate or overall augment power.
@@ -19,7 +21,9 @@ function compareAugments(ids,{champion={},selection={},build={},game,pool='KIWI'
     const card={id,position:index,name:a.name,english:a.english,summary:r?.summary||'Brak sprawdzonej reguły.',reasons,warnings,score:0,status:'conditional',recommended:false};
     if(!r){card.status='unknown';reasons.push('Nie mam jeszcze sprawdzonej oceny tego augmentu.');return card;}
     if((selection.augments||[]).includes(id)){card.status='selected';warnings.push('Ten augment jest już zapisany jako wybrany.');return card;}
-    if(picked.length>=5){card.status='conflict';warnings.push('Masz już zapisany komplet augmentów. Sprawdź wcześniejsze rozpoznania.');return card;}
+    if(picked.length>=MAX_AUGMENTS){card.status='conflict';warnings.push('Limit zapisu augmentów. Sprawdź wcześniejsze rozpoznania.');return card;}
+    if(selection.headliner?.id==='heartsteel')warnings.push('HEARTSTEEL: ocena nie obejmuje dodatkowego modyfikatora karty.');
+    if(selection.headliner?.id==='pentakill'&&selection.headliner.ability==='R'&&r.noUltimate){warnings.push('Wyłącza R wzmocnione przez Pentakill.');card.score-=8;}
     const noUltimate=active.some(x=>x.noUltimate),noRegen=active.some(x=>x.noRegen),attackConversion=active.map(x=>x.attackConversion).find(Boolean);
     if(noUltimate&&r.ultimate){card.status='conflict';warnings.push('Back To Basics wyłącza R, więc ten efekt ultimate nie zadziała.');return card;}
     if(r.conversion&&active.some(x=>x.conversion)){card.status='conflict';warnings.push('Koliduje z już wybraną konwersją AP/AD.');return card;}
@@ -33,7 +37,10 @@ function compareAugments(ids,{champion={},selection={},build={},game,pool='KIWI'
     const noHp=active.some(x=>x.healthConversion)||r.healthConversion;
     const affinity=nativeFit(r.effects,currentChampion,{noHp,noRegen:noRegen||r.noRegen,noUltimate:noUltimate||r.noUltimate});
     if(affinity){card.score+=4;reasons.push(affinity);}
-    const combined=mayhem.adaptation({...selection,augments:[...(selection.augments||[]),id]},champion,{enemy});
+    const combinedSelection={...selection,augments:[...(selection.augments||[]),id]};
+    card.synergies=synergies(combinedSelection).filter(pair=>pair.ids.includes(id));
+    if(card.synergies.length){card.score+=Math.min(6,card.synergies.length*3);reasons.push(...card.synergies.map(pair=>`${pair.names.join(' + ')}: ${pair.text}`));}
+    const combined=mayhem.adaptation(combinedSelection,champion,{enemy});
     const bonus=new Map();
     for(const [item,b] of combined.bonuses){
       const contributions=b.contributions.filter(c=>c.group.startsWith(`augment ${a.name}:`)||c.group===`augment ${a.name}`);
@@ -59,7 +66,8 @@ function compareAugments(ids,{champion={},selection={},build={},game,pool='KIWI'
     if(r.neutral){card.status='independent';reasons.push('Efekt działa poza dopasowaniem zakupów — brak premii w tej ocenie nie oznacza słabego augmentu.');}
     else card.status=card.score>=10?'strong':card.score>=4?'fit':'conditional';
     if(!reasons.length)reasons.push('Nie widzę wyraźnej synergii z obecnymi zakupami. Sprawdź efekt i swój sposób gry.');
-    card.reasons=reasons.slice(0,3);return card;
+    card.fit={champion:affinity||'Brak wyraźnego dopasowania do klasy postaci.',owned:ownedFits.map(itemName),planned:plannedFits.map(itemName)};
+    card.reasons=reasons;return card;
   });
   const ranked=cards.filter(c=>['strong','fit','conditional'].includes(c.status)).sort((a,b)=>b.score-a.score);
   if(ranked[0]?.score>=4&&!ranked[0].warnings.length&&(!ranked[1]||ranked[0].score-ranked[1].score>=3))ranked[0].recommended=true;
