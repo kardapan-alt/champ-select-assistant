@@ -155,5 +155,20 @@ class MayhemSession {
     const next = { ...this.value, selection:JSON.parse(JSON.stringify(selection)) }; this.save(next); this.value = next;
     return next;
   }
+  setInventory(key, inventory) {
+    if (!key || this.value?.key !== key) return false;
+    if (JSON.stringify(this.value.inventory) === JSON.stringify(inventory)) return false;
+    const next = { ...this.value, inventory };
+    this.save(next); this.value = next; return true;
+  }
+  setAutoInventory(key, enabled) {
+    if (!key || this.value?.key !== key) throw Error('Mecz się zmienił. Otwórz ekwipunek ponownie.');
+    const next = { ...this.value, autoInventory:enabled };
+    this.save(next); this.value = next;
+  }
 }
-module.exports = { choicesCatalog, validateSelection, adaptation, MayhemSession, EFFECTS, ownedAvailable, repeatItems };
+function effectiveSelection(session) {
+  if (session.autoInventory === false || !session.inventory) return session.selection;
+  return { ...session.selection, owned:session.inventory.owned, ownedBoots:session.inventory.ownedBoots };
+}
+module.exports = { choicesCatalog, validateSelection, adaptation, MayhemSession, effectiveSelection, EFFECTS, ownedAvailable, repeatItems };

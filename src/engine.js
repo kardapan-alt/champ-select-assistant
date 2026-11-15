@@ -734,14 +734,17 @@ function buildFor(alias, state, game, data) {
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
   const reservedSlots = !isAram(state.mode) && ctx.position === 'support' ? 1 : 0;
-  const fullBuild = 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
+  const soldBoots = !!state.liveInventory && augmentation?.owned.length === 6 && !augmentation.ownedBoots;
+  const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
   const isBuildItem = (id) => (exists(id) || (augmentation?.owned.includes(id) && mayhem.ownedAvailable(id,game,alias))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || augmentation.owned.includes(id));
   const purchased = (augmentation?.owned || []).filter(isBuildItem);
   const ownChoices = purchased.length ? { ...state.choices, items: [
     ...purchased.map((id, slot) => ({ id, slot })),
     ...(state.choices?.items || []).filter(p => p.slot >= purchased.length && !purchased.includes(p.id)),
   ] } : state.choices;
-  const { pins, warnings } = normalizePins(ownChoices, fullBuild, isBuildItem, augmentation?.repeat);
+  const ownedRepeats = state.liveInventory ? purchased.filter((id,i)=>purchased.indexOf(id)!==i) : [];
+  const pinRepeats = new Set([...(augmentation?.repeat || []),...ownedRepeats]);
+  const { pins, warnings } = normalizePins(ownChoices, fullBuild, isBuildItem, pinRepeats);
   const pinIds = pins.map(p => p.id);
 
   // Buty
@@ -879,10 +882,10 @@ function buildFor(alias, state, game, data) {
   return {
     alias,
     mode: state.mode || 'classic',
-    mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...augmentation.repeat],
+    mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats],
       nextItem:augmentation.upgrades.find(u=>exists(u.to)) ? { ...item(augmentation.upgrades.find(u=>exists(u.to)).to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
-    inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: bootsInQuest ? 'quest' : 'inventory' },
+    inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: soldBoots ? 'none' : bootsInQuest ? 'quest' : 'inventory' },
     quest: quest ? { ...quest, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
       : quest.extraSlot === 'control-wards' && exists(2055) ? { ...item(2055), why: 'Po queście: do 2 szt.' } : null } : null,
     name: game.championsByAlias.get(alias)?.name || alias,
@@ -936,11 +939,11 @@ function itemSetFor(build, alias, state, game, data) {
   // zakupów przed questem nie obiecywała siedmiu zwykłych slotów.
   const beforeQuest = build.inventory?.bootsSlot === 'quest' ? build.items.slice(0, 5) : build.items;
   const [first, ...rest] = beforeQuest;
-  block('Build (kolejno)', [first && first.id, build.boots.id, ...rest.map((i) => i.id)]);
+  block('Build (kolejno)', [first && first.id, build.inventory?.bootsSlot === 'none' ? null : build.boots.id, ...rest.map((i) => i.id)]);
   if (build.inventory?.bootsSlot === 'quest') block('6. item po queście bota', build.items.slice(5).map((i) => i.id));
   // Każdy powód osobnym blokiem, np. "kryty: Yasuo, Jhin".
   const reasons = new Map();
-  for (const it of [build.boots, ...build.items]) {
+  for (const it of [...(build.inventory?.bootsSlot === 'none' ? [] : [build.boots]), ...build.items]) {
     if (!it.why || ['rdzeń championa', 'standardowe'].includes(it.why)) continue;
     reasons.set(it.why, [...(reasons.get(it.why) || []), it.id]);
   }

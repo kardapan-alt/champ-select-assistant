@@ -420,3 +420,9 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 .aram-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:15px 0 25px; }
 .aram-roster > div { display:flex; flex-direction:column; gap:8px; padding:14px; background:#171e29; border-radius:9px; }
 @media(max-width:850px) { .augment-results { grid-template-columns:1fr; } .aram-roster { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+:root .live-inventory-status { font-size:12px; margin:6px 0; }
+.live-items { display:flex; flex-wrap:wrap; gap:6px; }
+.live-items .tag { display:inline-flex; align-items:center; gap:5px; }
+.live-items img { width:24px; height:24px; border-radius:4px; }
+.manual-inventory { border:0; padding:0; margin:8px 0 0; min-width:0; }
+.manual-inventory:disabled { opacity:.5; }

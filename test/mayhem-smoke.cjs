@@ -15,6 +15,10 @@ process.env.PORT='0'; process.env.STEP='8';
 const server = require('../mock/mock-lcu');
 const { LcuClient } = require('../src/lcu');
 const originalGet=LcuClient.prototype.get, originalRequest=LcuClient.prototype.request;
+const {LiveClient,inventoryOf}=require('../src/liveclient');
+const catalogGame=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
+let liveResult={status:'waiting'};
+LiveClient.prototype.inventory=async()=>liveResult;
 let mode='KIWI', gameId=777, runeWrites=0, win;
 LcuClient.prototype.get=async function(url) {
   if(url.endsWith('/items.json')) return require('../data/catalog.json').items;
@@ -53,6 +57,7 @@ server.once('listening',async()=>{
       await waitFor(()=>evaluate('!!document.querySelector("#mayhem-dialog[open]")'),'Edytor nie został otwarty');
     };
     await open();
+    await evaluate('document.querySelector("[name=auto-inventory]").click()');
     await evaluate(`document.getElementById('augment-search').value='Apex Inventor';document.getElementById('augment-search').dispatchEvent(new Event('input'));document.querySelector('[data-augment-id="1002"]').click();document.querySelector('[name="owned-0"]').value='6655';document.querySelector('[name="owned-boots"]').value='3020';`);
     await capture('mayhem-editor');
     assert.equal(await evaluate('document.getElementById("mayhem-dialog").open'),true,'Odświeżenie zamknęło edytor tego samego meczu');
@@ -83,6 +88,24 @@ server.once('listening',async()=>{
     assert.deepEqual(current.final.build.mayhem.selection.effects,{});
     win.setSize(820,640); await capture('mayhem-narrow');
     assert.ok(await evaluate('document.documentElement.scrollWidth <= innerWidth'),'Poziomy overflow');
+    // Otwarty formularz nie może przywrócić ekwipunku sprzed zakupu.
+    liveResult={status:'live',inventory:inventoryOf([{itemID:3040,slot:0},{itemID:3020,slot:1},{itemID:1058,slot:2}],catalogGame,'Ahri')};
+    await open();await evaluate('document.querySelector("[name=auto-inventory]").click();document.querySelector("#mayhem-form").requestSubmit()');
+    await waitFor(async()=> (await state()).final.build.items.some(i=>i.id===3040&&i.owned),'Odczyt nie przypiął automatycznie Serapha');
+    assert.deepEqual((await state()).final.build.mayhem.selection.augments,[1002,iceColdId]);
+    await open();
+    liveResult={status:'live',inventory:inventoryOf([{itemID:3157,slot:0},{itemID:3020,slot:1}],catalogGame,'Ahri')};
+    await waitFor(async()=> (await state()).final.build.items.some(i=>i.id===3157&&i.owned),'Zakup/sprzedaż nie odświeżyły buildu');
+    await evaluate('document.querySelector("#mayhem-form").requestSubmit()');
+    assert.deepEqual((await state()).final.build.mayhem.selection.owned,[3157]);
+    liveResult={status:'waiting'};
+    await waitFor(async()=> (await state()).final.build.mayhem.live.status==='stale','Brak oznaczenia przerwy odczytu');
+    assert.deepEqual((await state()).final.build.mayhem.selection.owned,[3157]);
+    liveResult={status:'live',inventory:inventoryOf([],catalogGame,'Ahri')};
+    await waitFor(async()=> !(await state()).final.build.mayhem.selection.owned.length,'Sprzedaż wszystkich itemów nie wyczyściła odczytu');
+    await capture('mayhem-live-inventory');
+    liveResult={status:'waiting'};
+    console.log('PASS: automatyczny ekwipunek, zakup, sprzedaż, pusty odczyt, przerwa połączenia, zachowanie augmentów i ochrona przed starym formularzem.');
     console.log('PASS: start podczas gry, polsko-angielski edytor, zapis i retry, zachowanie itemów, następny zakup, szeroki i wąski ekran.');
     await step(7);
     await waitFor(async()=> (await state())?.status==='champselect','Brak champ select');

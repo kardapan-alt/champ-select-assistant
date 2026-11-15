@@ -15,6 +15,8 @@ const { roleQuestsEnabled } = require('./rolequests');
 const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
 const draftlab = require('./draftlab');
 const mayhem = require('./mayhem');
+const { LiveClient, componentCredit } = require('./liveclient');
+const liveClient = new LiveClient();
 const { isAram, modeFromFlow } = require('./modes');
 const offlineGame = require('./gamedata').buildGameData(require('../data/catalog.json'));
 const choiceWrites = serialQueue();
@@ -229,6 +231,8 @@ async function tick() {
         loadingDirty = true;
         autoExportItemSetForLoading();
       }
+      if (currentMode === 'mayhem' && phase === 'InProgress') await syncLiveInventory();
+      if (!loading) return;
       if (loadingDirty) { loadingDirty = false; send(buildLoadingView()); }
       return;
     }
@@ -277,6 +281,30 @@ let loading = null;
 let loadingDirty = false;
 const playerKey = (p) => `${p.gameName}#${p.tagLine}`;
 
+async function syncLiveInventory() {
+  const target = loading, me = target.allies.find(p=>p.isMe), state = loadingSelectState(me);
+  if (!state || Date.now() < (target.nextLivePoll || 0)) return;
+  target.nextLivePoll = Date.now()+2000;
+  const alias = game.championsById.get(me.championId)?.alias;
+  let result;
+  try { result = await liveClient.inventory(me,alias,state.mayhemPool,game); }
+  catch { result = { status:'waiting' }; }
+  // Żądanie może skończyć się już po zamknięciu meczu. Nigdy nie przenosimy
+  // ekwipunku do kolejnego meczu ani do testera draftów.
+  const [phase, flow] = await Promise.all([
+    lcu.get('/lol-gameflow/v1/gameflow-phase').catch(()=>null), lcu.get('/lol-gameflow/v1/session').catch(()=>null),
+  ]);
+  if (loading !== target || phase !== 'InProgress' || mayhemSession.value?.key !== state.mayhemKey) return;
+  if (!flow?.gameData) return;
+  if (target.gameId && String(flow.gameData.gameId) !== String(target.gameId)) { loading=null; return; }
+  await choiceWrites(async () => {
+    if (loading !== target || mayhemSession.value?.key !== state.mayhemKey) return;
+    const status = result.status === 'live' ? 'live' : mayhemSession.value.inventory ? 'stale' : 'waiting';
+    if (target.liveStatus !== status) { target.liveStatus=status; loadingDirty=true; }
+    if (result.inventory && mayhemSession.setInventory(state.mayhemKey,result.inventory)) loadingDirty=true;
+  });
+}
+
 function fetchPlayerStats(target) {
   if (!settings.stats || isAram(currentMode)) return;
   const players = [...target.allies, ...target.enemies].filter((p) => p.gameName && p.tagLine);
@@ -323,7 +351,7 @@ function buildLoadingView() {
     allies: loading.allies.map(card),
     enemies,
     statsEnabled: settings.stats,
-    statsStatus: aram ? { ok:true, message:currentMode === 'mayhem' ? 'Mayhem · augmenty i posiadane przedmioty zaznaczasz ręcznie' : 'ARAM · bez statystyk soloQ' } : settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
+    statsStatus: aram ? { ok:true, message:currentMode === 'mayhem' ? 'Mayhem · build pod augmenty i ekwipunek' : 'ARAM · bez statystyk soloQ' } : settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
   };
 }
 
@@ -341,7 +369,9 @@ function loadingSelectState(me) {
   const session = currentMode === 'mayhem' && alias ? mayhemSession.ensure(loading.gameId || loading.sessionId, alias, currentMayhemPool) : null;
   return { ...base, me:{ ...base.me, ...me }, allies:loading.allies, mode:currentMode, roleQuestsEnabled:currentRoleQuests,
     enemies: loading.enemies.map((p) => ({ championId: p.championId })),
-    mayhem:session?.selection, mayhemKey:session?.key, mayhemPool:currentMayhemPool };
+    mayhem:session ? mayhem.effectiveSelection(session) : undefined,
+    liveInventory:session?.autoInventory !== false ? session?.inventory : null,
+    mayhemKey:session?.key, mayhemPool:currentMayhemPool };
 }
 function finalWithEnemies(me) {
   const s = loadingSelectState(me);
@@ -350,7 +380,16 @@ function finalWithEnemies(me) {
   try {
     lastSelectState = s;
     const build = { ...buildFor(alias, s), provisional:false };
-    if (build.mayhem) build.mayhem = { ...build.mayhem, matchKey:s.mayhemKey, pool:s.mayhemPool };
+    if (build.mayhem) {
+      const auto = mayhemSession.value?.autoInventory !== false;
+      const next = build.mayhem.nextItem;
+      if (next && s.liveInventory) {
+        const credit = componentCredit(next.id,s.liveInventory,game);
+        if (credit > 0) next.components = { credit, remaining:Math.max(0,(game.items.get(next.id)?.priceTotal || 0)-credit) };
+      }
+      build.mayhem = { ...build.mayhem, matchKey:s.mayhemKey, pool:s.mayhemPool,
+        live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null } };
+    }
     return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
@@ -650,14 +689,19 @@ function mayhemContext(key) {
 }
 ipcMain.handle('get-mayhem', wrap(() => {
   const state = mayhemContext(), alias = game.championsById.get(state.me.championId).alias;
-  return { ok:true, matchKey:state.mayhemKey, alias, selection:state.mayhem,
+  return { ok:true, matchKey:state.mayhemKey, alias, selection:mayhemSession.value.selection,
+    autoInventory:mayhemSession.value.autoInventory !== false,
     ...mayhem.choicesCatalog(state.mayhemPool), items:draftlab.catalog(game,baseData,state,alias) };
 }));
 ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
   if (!input?.matchKey) throw Error('Brak identyfikatora meczu. Otwórz augmenty ponownie.');
   const state = mayhemContext(input.matchKey), alias = game.championsById.get(state.me.championId).alias;
-  const selection = mayhem.validateSelection(input.selection,game,alias,state.mayhemPool);
+  if (input.autoInventory !== undefined && typeof input.autoInventory !== 'boolean') throw Error('Nieprawidłowy tryb odczytu ekwipunku.');
+  const automatic = input.autoInventory ?? mayhemSession.value.autoInventory !== false;
+  // Formularz otwarty przed zakupem nie może cofnąć świeżego odczytu z gry.
+  const selection = mayhem.validateSelection(automatic ? { ...input.selection, owned:[], ownedBoots:null } : input.selection,game,alias,state.mayhemPool);
   mayhemSession.set(state.mayhemKey,selection);
+  mayhemSession.setAutoInventory(state.mayhemKey,automatic);
   loadingDirty = true; send(buildLoadingView());
   return { ok:true };
 })));

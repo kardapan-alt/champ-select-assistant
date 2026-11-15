@@ -178,7 +178,7 @@ const whyTile = (i) => itemTile(i, `${i.pinControl ? `<button class="item-pin ${
 const buildTiles = (b) => {
   const [first, ...rest] = b.items;
   const outside = b.inventory?.bootsSlot === 'quest';
-  const ordered = outside ? b.items : [first, b.boots, ...rest].filter(Boolean);
+  const ordered = outside || b.inventory?.bootsSlot === 'none' ? b.items : [first, b.boots, ...rest].filter(Boolean);
   const main = ordered.map((it, i) => whyTile({ ...it, pinControl: !it.owned, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1 })).join('');
   const reserved = b.reservedSlot ? `<div class="item reserved-item"><div class="reserved-icon">◈</div><div class="item-name">${esc(b.reservedSlot)}</div><div class="why">Zostaje w ekwipunku</div></div>` : '';
   const side = b.quest?.slotItem;

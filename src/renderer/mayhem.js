@@ -2,9 +2,14 @@ function mayhemPanel(b) {
   if (!b?.mayhem) return '';
   const m = b.mayhem, canEdit = labActive || !!m.matchKey;
   const selected = m.hints || [];
+  const live = m.live;
+  const liveText = { live:'Ekwipunek wykrywany automatycznie', waiting:'Czekam na dane ekwipunku z gry', stale:'Brak połączenia z grą — ostatni odczyt ekwipunku', manual:'Ekwipunek ustawiany ręcznie' };
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
+    ${live ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)} · augmenty wybierasz ręcznie</p>` : ''}
     <div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Augmenty zaznaczysz ręcznie po rozpoczęciu gry.</span>'}</div>
-    ${m.nextItem && selected.length ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b></p>` : ''}
+    ${m.nextItem ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b>${m.nextItem.components ? ` · masz komponenty za ${m.nextItem.components.credit} złota, do ukończenia ${m.nextItem.components.remaining}` : ''}</p>` : ''}
+    ${live?.auto && live.inventory ? disclosure('live-inventory', 'Odczytany ekwipunek · '+live.inventory.items.length+' zajętych slotów', live.inventory.items.length ? `<div class="live-items">${live.inventory.items.map(i=>`<span class="tag" title="${esc(i.name)}">${i.icon?`<img src="${esc(i.icon)}" alt="">`:''}${esc(i.name)}${i.count>1?' ×'+i.count:''}${i.kind==='component'?' · komponent':i.kind==='unknown'?' · poza katalogiem':''}</span>`).join('')}</div><p class="note">Gotowe przedmioty zostają w buildzie. Komponenty i mikstury są śledzone osobno.</p>` : '<p class="note">Ekwipunek jest pusty.</p>') : ''}
+    ${live?.auto && live.inventory?.items.some(i=>i.kind==='unknown') ? '<p class="note">Przedmiot spoza katalogu: widoczny w odczycie, ale jeszcze nieuwzględniony w planie zakupów.</p>' : ''}
     ${m.unknown.length ? `<p class="note">${m.unknown.length} augmentów bez reguły zakupów — możesz wskazać ich efekt w edytorze.</p>` : ''}
     ${selected.length ? disclosure('augment-reasons', 'Wpływ augmentów na zakupy', selected.map(a => `<p><b>${esc(a.name)}:</b> ${esc(a.summary)}${!a.supported ? ' Automatyczna kolejność pozostaje bez zmian dla tego augmentu.' : ''}</p>`).join('')) : ''}
   </section>`;
@@ -28,10 +33,11 @@ async function openMayhemEditor() {
     <p class="muted">${wasLab ? 'Symulacja — wybory nie zmienią trwającego meczu.' : 'Wybory dotyczą tylko tego meczu. Zaznacz augmenty otrzymane w grze.'} Wpływ na zakupy dobieram automatycznie.</p>
     <div id="mayhem-selected"></div><label class="augment-search">Szukaj augmentu po polskiej lub angielskiej nazwie<input type="search" id="augment-search" placeholder="np. Goliath, Apex Inventor…" autocomplete="off"></label>
     <div id="augment-results" class="augment-results"></div>
-    <details class="owned-editor"><summary>Już kupione przedmioty · ${selection.owned.length} + buty</summary>
-      <p class="muted">Zaznacz ukończone przedmioty, bez komponentów. Zostaną w buildzie; pozostałe miejsca dopasują się do augmentów. Po sprzedaży lub połączeniu w nagrodę zaktualizuj tę listę.</p>
+    <details class="owned-editor"><summary>Odczyt ekwipunku${wasLab ? ' · symulacja' : ''}</summary>
+      ${wasLab ? '' : `<label><input type="checkbox" name="auto-inventory" ${context.autoInventory?'checked':''}> Automatycznie wykrywaj zakupy, sprzedaż i ulepszenia</label><p class="note">Odczyt działa w trakcie meczu. Wyłącz go, jeśli chcesz podać ekwipunek ręcznie. Augmenty i ukończenie ich zadań zaznaczasz powyżej.</p>`}
+      <fieldset class="manual-inventory" ${!wasLab && context.autoInventory?'disabled':''}><p class="muted">Zaznacz ukończone przedmioty, bez komponentów. Zostaną w buildzie; pozostałe miejsca dopasują się do augmentów.</p>
       <div class="choice-grid">${Array.from({length:5},(_,i) => `<label>Posiadany przedmiot ${i+1}<select name="owned-${i}">${options(context.items.ownedItems || context.items.items,selection.owned[i])}</select></label>`).join('')}
-      <label>Posiadane buty<select name="owned-boots">${options(context.items.ownedBoots || context.items.boots,selection.ownedBoots)}</select></label></div></details>
+      <label>Posiadane buty<select name="owned-boots">${options(context.items.ownedBoots || context.items.boots,selection.ownedBoots)}</select></label></div></fieldset></details>
     <p class="form-error" role="alert"></p><div class="actions"><button class="primary" type="submit">Zastosuj i przelicz build</button><span class="muted">${context.augments.length} augmentów · katalog ${esc(context.fetched)}</span></div></form>`;
   const error = message => { dialog.querySelector('.form-error').textContent=message; };
   const normalize = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/ł/g,'l');
@@ -54,6 +60,7 @@ async function openMayhemEditor() {
   dialog.querySelector('[data-mayhem-cancel]').onclick=()=>dialog.close();
   dialog.onchange=e=>{
     const t=e.target;
+    if(t.name==='auto-inventory')dialog.querySelector('.manual-inventory').disabled=t.checked;
     if(t.dataset.augmentId){
       const id=Number(t.dataset.augmentId);
       if(t.checked && selection.augments.length>=5){t.checked=false;error('Możesz zaznaczyć maksymalnie 5 augmentów.');return;}
@@ -84,7 +91,7 @@ async function openMayhemEditor() {
         if(!result.ok)throw Error(result.error);
         labInput=next;labView=result;renderLabResults();
       }else{
-        const result=await window.assist.setMayhem({matchKey:context.matchKey,selection});if(!result.ok)throw Error(result.error);
+        const result=await window.assist.setMayhem({matchKey:context.matchKey,selection,autoInventory:values.has('auto-inventory')});if(!result.ok)throw Error(result.error);
       }
       dialog.close();toast('Build dopasowany do augmentów i posiadanych przedmiotów');
     }catch(err){error(err.message);}finally{button.disabled=false;}
