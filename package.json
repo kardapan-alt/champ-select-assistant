@@ -1,6 +1,6 @@
 {
   "name": "champ-select-assistant",
-  "version": "0.6.21",
+  "version": "0.6.22",
   "description": "Asystent wyboru postaci do League of Legends",
   "main": "src/main.js",
   "scripts": {
@@ -15,7 +15,8 @@
     "test:mayhem": "electron test/mayhem-smoke.cjs",
     "test:ocr": "electron test/ocr-smoke.cjs",
     "test:screen": "electron test/augment-screen-smoke.cjs",
-    "test:offers": "electron test/augment-offers-smoke.cjs"
+    "test:offers": "electron test/augment-offers-smoke.cjs",
+    "test:shop": "electron test/live-shop-smoke.cjs"
   },
   "keywords": [],
   "author": "",

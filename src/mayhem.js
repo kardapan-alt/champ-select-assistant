@@ -19,11 +19,12 @@ const RULES = require('./mayhem-rules');
 const ruleFor = augment => RULES[augment.api.replace(/^ARAM_/, '')];
 const repeatItems = augments => new Set((augments || []).flatMap(id=>ruleFor(byId.get(Number(id)) || {api:''})?.repeat || []));
 // Posiadany przedmiot może być nagrodą albo automatycznym ulepszeniem, którego nie da się kupić.
-function ownedAvailable(id, game, alias = '') {
+function ownedAvailable(id, game, alias = '', mode = 'mayhem') {
   const item=game.items.get(Number(id));
   if (!item || (item.requiredChampion && item.requiredChampion!==alias) || item.requiredAlly) return false;
-  if (Array.isArray(item.maps) && item.maps.length && !item.maps.map(Number).includes(12)) return false;
-  if (item.maps && !Array.isArray(item.maps) && item.maps['12']===false) return false;
+  const map = ['aram','mayhem'].includes(mode) ? 12 : 11;
+  if (Array.isArray(item.maps) && item.maps.length && !item.maps.map(Number).includes(map)) return false;
+  if (item.maps && !Array.isArray(item.maps) && item.maps[String(map)]===false) return false;
   return !(item.categories || []).some(c=>['Consumable','Trinket','Lane'].includes(c))
     && (isBootItem(id,game) || item.priceTotal>=1500 || [773041,773513,773514,773515,773516].includes(Number(id)));
 }

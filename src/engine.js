@@ -2,6 +2,7 @@
 // Czyste funkcje, bez Electrona i sieci, żeby dało się je testować.
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
+const { liveSituations, mergeSituations } = require('./live-build');
 const { itemAvailable, itemsCompatible } = require('./itemrules');
 const { roleQuestFor, BOOT_UPGRADES, SUPPORT_ITEMS, baseBoots, isBootItem } = require('./rolequests');
 const { normalizePins, validateRunes } = require('./choices');
@@ -734,10 +735,12 @@ function buildFor(alias, state, game, data) {
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
   const reservedSlots = !isAram(state.mode) && ctx.position === 'support' ? 1 : 0;
-  const soldBoots = !!state.liveInventory && augmentation?.owned.length === 6 && !augmentation.ownedBoots;
+  const owned = state.liveInventory?.owned || augmentation?.owned || [];
+  const ownedBoots = state.liveInventory?.ownedBoots || augmentation?.ownedBoots;
+  const soldBoots = !!state.liveInventory && owned.length === 6 && !ownedBoots;
   const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
-  const isBuildItem = (id) => (exists(id) || (augmentation?.owned.includes(id) && mayhem.ownedAvailable(id,game,alias))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || augmentation.owned.includes(id));
-  const purchased = (augmentation?.owned || []).filter(isBuildItem);
+  const isBuildItem = (id) => (exists(id) || (owned.includes(id) && mayhem.ownedAvailable(id,game,alias,state.mode))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || owned.includes(id));
+  const purchased = owned.filter(isBuildItem);
   const ownChoices = purchased.length ? { ...state.choices, items: [
     ...purchased.map((id, slot) => ({ id, slot })),
     ...(state.choices?.items || []).filter(p => p.slot >= purchased.length && !purchased.includes(p.id)),
@@ -758,7 +761,7 @@ function buildFor(alias, state, game, data) {
   if (!exists(boots)) boots = [tpl.boots, data.boots.vsAd, data.boots.vsAp].find(exists);
   const bootsPinned = !!state.choices?.boots && exists(state.choices.boots) && isBootItem(state.choices.boots, game);
   if (bootsPinned) { boots = baseBoots(state.choices.boots); bootsWhy = 'Twój przypięty wybór'; }
-  if (augmentation?.ownedBoots && mayhem.ownedAvailable(augmentation.ownedBoots,game,alias)) { boots = augmentation.ownedBoots; bootsWhy = 'Już posiadane buty'; }
+  if (ownedBoots && mayhem.ownedAvailable(ownedBoots,game,alias,state.mode)) { boots = ownedBoots; bootsWhy = 'Już posiadane buty'; }
   const core = (champ.items || tpl.items).filter(isBuildItem).filter((id, i, all) => itemsCompatible(id, all.slice(0, i)));
   const pooledTags = (id) => (Object.values(data.itemPools || {}).flat().find((it) => it.id === id) || {}).tags || {};
   const lateStats = (champ.lateItems || []).filter((it) => isBuildItem(it.id));
@@ -772,16 +775,18 @@ function buildFor(alias, state, game, data) {
     return a ? { alias: a, championId: e.championId, name: nameOf(a, game), traits: champInfo(a, game, data).traits || [] } : null;
   }).filter(Boolean);
   // Na ARAM-ie nie ma wardów ani Oracle Lens, więc niewidzialność nie ma odpowiedzi w sklepie.
-  const situations = detectSituations(enemyList, itemPoolKey(champ), exists).filter((s) => !(isAram(state.mode) && s.vision));
+  const live = liveSituations(state.liveEnemies,itemPoolKey(champ),game,exists);
+  const situations = mergeSituations(detectSituations(enemyList, itemPoolKey(champ), exists),live).filter((s) => !(isAram(state.mode) && s.vision));
   // Mortal Reminder odpowiada równocześnie na leczenie i pancerz. Nie dodajemy
   // obok niego drugiego, niekompatybilnego ulepszenia Last Whisper.
   const healing = situations.find((s) => s.key === 'heal' && s.level === 2);
   const tanks = situations.find((s) => s.key === 'tanks');
   if (itemPoolKey(champ) === 'adc' && healing?.myItem === 3033 && tanks) tanks.myItem = 3033;
+  if (itemPoolKey(champ) === 'adc' && healing?.myItem === 3033) situations.filter(s=>s.key==='live-armor').forEach(s=>{s.myItem=3033;});
   const urgent = situations.filter((s) => s.level === 2 && s.myItem);
   // Zachowujemy pierwszy zakup definiujący championa. Mocne zagrożenia mogą
   // przesunąć drugi i trzeci przedmiot rdzenia, również przy danych OP.GG.
-  const fixed = core.filter(id => compatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active ? 0 : urgent.length ? 1 : FIXED_CORE));
+  const fixed = core.filter(id => compatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active || (purchased.length && live.length) ? 0 : urgent.length ? 1 : FIXED_CORE));
   const situationByTag = new Map();
   const situational = new Map();
   let forced = 0;
@@ -790,7 +795,7 @@ function buildFor(alias, state, game, data) {
     const tag = `s:${s.key}`;
     const strong = s.level === 2 && forced < 2;
     if (strong) forced += 1;
-    threats[tag] = strong ? 7 + Math.min(s.weight, 4) * 0.4 : 1.2;
+    threats[tag] = strong ? (s.live ? 15 : 7) + Math.min(s.weight, 4) * 0.4 : 1.2;
     situationByTag.set(tag, s);
     const prev = situational.get(s.myItem);
     situational.set(s.myItem, { id: s.myItem, tags: { ...(prev ? prev.tags : pooledTags(s.myItem)), [tag]: 1 } });
@@ -885,6 +890,7 @@ function buildFor(alias, state, game, data) {
     mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats],
       nextItem:augmentation.upgrades.find(u=>exists(u.to)) ? { ...item(augmentation.upgrades.find(u=>exists(u.to)).to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
+    liveAdaptation:live.map(s=>({ text:s.text, item:s.myItem, evidence:s.evidence })),
     inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: soldBoots ? 'none' : bootsInQuest ? 'quest' : 'inventory' },
     quest: quest ? { ...quest, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
       : quest.extraSlot === 'control-wards' && exists(2055) ? { ...item(2055), why: 'Po queście: do 2 szt.' } : null } : null,
@@ -896,7 +902,7 @@ function buildFor(alias, state, game, data) {
     spellsWhy: spells.why,
     reservedSlot: reservedSlots ? 'Przedmiot wsparcia' : null,
     boots: augmentation?.freeBoots && !augmentation.ownedBoots ? { id:null,name:'Buty z augmentu',icon:'',why:'Darmowe — zaznacz otrzymane',owned:true,slot:'boots' }
-      : { ...item(boots), why: bootsWhy, pinned: bootsPinned, owned:!!augmentation?.ownedBoots, slot: 'boots' },
+      : { ...item(boots), why: bootsWhy, pinned: bootsPinned, owned:!!ownedBoots, slot: 'boots' },
     items: finalItems,
     alternatives: alternatives.map((a) => ({ ...item(a.id), why: reasonOf(Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]) })),
     situations: situations.map((s) => situationView(s, game, finalIds)),

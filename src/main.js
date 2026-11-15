@@ -16,6 +16,7 @@ const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, vali
 const draftlab = require('./draftlab');
 const mayhem = require('./mayhem');
 const { LiveClient, componentCredit } = require('./liveclient');
+const { shopPlan } = require('./shop-plan');
 const liveClient = new LiveClient();
 const augmentVision = require('./augment-vision');
 const augmentScreen = require('./augment-screen');
@@ -248,8 +249,11 @@ async function tick() {
         loadingDirty = true;
         autoExportItemSetForLoading();
       }
-      if (currentMode === 'mayhem' && phase === 'InProgress') await syncLiveInventory();
+      if (phase === 'InProgress') await syncLiveInventory();
       if (!loading) return;
+      if (loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)>=6000) {
+        loading.liveStatus='stale'; loading.liveSnapshot=null; loadingDirty=true;
+      }
       if (loadingDirty) { loadingDirty = false; send(buildLoadingView()); }
       return;
     }
@@ -304,21 +308,32 @@ async function syncLiveInventory() {
   target.nextLivePoll = Date.now()+2000;
   const alias = game.championsById.get(me.championId)?.alias;
   let result;
-  try { result = await liveClient.inventory(me,alias,state.mayhemPool,game); }
+  const pool = currentMode === 'mayhem' ? state.mayhemPool : currentMode === 'aram' ? 'ARAM' : 'CLASSIC';
+  try { result = await liveClient.inventory(me,alias,pool,game,{ mode:currentMode, enemies:target.enemies,
+    sideBoots:currentRoleQuests && ['bottom','adc'].includes(me.position) }); }
   catch { result = { status:'waiting' }; }
   // Żądanie może skończyć się już po zamknięciu meczu. Nigdy nie przenosimy
   // ekwipunku do kolejnego meczu ani do testera draftów.
   const [phase, flow] = await Promise.all([
     lcu.get('/lol-gameflow/v1/gameflow-phase').catch(()=>null), lcu.get('/lol-gameflow/v1/session').catch(()=>null),
   ]);
-  if (loading !== target || phase !== 'InProgress' || mayhemSession.value?.key !== state.mayhemKey) return;
+  const sameSession = () => loading === target && (currentMode !== 'mayhem' || mayhemSession.value?.key === state.mayhemKey);
+  if (!sameSession() || phase !== 'InProgress') return;
   if (!flow?.gameData) return;
   if (target.gameId && String(flow.gameData.gameId) !== String(target.gameId)) { loading=null; return; }
   await choiceWrites(async () => {
-    if (loading !== target || mayhemSession.value?.key !== state.mayhemKey) return;
-    const status = result.status === 'live' ? 'live' : mayhemSession.value.inventory ? 'stale' : 'waiting';
+    if (!sameSession()) return;
+    const oldInventory = currentMode === 'mayhem' ? mayhemSession.value.inventory : target.liveInventory;
+    const status = result.status === 'live' && result.inventory ? 'live' : oldInventory ? 'stale' : 'waiting';
     if (target.liveStatus !== status) { target.liveStatus=status; loadingDirty=true; }
-    if (result.inventory && mayhemSession.setInventory(state.mayhemKey,result.inventory)) loadingDirty=true;
+    const snapshot = status === 'live' ? result : null;
+    if (JSON.stringify(target.liveSnapshot) !== JSON.stringify(snapshot)) loadingDirty=true;
+    target.liveSnapshot=snapshot;
+    if (snapshot) {
+      target.liveAt=Date.now();
+      if (currentMode === 'mayhem') { if (mayhemSession.setInventory(state.mayhemKey,result.inventory)) loadingDirty=true; }
+      else { target.liveInventory=result.inventory; }
+    }
   });
 }
 
@@ -387,7 +402,8 @@ function loadingSelectState(me) {
   return { ...base, me:{ ...base.me, ...me }, allies:loading.allies, mode:currentMode, roleQuestsEnabled:currentRoleQuests,
     enemies: loading.enemies.map((p) => ({ championId: p.championId })),
     mayhem:session ? mayhem.effectiveSelection(session) : undefined,
-    liveInventory:session?.autoInventory !== false ? session?.inventory : null,
+    liveInventory:session ? session.autoInventory !== false ? session.inventory : null : loading.liveInventory,
+    liveEnemies:loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)<6000 ? loading.liveSnapshot?.enemies : null,
     mayhemKey:session?.key, mayhemPool:currentMayhemPool };
 }
 function finalWithEnemies(me) {
@@ -397,6 +413,10 @@ function finalWithEnemies(me) {
   try {
     lastSelectState = s;
     const build = { ...buildFor(alias, s), provisional:false };
+    const liveStatus = currentMode === 'mayhem' && mayhemSession.value?.autoInventory === false ? 'manual'
+      : loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)>=6000 ? 'stale' : loading.liveStatus || 'waiting';
+    build.shop = { ...shopPlan(build,loading.liveSnapshot,game,liveStatus),
+      enemies:liveStatus === 'live' && Array.isArray(s.liveEnemies) ? 'live' : 'waiting' };
     if (build.mayhem) {
       const auto = mayhemSession.value?.autoInventory !== false;
       const next = build.mayhem.nextItem;

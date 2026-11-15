@@ -27,19 +27,21 @@ function getJson(path) {
 const riotId = p => p?.riotId || (p?.riotIdGameName && p?.riotIdTagLine ? `${p.riotIdGameName}#${p.riotIdTagLine}` : p?.summonerName || '');
 const sameId = (a,b) => !!a && !!b && a.normalize('NFC').toLowerCase() === b.normalize('NFC').toLowerCase();
 
-function inventoryOf(items, game, alias) {
+function inventoryOf(items, game, alias, mode = 'mayhem', sideBoots = false) {
   if (!Array.isArray(items) || items.length > 12) return null;
   const slots = new Set(), inventory = [];
   for (const raw of items) {
     if (!raw || !Number.isInteger(raw.itemID) || raw.itemID < 0 || !Number.isInteger(raw.slot) || raw.slot < 0 || raw.slot > 11) return null;
     if (slots.has(raw.slot)) return null;
     slots.add(raw.slot);
-    if (!raw.itemID || raw.slot > 5) continue; // Mayhem: sześć slotów, bez trinketu.
+    // Dodatkowe buty uwzględniamy dopiero, gdy API faktycznie pokazuje je
+    // poza sześcioma zwykłymi slotami. Slot 6 jest zarezerwowany dla trinketu.
+    if (!raw.itemID || (raw.slot > 5 && !(sideBoots && raw.slot > 6 && isBootItem(raw.itemID,game)))) continue;
     const id = raw.itemID, item = game.items.get(id);
     const consumable = raw.consumable === true || item?.categories?.includes('Consumable');
     const boots = isBootItem(id,game);
-    const upgrades = (item?.to || []).filter(next => itemAvailable(next,game,'mayhem',alias));
-    const finished = !consumable && ownedAvailable(id,game,alias)
+    const upgrades = (item?.to || []).filter(next => itemAvailable(next,game,mode,alias));
+    const finished = !consumable && ownedAvailable(id,game,alias,mode)
       && (!upgrades.length || [773041,773513,773514,773515].includes(id) || (boots && ![1001,2422].includes(id)));
     inventory.push({ id, slot:raw.slot, name:item?.name || String(raw.displayName || `Przedmiot ${id}`).slice(0,100),
       icon:item?.iconPath ? `lcuasset://lcu${item.iconPath.toLowerCase()}` : '',
@@ -53,12 +55,12 @@ function inventoryOf(items, game, alias) {
 
 class LiveClient {
   constructor(read = getJson) { this.read = read; }
-  async inventory(me, alias, pool, game) {
+  async inventory(me, alias, pool, game, options = {}) {
     // Porównujemy aktywnego gracza z listą graczy. Nie wybieramy pierwszej
     // postaci o pasującej nazwie (lustra są możliwe, np. w grach niestandardowych).
-    const [active, players, stats] = await Promise.all([
-      this.read('/liveclientdata/activeplayer'), this.read('/liveclientdata/playerlist'), this.read('/liveclientdata/gamestats'),
-    ]);
+    // Jeden spójny odczyt: po zakupie nie łączymy starego złota z nowymi itemami.
+    const snapshot = await this.read('/liveclientdata/allgamedata');
+    const { activePlayer:active, allPlayers:players, gameData:stats } = snapshot || {};
     if (!active || !Array.isArray(players) || !stats) return { status:'waiting' };
     if (stats.gameMode !== pool || !Number.isFinite(stats.gameTime) || stats.gameTime < 0) return { status:'mismatch' };
     const expected = me?.gameName && me?.tagLine ? `${me.gameName}#${me.tagLine}` : '';
@@ -66,9 +68,34 @@ class LiveClient {
     const matches = players.filter(p => sameId(riotId(p),expected));
     const own = matches.length === 1 ? matches[0] : null;
     if (!own || own.rawChampionName !== `game_character_displayname_${alias}`) return { status:'mismatch' };
-    const inventory = inventoryOf(own.items,game,alias);
-    return inventory ? { status:'live', inventory } : { status:'invalid' };
+    const mode = options.mode || (pool === 'CLASSIC' ? 'classic' : pool === 'ARAM' ? 'aram' : 'mayhem');
+    const inventory = inventoryOf(own.items,game,alias,mode,options.sideBoots);
+    if (!inventory) return { status:'invalid' };
+    const gold = Number.isFinite(active.currentGold) && active.currentGold >= 0 ? Math.floor(active.currentGold) : null;
+    const enemies = enemyInventories(players,own,options.enemies,game,mode);
+    return { status:'live', inventory, gold, enemies, gameTime:stats.gameTime };
   }
+}
+
+function enemyInventories(players, own, expected, game, mode) {
+  if (!['ORDER','CHAOS'].includes(own.team) || !Array.isArray(expected) || !expected.length) return null;
+  const otherTeam = own.team === 'ORDER' ? 'CHAOS' : 'ORDER';
+  const opponents = players.filter(p=>p.team === otherTeam);
+  if (opponents.length !== expected.length) return null;
+  const used = new Set(), result = [];
+  for (const enemy of expected) {
+    const id = enemy.gameName && enemy.tagLine ? `${enemy.gameName}#${enemy.tagLine}` : '';
+    const matches = opponents.filter(p=>sameId(riotId(p),id));
+    const found = matches.length === 1 ? matches[0] : null;
+    const alias = game.championsById.get(enemy.championId)?.alias;
+    if (!found || used.has(found) || !alias || found.rawChampionName !== `game_character_displayname_${alias}`) return null;
+    const inventory = inventoryOf(found.items,game,alias,mode,true);
+    if (!inventory) return null;
+    used.add(found);
+    result.push({ championId:enemy.championId, alias, items:inventory.items });
+  }
+  // Nazwy kont nie opuszczają warstwy weryfikacji odczytu.
+  return result;
 }
 
 // Komponenty są widoczne w ekwipunku, ale nie zajmują miejsc gotowych itemów

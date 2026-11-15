@@ -2,6 +2,16 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.22
+
+- **Build reagujący na zakupy przeciwników** w Mayhem, ARAM i na Summoner’s Rift. Gotowe itemy z pancerzem przyspieszają przebicie dla AD, odporność magiczna — dla AP, kryty — Randuina na frontlinie, szybkość ataku — Frozen Heart. Jest też odpowiedź na zdrowie i kradzież życia. Reguły dobierają przedmiot do klasy postaci i respektują augmenty, wykluczające się rodziny itemów oraz własne przypięcia. Kupione przedmioty zostają w planie.
+- Reakcja wymaga dwóch pasujących gotowych zakupów u jednego wroga; dla odporności i zdrowia rozłożonych po drużynie — co najmniej trzech. Sam drobny komponent nie wypiera rdzenia. Komunikat pod zakupem podaje przyczynę, a najechanie pokazuje konkretne odczytane itemy. To reguły na podstawie zakupów, nie pomiar rzeczywistych statystyk przeciwnika.
+- **Kup teraz** pokazuje aktualne złoto, dostępny zakup lub komponent kolejnego przedmiotu i pozostałe złoto. Odejmowane są posiadane części receptury, z osobnym liczeniem identycznych sztuk. Gdy nic nie mieści się w budżecie, widać ile brakuje. Pełny ekwipunek pozwala łączyć komponenty, ale nie obiecuje siódmego zwykłego slotu; boczne buty ADC muszą być potwierdzone w odczycie. Przedmioty wymagające specjalnej waluty/odblokowania nie dostają zwykłej ceny zakupu.
+- Panel zakupów i cały build są nad augmentami, również w wąskim oknie. To podpowiedź do ręcznego użycia, gdy sklep jest dostępny — aplikacja nie wykonuje zakupów ani nie zakłada, że możesz kupować w danym miejscu mapy.
+- Złoto i ekwipunki pochodzą z jednego odczytu lokalnego `/liveclientdata/allgamedata`, odświeżanego co około 2 sekundy. Tożsamość gracza, postać, tryb i drużyny są weryfikowane. Przy braku świeżych danych „Kup teraz” przestaje polecać zakup, a build wraca do informacji o składzie. Ostatnie własne itemy pozostają zachowane. Ten odczyt nie zapisuje złota, ekwipunków wrogów ani ich nazw kont na dysku. W ręcznym trybie ekwipunku Mayhem wycena jest wyłączona.
+
+Weryfikacja: `npm test`, `npm run test:shop`, `npm run test:mayhem`, `npm run test:ui`, `npm run test:offers`. Test zakupów obejmuje pełny przepływ lokalnego odczytu przez główny proces do interfejsu, zmianę złota, zakup, sprzedaż wroga, brak połączenia, opóźnioną odpowiedź ze starego meczu, wszystkie trzy tryby i okna 1100/820 px. Mecze są symulowane; test augmentów używa prawdziwego OCR Windows.
+
 ## Wersja 0.6.21
 
 - **Porównanie trzech oferowanych augmentów.** Po dwóch zgodnych odczytach kart pojawia się zestawienie w kolejności lewej, środkowej i prawej karty. Ocena uwzględnia profil postaci, kupione i zaplanowane przedmioty, wspólne zakupy z już wybranymi augmentami, konflikty mechanik oraz przedmioty potrzebne do questów. **Dlaczego?** rozwija uzasadnienie i warunki działania.
