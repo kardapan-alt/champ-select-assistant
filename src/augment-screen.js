@@ -2,14 +2,24 @@ const {execFile}=require('child_process');
 const path=require('path');
 const {validateSelection}=require('./mayhem');
 
-// Dopasuj HWND do procesu gry, nie do nazwy okna launchera lub przeglądarki.
+// Windows może ukrywać ścieżkę chronionego procesu gry, mimo dostępnego HWND.
+// Wtedy wymagamy zarazem dokładnej nazwy procesu i tytułu właściwej gry.
+function gameHandleFromProcesses(processes) {
+  if(!Array.isArray(processes))return null;
+  const matches=processes.filter(p=>p.name==='League of Legends' && /^[1-9]\d*$/.test(String(p.handle))
+    && (p.path ? /\\Game\\League of Legends\.exe$/i.test(p.path)
+      : p.title==='League of Legends (TM) Client'));
+  return matches.length===1?String(matches[0].handle):null;
+}
+
+// Dopasuj HWND do procesu gry, nie do samej nazwy okna.
 function gameWindowHandle() {
   return new Promise(resolve=>{
     const exe=path.join(process.env.SystemRoot || 'C:\\Windows','System32','WindowsPowerShell','v1.0','powershell.exe');
-    execFile(exe,['-NoProfile','-NonInteractive','-Command',"$augmentHandles=@(Get-Process -Name 'League of Legends' -ErrorAction SilentlyContinue | Where-Object {$_.Path -match '\\\\Game\\\\League of Legends\\.exe$' -and $_.MainWindowHandle -ne 0} | ForEach-Object {$_.MainWindowHandle.ToInt64().ToString()}); ConvertTo-Json -InputObject $augmentHandles -Compress"],
+    execFile(exe,['-NoProfile','-NonInteractive','-Command',"$augmentWindows=@(Get-Process -Name 'League of Legends' -ErrorAction SilentlyContinue | ForEach-Object { [PSCustomObject]@{name=$_.ProcessName;path=$_.Path;title=$_.MainWindowTitle;handle=$_.MainWindowHandle.ToInt64().ToString()} }); ConvertTo-Json -InputObject $augmentWindows -Compress"],
       {windowsHide:true,timeout:2500,maxBuffer:4096},(error,stdout)=>{
         if(error)return resolve(null);
-        try{const handles=JSON.parse(stdout);resolve(Array.isArray(handles)&&handles.length===1?String(handles[0]):null);}catch{resolve(null);}
+        try{resolve(gameHandleFromProcesses(JSON.parse(stdout)));}catch{resolve(null);}
       });
   });
 }
@@ -62,4 +72,4 @@ function manualSelection(session,selection,known=[]) {
   return {selection:{...selection,augments:[...new Set([...selection.augments,...newlyDetected])]},screenIgnored:[...ignored],screenHistory};
 }
 
-module.exports={gameWindowHandle,sourceForHandle,reconcile,manualSelection,undoCandidate,undoRecognition};
+module.exports={gameWindowHandle,gameHandleFromProcesses,sourceForHandle,reconcile,manualSelection,undoCandidate,undoRecognition};

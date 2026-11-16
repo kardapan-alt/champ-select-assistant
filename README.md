@@ -2,6 +2,16 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.26
+
+- **Naprawiony odczyt okna gry:** Windows może zwracać pustą ścieżkę chronionego procesu LoL, mimo dostępnego okna. Asystent rozpoznaje teraz dokładny proces i tytuł okna także w takim przypadku; nadal przechwytuje wyłącznie to okno. Błąd przechwytywania ma konkretny komunikat i automatyczne ponowienie, zamiast ciągłego „Czekam na obraz”. Rozpoznawanie rozpoczyna się od kolejnych widocznych kart; pominięte wcześniejsze wybory można uzupełnić w edytorze.
+- **Gracze i statystyki:** przywrócone karty obu drużyn również w ARAM/Mayhem, po pięć kart w rzędzie w szerokim oknie. Ranga, statystyki championa i historia pochodzą z profilu OP.GG; aplikacja wyraźnie oznacza, że mogą dotyczyć innych trybów. Porady o linii, wizji i ocenianie roli pozostają wyłączone w ARAM/Mayhem. Przełącznik statystyk działa również podczas meczu.
+- **Przypięcie następnego zakupu:** wybierz „Zbieram na” pod buildem lub przy porównaniu zakupów. Cel jest zapisany dla bieżącego meczu, postaci i konta, również po ponownym otwarciu aplikacji. Nie zmienia stałych przypięć. Nowe zakupy wroga pokazują alternatywę z uzasadnieniem; nie podmieniają celu. „Odblokuj” przywraca automatyczny plan. Odczyt posiadanego przedmiotu kończy cel; zmiana augmentów lub ograniczeń może go zwolnić z wyjaśnieniem.
+- **Kompaktowy widok pod Ctrl+X:** małe okno pokazuje zakup, złoto, przypięty cel, alternatywę, jedną poradę i status odczytu. Kolejne naciśnięcie chowa aktywne małe okno. „Pełny widok” przywraca poprzedni rozmiar. Otwieranie z zasobnika i popup przy champion select nadal pokazują pełny widok. Nie dodano nakładki do procesu gry ani automatycznych zakupów.
+- **Aktualność danych:** przycisk „Dane” pokazuje wersję gry odczytaną z lokalnego klienta, źródła i daty katalogów oraz osobną zgodność patcha reguł augmentów i tabeli map. Brak numeru patcha jest oznaczony jako niepotwierdzony; data pobrania nie staje się datą walidacji reguł. Nowy patch klienta wobec starszych danych jest sygnalizowany. Reguły wbudowane aktualizują się z wydaniem aplikacji.
+
+Walidacja: 206 testów logiki, przepływ przypięcie → zmiana zakupów wroga → mały widok → odblokowanie → zakup → reset meczu, pobranie 10 profili w ARAM i Mayhem, testy pulpitu i Windows OCR. Na rzeczywistym oknie trwającej gry potwierdzono wykrycie źródła i odbiór niepustego obrazu 2560×1440. Rozpoznanie i zapis wybranego augmentu sprawdzono rzeczywistym OCR na symulowanych kartach, wraz z błędem przechwytywania i powrotem odczytu; pełny wybór w rzeczywistym Mayhem pozostaje do potwierdzenia.
+
 ## Wersja 0.6.25
 
 - **Status odczytu nad zakupami:** osobno ekwipunek i złoto, zakupy wrogów, zapisane augmenty oraz Headliner. Czas ostatniego odczytu rośnie również bez nowych danych. Po sześciu sekundach bez potwierdzonego ekwipunku widok ukrywa zakup za stare złoto. Brak złota, nieznane przedmioty i augmenty bez reguł są oznaczane osobno.

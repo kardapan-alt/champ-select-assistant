@@ -35,6 +35,18 @@ test('wybiera wyłącznie dokładne okno procesu gry, bez fallbacku do monitora'
   assert.equal(screen.sourceForHandle(sources,'12'),sources[1]);assert.equal(screen.sourceForHandle(sources,'99'),null);
   assert.equal(screen.sourceForHandle([...sources,sources[1]],'12'),null);assert.equal(screen.sourceForHandle(sources,null),null);
 });
+
+test('chroniony proces gry z pustą ścieżką nadal udostępnia właściwe okno',()=>{
+  const game={name:'League of Legends',path:'',title:'League of Legends (TM) Client',handle:'1311772'};
+  assert.equal(screen.gameHandleFromProcesses([game]),'1311772');
+  assert.equal(screen.gameHandleFromProcesses([{...game,path:null}]),'1311772');
+  assert.equal(screen.gameHandleFromProcesses([{...game,path:'D:\\Riot Games\\League of Legends\\Game\\League of Legends.exe',title:'Gra'}]),'1311772');
+  for(const other of [{...game,name:'LeagueClientUx'},{...game,name:'chrome'},
+    {...game,title:'League of Legends'}, {...game,path:'C:\\Temp\\League of Legends.exe'}, {...game,handle:'0'}])
+    assert.equal(screen.gameHandleFromProcesses([other]),null);
+  assert.equal(screen.gameHandleFromProcesses([game,game]),null);
+  assert.equal(screen.gameHandleFromProcesses([]),null);
+});
 test('nowy odczyt zachowuje ręczne wybory, a brak ikony nie usuwa wyboru',()=>{
   const s=new MayhemSession();s.ensure(1,'Ahri');
   s.value.selection.augments=[1004];

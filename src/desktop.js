@@ -20,7 +20,7 @@ function createDraftWatcher(show, enabled) {
   };
 }
 
-function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, settings, saveSettings, log = () => {}, notify = () => {},
+function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen, settings, saveSettings, log = () => {}, notify = () => {}, onViewMode=()=>{},
   argv = process.argv, platform = process.platform, executable = process.execPath,
   portable = !!process.env.PORTABLE_EXECUTABLE_DIR }) {
   let tray = null;
@@ -29,12 +29,30 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, sett
   let wantsWindow = !argv.includes('--background');
   let activeShortcut = '';
   let shortcutError = '';
+  let compact=false,fullBounds=null,compactBounds=null,wasMaximized=false;
   if (!SHORTCUTS.some(s => s.value === settings.keyboardShortcut)) settings.keyboardShortcut = DEFAULT_SHORTCUT;
   const canAutoStart = platform === 'win32' && app.isPackaged && !portable;
   // Electron 33 łączy ścieżkę i argumenty bez dodawania cudzysłowów.
   const loginOptions = { path: `"${executable}"`, args: ['--background'], name: 'Champ Select Assistant' };
 
-  function show() {
+  function setCompact(value){
+    if(typeof value!=='boolean'||value===compact||win.isDestroyed())return;
+    if(value){fullBounds=win.getNormalBounds();wasMaximized=win.isMaximized();if(wasMaximized)win.unmaximize();}
+    else compactBounds=win.getBounds();
+    const previous=win.getBounds();
+    const desired=value?(compactBounds||{...previous,width:520,height:600}):(fullBounds||{...previous,width:1100,height:760});
+    const area=screen?.getDisplayMatching(desired)?.workArea;
+    const bounds={...desired};
+    if(area){
+      bounds.width=Math.min(bounds.width,area.width);bounds.height=Math.min(bounds.height,area.height);
+      bounds.x=Math.max(area.x,Math.min(bounds.x,area.x+area.width-bounds.width));
+      bounds.y=Math.max(area.y,Math.min(bounds.y,area.y+area.height-bounds.height));
+    }
+    win.setMinimumSize(Math.min(value?420:820,bounds.width),Math.min(value?360:600,bounds.height));
+    win.setBounds(bounds);compact=value;onViewMode(compact);
+    if(!value&&wasMaximized)win.maximize();
+  }
+  function reveal() {
     if (quitting || win.isDestroyed()) return;
     wantsWindow = true;
     if (!ready) return;
@@ -43,13 +61,14 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, sett
     win.focus();
     if (!win.isFocused()) win.flashFrame(true);
   }
+  function show(){setCompact(false);reveal();}
 
   function toggleWindow() {
     if (quitting || win.isDestroyed()) return;
-    if ((!ready && wantsWindow) || (ready && win.isVisible() && !win.isMinimized() && win.isFocused())) {
+    if (compact&&((!ready && wantsWindow) || (ready && win.isVisible() && !win.isMinimized() && win.isFocused()))) {
       wantsWindow = false;
       win.hide();
-    } else show();
+    } else {setCompact(true);reveal();}
   }
 
   function setShortcut(value, persist = true) {
@@ -143,7 +162,7 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, sett
   // Nie włączamy autostartu nowym użytkownikom bez ich decyzji w menu.
   if (canAutoStart && settings.launchAtLogin) setAutoStart(true);
   setShortcut(settings.keyboardShortcut, false);
-  win.once('ready-to-show', () => { ready = true; if (wantsWindow) show(); });
+  win.once('ready-to-show', () => { ready = true; if (wantsWindow) reveal(); });
   win.on('focus', () => win.flashFrame(false));
   win.on('close', (event) => {
     if (quitting || !tray) return;
@@ -162,7 +181,7 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, sett
   app.on('activate', show);
 
   const observePhase = createDraftWatcher(show, () => settings.autoPopup);
-  return { show, observePhase, toggleWindow, setShortcut };
+  return { show, observePhase, toggleWindow, setShortcut,setCompact,isCompact:()=>compact };
 }
 
 module.exports = { createDesktop, createDraftWatcher, DEFAULT_SHORTCUT };

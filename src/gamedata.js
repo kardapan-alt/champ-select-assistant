@@ -1,4 +1,4 @@
-// Dane gry (championy, runy, itemy, czary) pobierane z lokalnego klienta, więc zawsze pasują do patcha.
+// Statyczne dane z lokalnego klienta. Wbudowane reguły mają osobną wersję.
 
 const MASTERY_PATH = '/lol-champion-mastery/v1/local-player/champion-mastery';
 const ITEM_MAPS = require('../data/item-maps.json').maps;
@@ -60,7 +60,7 @@ async function loadMastery(lcu) {
 
 async function loadGameData(lcu) {
   const base = '/lol-game-data/assets/v1';
-  const [champions, perkstyles, perks, items, spells, owned, mastery] = await Promise.all([
+  const [champions, perkstyles, perks, items, spells, owned, mastery,version] = await Promise.all([
     lcu.get(`${base}/champion-summary.json`),
     lcu.get(`${base}/perkstyles.json`),
     lcu.get(`${base}/perks.json`),
@@ -68,10 +68,12 @@ async function loadGameData(lcu) {
     lcu.get(`${base}/summoner-spells.json`),
     lcu.get('/lol-champions/v1/owned-champions-minimal'),
     loadMastery(lcu),
+    lcu.get('/lol-patch/v1/game-version').catch(()=>null),
   ]);
   if (!champions) throw new Error('Nie udało się pobrać listy championów z klienta');
   const g = buildGameData({ champions, perkstyles, perks, items, spells, owned });
   g.mastery = mastery.map;
+  g.provenance={source:'client',version:typeof version==='string'?version:null,loadedAt:Date.now()};
   return g;
 }
 

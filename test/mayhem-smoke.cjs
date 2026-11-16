@@ -14,6 +14,8 @@ fs.writeFileSync(path.join(profile,'augment-screen.json'), 'null');
 process.argv.push('--background');
 process.env.PORT='0'; process.env.STEP='8';
 const server = require('../mock/mock-lcu');
+const profiles=require('../mock/mock-opgg');
+require('../src/augment-screen').gameWindowHandle=async()=>null;
 const { LcuClient } = require('../src/lcu');
 const originalGet=LcuClient.prototype.get, originalRequest=LcuClient.prototype.request;
 const {LiveClient,inventoryOf}=require('../src/liveclient');
@@ -35,6 +37,8 @@ app.on('browser-window-created',(_e,w)=>{win=w;win.setPosition(-30000,-30000);wi
 const waitFor=async(fn,message)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await new Promise(r=>setTimeout(r,100));}throw Error(message);};
 server.once('listening',async()=>{
   process.env.LCU_MOCK=`http://127.0.0.1:${server.address().port}`;
+  await new Promise(resolve=>profiles.listen(0,'127.0.0.1',resolve));
+  process.env.OPGG_ENDPOINT=`http://127.0.0.1:${profiles.address().port}/mcp`;
   require('../src/main');
   try {
     await waitFor(()=>win&&!win.webContents.isLoading(),'Brak renderera');
@@ -142,9 +146,26 @@ server.once('listening',async()=>{
     await waitFor(async()=> (await state())?.mode==='aram','Zwykły ARAM nie został rozpoznany');
     assert.equal((await state()).plan,null);
     await evaluate('document.querySelector("[data-loading-tab=players]").click()');
-    assert.equal(await evaluate('document.querySelectorAll(".pcard").length'),0);
-    assert.equal(await evaluate('document.querySelectorAll(".aram-roster > div").length'),10);
-    console.log('PASS: Mayhem bez run i soloQ, pamięć tego samego meczu, reset następnego, odrzucenie starego edytora, zwykły ARAM bez statystyk graczy.');
-    server.close();win.destroy();app.quit();
-  } catch(err) { console.error(err);server.close();app.exit(1); }
+    assert.equal(await evaluate('document.querySelectorAll(".pcard").length'),10);
+    assert.ok(await evaluate('document.querySelector(".players-context").textContent.includes("innych trybów")'));
+    assert.equal(await evaluate('document.querySelectorAll(".lane-badge").length'),0);
+    await evaluate('document.querySelector("[data-toggle-stats]").click()');
+    await waitFor(async()=>{const s=await state();return [...s.allies,...s.enemies].every(p=>p.loaded&&!p.pending);},'Statystyki graczy nie wróciły na ARAM');
+    assert.equal(await evaluate('document.querySelectorAll(".pcard .stats").length'),10);
+    assert.equal(await evaluate('document.querySelectorAll(".pc-tags").length'),0);
+    for(const width of [1100,820]){
+      win.setSize(width,760);await new Promise(r=>setTimeout(r,250));
+      assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'),'Karty graczy wychodzą poza okno');
+      await capture('players-'+width);
+    }
+    await step(-1);await waitFor(async()=>(await state())?.status==='idle','Lobby przed Mayhem');
+    mode='KIWI';gameId=780;await step(8);
+    await waitFor(async()=>{const s=await state();return s.mode==='mayhem'&&[...s.allies,...s.enemies].every(p=>p.loaded);},'Statystyki graczy nie wróciły na Mayhem');
+    await evaluate('document.querySelector("[data-loading-tab=players]").click()');
+    assert.equal(await evaluate('document.querySelectorAll(".pcard .stats").length'),10);
+    assert.equal(await evaluate('document.querySelectorAll(".pc-tags,.lane-badge").length'),0);
+    assert.ok(await evaluate('document.querySelector(".players-context").textContent.includes("To nie jest winrate Mayhem")'));
+    console.log('PASS: Mayhem bez run i porad soloQ, pamięć meczu, reset następnego, odrzucenie starego edytora, ARAM z 10 kartami graczy i opisem źródła statystyk.');
+    server.close();profiles.close();win.destroy();app.quit();
+  } catch(err) { console.error(err);server.close();profiles.close();app.exit(1); }
 });

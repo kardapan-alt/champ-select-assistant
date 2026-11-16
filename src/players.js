@@ -81,13 +81,14 @@ function championList(games, game) {
 }
 
 // Karta gracza: liczby i tagi wyliczone z jego ostatnich gier i statystyk sezonu.
-function playerCard(player, summary, game, now = Date.now()) {
+function playerCard(player, summary, game, now = Date.now(),mode='classic') {
   const card = {
     name: player.gameName ? `${player.gameName}#${player.tagLine}` : 'Nieznany gracz',
     isMe: player.isMe,
     championId: player.championId,
     position: POSITION_NAMES[player.position] || '',
     loaded: !!summary,
+    profileMode:mode,
     tags: [],
   };
   if (!summary) return card;
@@ -101,6 +102,7 @@ function playerCard(player, summary, game, now = Date.now()) {
     card.rank = {
       label: `${rank.tier[0]}${rank.tier.slice(1).toLowerCase()}${rank.division && !['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(rank.tier) ? ` ${ROMAN[rank.division] || rank.division}` : ''}`,
       tier: rank.tier,
+      queue:rank.solo?'Solo/duo':'Ranking',
       lp: rank.lp,
       winRate: total ? Math.round((rank.wins / total) * 100) : null,
       games: total || null,
@@ -172,6 +174,8 @@ function playerCard(player, summary, game, now = Date.now()) {
     if (streak >= 3) tag(games[0].win ? `Seria ${streak} wygranych` : `Seria ${streak} porażek`, games[0].win ? 'good' : 'warn');
     if (games.length >= 10 && mainRole && player.position && normPosition(mainRole[0]) !== player.position && mainRole[1] / games.length >= 0.6) tag('Inna rola niż w ostatnich grach', 'info');
   }
+  // Historical profile numbers are context, not ARAM lane/vision advice.
+  if(mode==='aram'||mode==='mayhem'){card.tags=[];card.position='';}
   return card;
 }
 

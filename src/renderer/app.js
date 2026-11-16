@@ -227,7 +227,7 @@ function itemSetStatus(b, auto) {
   return `<span class="muted small">${b.provisional ? 'Wyśle się sam do sklepu, gdy wszyscy zablokują.' : 'Wysyłam do sklepu…'}</span>`;
 }
 
-function liveShopPanel(b) {
+function liveShopPanel(b,compact=false) {
   let s=b.shop;
   if (!s || labActive) return '';
   if(b.readout?.inventory.status==='live'&&!freshRead(b.readout.inventory))s={status:'stale',gold:null};
@@ -237,20 +237,22 @@ function liveShopPanel(b) {
     : `<div><b>${esc(s.status==='save'?`Odłóż jeszcze ${s.missing} złota`:s.status==='full'?'Brakuje miejsca w ekwipunku':messages[s.status]||messages.waiting)}</b>${s.target?`<span>${s.status==='save'?`Na ${esc(s.savingFor.name)} · `:''}Cel: ${esc(s.target.name)} (${s.target.cost} złota do ukończenia)</span>`:''}</div>`;
   return `<section class="live-shop" data-fresh="${s.gold!=null}" aria-label="Kup teraz"><div class="shop-heading"><b>Kup teraz</b>${s.gold!=null?`<span>Masz <strong>${s.gold}</strong> złota</span>`:''}</div><div class="shop-purchase">${content}</div>
     ${purchase?'<p class="shop-note">Gdy możesz korzystać ze sklepu. Kupujesz ręcznie w grze.</p>':''}
-    ${s.comparison?.length>1?disclosure('shop-comparison','Porównaj ścieżki zakupów',`<div class="purchase-options">${s.comparison.map(o=>`<article><small>${{plan:'Trzymaj się planu',later:'Przyspiesz późniejszy zakup',alternative:'Sytuacyjna alternatywa'}[o.kind]}</small><b>${esc(o.target.name)}</b><p>Do ukończenia: <strong>${o.target.cost} złota</strong>${o.target.credit?` · komponenty pokrywają ${o.target.credit}`:''}</p><p>${o.purchase?`Teraz: ${esc(o.purchase.name)} za ${o.purchase.cost} · zostanie ${o.remaining}`:o.status==='save'?`Brakuje ${o.missing} do ${esc(o.savingFor.name)}`:'Brak miejsca na zakup'}</p><p><b>Profil celu:</b> ${esc(o.focus.join(', ') || 'efekt sytuacyjny')}</p><p><b>Po co:</b> ${esc(o.benefit)}</p><p class="muted">${esc(o.tradeoff)}</p></article>`).join('')}</div><p class="note">Każdą ścieżkę liczę osobno z tego samego ekwipunku i złota. Komponentów ani budżetów nie sumuj między opcjami. Porównanie nie zmienia Twojego planu.</p>`):''}
+    ${!compact&&s.comparison?.length>1?disclosure('shop-comparison','Porównaj ścieżki zakupów',`<div class="purchase-options">${s.comparison.map(o=>`<article><small>${{plan:'Trzymaj się planu',later:'Przyspiesz późniejszy zakup',alternative:'Sytuacyjna alternatywa'}[o.kind]}</small><b>${esc(o.target.name)}</b><p>Do ukończenia: <strong>${o.target.cost} złota</strong>${o.target.credit?` · komponenty pokrywają ${o.target.credit}`:''}</p><p>${o.purchase?`Teraz: ${esc(o.purchase.name)} za ${o.purchase.cost} · zostanie ${o.remaining}`:o.status==='save'?`Brakuje ${o.missing} do ${esc(o.savingFor.name)}`:'Brak miejsca na zakup'}</p><p><b>Profil celu:</b> ${esc(o.focus.join(', ') || 'efekt sytuacyjny')}</p><p><b>Po co:</b> ${esc(o.benefit)}</p><p class="muted">${esc(o.tradeoff)}</p><button data-pin-next="${o.target.id}">Zbieram na ten przedmiot</button></article>`).join('')}</div><p class="note">Każdą ścieżkę liczę osobno z tego samego ekwipunku i złota. Komponentów ani budżetów nie sumuj między opcjami.</p>`):''}
+    ${compact?purchaseControls(b,true):''}
     ${s.enemies==='waiting'&&s.gold!=null?'<p class="shop-note">Zakupy wrogów jeszcze niepotwierdzone · build według składu.</p>':''}</section>`;
 }
 
 function buildPanel(b, readonly = false, auto = null) {
   const aram = isAramView(b.mode);
   return `<div class="panel build-panel">
-    <h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
+    <div class="build-heading"><h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>${dataFreshnessBadge()}</div>
     ${readoutPanel(b)}
     ${liveShopPanel(b)}
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
     <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
-    <div class="build-row build-primary"><h4>Kolejność zakupów${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
+    <div class="build-row build-primary"><h4>${b.purchaseGoal?.id?'Plan przedmiotów · przypięty cel w Kup teraz':'Kolejność zakupów'}${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
+    ${purchaseControls(b)}
     ${buildChangePanel(b)}
     ${mayhemPanel(b)}
     <div class="build-essentials"><div><span class="muted">Umiejętności</span><div class="skills">${skillKeys(b.skills)}</div></div><div><span class="muted">Czary</span><div class="spells-line">${b.spells.map((s) => img(s.icon, 'spell', s.name)).join('')}<span>${b.spells.map((s) => esc(s.name)).join(' + ')}</span></div></div></div>
@@ -320,17 +322,17 @@ function playerCardHtml(p, side) {
   const rec = p.recent || {};
   const games = (n) => `${n ?? 0} ${gier(n ?? 0)}`;
   const rankLine = r
-    ? `<span class="rank-badge tier-${esc(r.tier.toLowerCase())}">${esc(r.label)}</span>${r.lp != null ? `<span class="lp">${r.lp} LP</span>` : ''}`
-    : '<span class="rank-badge">Bez rangi</span>';
+    ? `<span class="rank-badge tier-${esc(r.tier.toLowerCase())}" title="${esc(r.queue||'Ranking')}">${esc(r.label)}</span>${r.lp != null ? `<span class="lp">${r.lp} LP</span>` : ''}`
+    : '<span class="rank-badge">Brak danych rangi</span>';
   const tags = [...p.tags].sort((x, y) => (x.kind === 'warn' ? -1 : 0) - (y.kind === 'warn' ? -1 : 0)).slice(0, 3);
   const body = p.pending
     ? '<div class="muted pc-wait">Pobieram statystyki…</div>'
     : !p.loaded
-      ? '<div class="muted pc-wait">Brak danych gracza</div>'
+      ? `<div class="muted pc-wait">${p.statsDisabled?'Statystyki OP.GG wyłączone':'Profil OP.GG niedostępny'}</div>`
       : `<div class="stats">
-          ${stat(r ? r.winRate : null, 'Sezon', r && r.games ? games(r.games) : 'brak gier', r?.games)}
+          ${stat(r ? r.winRate : null, r?.queue||'Ranking', r && r.games ? games(r.games) : 'brak gier', r?.games)}
           ${stat(c.seasonWinRate, 'Champion', c.seasonBelow ? `&lt; ${c.seasonBelow} ${gier(c.seasonBelow)}` : games(c.seasonGames), c.seasonGames)}
-          ${stat(rec.last30WinRate, 'Ostatnie 30 dni', rec.last30More ? `próba ${games(rec.last30Days)}` : games(rec.last30Days), rec.last30Days)}
+          ${stat(rec.last30WinRate, '30 dni', rec.last30More ? `próba ${games(rec.last30Days)}` : games(rec.last30Days), rec.last30Days)}
         </div>
         ${c.kda ? `<div class="pc-kda">KDA championem <b>${c.kda.k} / <span class="bad">${c.kda.d}</span> / ${c.kda.a}</b></div>` : ''}
         ${tags.length ? `<div class="pc-tags">${tags.map((t) => `<span class="tag ${t.kind === 'good' ? 'good' : t.kind === 'warn' ? 'bad' : ''}">${esc(t.text)}</span>`).join('')}</div>` : ''}
@@ -341,6 +343,7 @@ function playerCardHtml(p, side) {
       ${img(p.championView && p.championView.icon, 'icon', p.championView && p.championView.name)}
       <div class="meta">
         <div class="name" title="${esc(p.name)}">${esc(p.name)}</div>
+        <div class="pc-champion">${esc(p.championView?.name||'Nieznany champion')}${p.isMe?' · Ty':''}</div>
         <div class="sub">${rankLine}</div>
       </div>
     </div>
@@ -419,14 +422,13 @@ function loadingScreen(s) {
   const tabs = `<div class="seg loading-tabs" role="tablist" aria-label="Widok meczu">
       <button role="tab" aria-selected="${tab === 'overview'}" data-loading-tab="overview" class="${tab === 'overview' ? 'on' : ''}">${s.mode==='mayhem'?'Build i augmenty':'Build i plan'}</button>
       <button role="tab" aria-selected="${tab === 'build'}" data-loading-tab="build" class="${tab === 'build' ? 'on' : ''}">${s.mode==='mayhem'?'Czary i szczegóły':'Runy i szczegóły'}</button>
-      <button role="tab" aria-selected="${tab === 'players'}" data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">${aram?'Składy drużyn':'Gracze i statystyki'}</button>
+      <button role="tab" aria-selected="${tab === 'players'}" data-loading-tab="players" class="${tab === 'players' ? 'on' : ''}">Gracze i statystyki</button>
     </div>`;
   const plans = `${s.plan || s.gamePlan ? `<div class="plans${s.plan && s.gamePlan ? '' : ' single'}">${planPanel(s.plan)}${gamePlanPanel(s.gamePlan)}</div>` : '<p class="muted">Plan pojawi się po odczytaniu składów.</p>'}`;
   const list = s.final?.build?.situations || s.gamePlan?.situations || [];
   const planDetails = s.mode === 'mayhem' ? '' : disclosure('full-plan', aram ? 'Plan walk na ARAM-ie' : 'Pełny plan na linię i grę', plans);
-  const roster = players => `<div class="aram-roster">${players.map(p=>`<div>${img(p.championView?.icon,'icon',p.championView?.name)}<b>${esc(p.championView?.name || 'Nieznany champion')}</b></div>`).join('')}</div>`;
-  const body = tab === 'players' && aram ? `<p class="note">${s.mode==='mayhem'?'Mayhem':'ARAM'}: bez rang, winrate i wskazówek z soloQ.</p><h3 class="ally-h">Twoja drużyna</h3>${roster(s.allies)}<h3 class="enemy-h">Przeciwnicy</h3>${roster(s.enemies)}` : tab === 'players'
-    ? `<p class="note">Winrate opisuje widoczną próbę gier. Mała próba i inna rola nie przesądzają o umiejętnościach gracza.</p><h3 class="ally-h">Twoja drużyna</h3><div class="pgrid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div><h3 class="enemy-h">Przeciwnicy</h3><div class="pgrid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`
+  const body = tab === 'players'
+    ? `<div class="players-context"><p class="note">${aram?`Profile OP.GG: ranga dotyczy kolejki rankingowej, a historia i statystyki championa mogą pochodzić z innych trybów. To nie jest winrate ${s.mode==='mayhem'?'Mayhem':'ARAM'}. Bez ocen roli, wizji i porad soloQ.`:'Winrate opisuje widoczną próbę gier. Mała próba i inna rola nie przesądzają o umiejętnościach gracza.'}</p><button data-toggle-stats>${s.statsEnabled?'Wyłącz statystyki':'Włącz statystyki'}</button></div><h3 class="ally-h">Twoja drużyna</h3><div class="pgrid players-grid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div><h3 class="enemy-h">Przeciwnicy</h3><div class="pgrid players-grid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`
     : tab === 'build'
       ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane postaci.</p>'}${priorityAdvicePanel(s)}${planDetails}${adviceDetails(list)}`
     : `${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
@@ -478,6 +480,8 @@ function render(s) {
   if (s.mode === 'mayhem') $status.textContent = s.status === 'champselect' ? 'Mayhem · wybór postaci' : 'ARAM: Mayhem';
   $status.className = 'status' + (live ? ' live' : '');
 
+  if(compactMode){patch($app,compactScreen(s));return;}
+
   if (s.status === 'loading-screen') {
     patch($app, loadingScreen(s));
     return;
@@ -490,7 +494,7 @@ function render(s) {
       error: ['Coś poszło nie tak', 'Spróbuję połączyć się ponownie za chwilę.'],
     }[s.status] || ['', ''];
     const diag = s.status === 'idle' ? '<div class="actions" style="justify-content:center;margin-top:18px"><button data-stats-diag>Diagnostyka OP.GG</button></div>' : '';
-    patch($app, `${s.recentMatch?recentMatchCard(s.recentMatch):''}<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>
+    patch($app, `${s.recentMatch?recentMatchCard(s.recentMatch):''}<div class="empty"><h2>${esc(msg[0])}</h2><div>${esc(msg[1])}</div>${dataFreshnessBadge()}
       <p class="muted">Krzyżyk chowa aplikację do zasobnika obok zegara.<br>Pod jej ikoną ustawisz start z Windowsem i pokazywanie okna przy wyborze postaci.</p>${diag}</div>`);
     return;
   }

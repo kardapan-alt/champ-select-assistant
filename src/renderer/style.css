@@ -5,6 +5,37 @@
   --radius: 12px; --ease: cubic-bezier(.2, .7, .2, 1);
 }
 * { box-sizing: border-box; }
+.purchase-controls { margin-top:8px; font-size:12px; }
+.build-panel > .purchase-controls { margin-bottom:10px; }
+.build-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+.build-panel .build-heading h3,.build-heading .data-freshness { margin:0; }
+.purchase-controls label { display:flex; align-items:center; gap:8px; }
+.purchase-controls select { min-width:0; max-width:100%; flex:1; }
+.purchase-controls button { padding:3px 8px; font-size:11px; }
+.goal-alternative { margin:6px 0 0; color:var(--gold); }
+.data-freshness { font-size:11px; padding:4px 8px; margin:0 0 10px; color:var(--muted); }
+.data-freshness.readout-warning { color:var(--warn); }
+#data-status-dialog { width:min(720px,94vw); max-height:90vh; overflow:auto; }
+.data-source { padding:10px 0; border-bottom:1px solid var(--line); }
+.data-source > span { display:block; font-size:12px; }
+.data-source p { margin:4px 0; font-size:12px; }
+.compact-mode header { flex-wrap:wrap; gap:6px; padding:9px 12px; }
+.compact-mode .brand { flex:1; font-size:12px; }
+.compact-mode #match-history,.compact-mode #riot-info,.compact-mode #draft-lab { display:none; }
+.compact-mode #status { font-size:10px; }
+.compact-mode main { padding:10px 12px; }
+.compact-content h2 { display:flex; justify-content:space-between; align-items:center; margin:0 0 10px; font-size:17px; }
+.compact-content h2 small { font-size:11px; color:var(--muted); font-weight:400; }
+.compact-content .readout { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.compact-content .live-shop { padding:10px; margin-bottom:10px; }
+.compact-alternative,.compact-tip { border:1px solid var(--line-2); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:12px; }
+.compact-alternative p,.compact-tip p { margin:4px 0; }
+.compact-alternative button { padding:4px 8px; font-size:11px; }
+.compact-tip { border-left:2px solid var(--gold); }
+.compact-help { font-size:10px; color:var(--muted); margin:0; }
+.compact-empty { padding:20px 5px; font-size:13px; }
+.compact-empty h2 { font-size:18px; }
+.compact-mode .toast { max-width:calc(100vw - 24px); }
 body { margin: 0; min-height: 100vh; color: var(--text); font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", Inter, system-ui, sans-serif; background: radial-gradient(1200px 600px at 50% -200px, #16203a 0%, rgba(10,13,20,0) 70%), var(--bg); background-attachment: fixed; -webkit-font-smoothing: antialiased; }
 header { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--line); background: rgba(10, 13, 20, .82); backdrop-filter: blur(10px); }
 .brand { font-weight: 700; letter-spacing: .5px; color: var(--gold-2); }
@@ -125,6 +156,20 @@ footer { flex-wrap: wrap; align-items: center; }
 .pc-head .icon { width: 56px; height: 56px; border-radius: 8px; flex: none; object-fit: cover; }
 img.icon { object-fit: cover; }
 .pc-head .meta { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.pc-champion { font-size:11px; color:var(--muted); }
+.players-context { display:flex; align-items:center; gap:12px; margin:0 0 12px; }
+.players-context .note { flex:1; margin:0; }
+.players-grid .pcard { padding:10px; gap:9px; }
+.players-grid .pc-head { gap:7px; }
+.players-grid .pc-head .icon { width:42px; height:42px; }
+.players-grid .pc-head .name { font-size:12px; }
+.players-grid .rank-badge { font-size:11px; padding:2px 4px; }
+.players-grid .lp { font-size:11px; }
+.players-grid .stat-v { font-size:19px; }
+.players-grid .stat-t { font-size:9px; letter-spacing:0; }
+.players-grid .stat-c { font-size:10px; }
+.players-grid .pc-kda { font-size:11px; }
+@media(min-width:1000px){.pgrid.players-grid { grid-template-columns:repeat(5,minmax(0,1fr)); gap:9px; }}
 .pc-head .name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc-head .sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rank-badge { font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 5px; color: #0e1116; background: #6b7380; white-space: nowrap; }

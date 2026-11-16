@@ -16,6 +16,8 @@ function readoutRows(b){
   }
   if(r.screen){
     const s=r.screen,stopped={off:'OCR wyłączony',paused:'OCR wstrzymany',language:'Brak języka OCR',conflict:'Sprawdź wybór ręcznie',layout:'Zmieniona rozdzielczość',ambiguous:'Niepewny odczyt',waiting:'Czekam na obraz'};
+    stopped['capture-error']=s.error||'Nie udało się przechwycić obrazu gry';
+    stopped['ocr-error']='OCR nie odpowiada · ponawiam odczyt';
     const recent=s.at&&Date.now()-s.at<6000;
     const status=!s.enabled?'OCR wyłączony':stopped[s.status]||(!recent?'Brak świeżego obrazu':s.mode==='auto'?'OCR działa':'OCR po najechaniu');
     rows.push({key:'augments',label:'Augmenty',text:`Zapisane: ${s.count} · ${status}${s.unknown?` · ${s.unknown} bez reguł`:''}`,

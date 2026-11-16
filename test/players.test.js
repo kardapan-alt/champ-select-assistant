@@ -64,3 +64,15 @@ test('bez danych gracza karta pokazuje tylko nick i championa', () => {
   assert.equal(card.loaded, false);
   assert.equal(card.name, 'X#Y');
 });
+
+test('ARAM i Mayhem zachowują profil historyczny, bez porad o linii i wizji', async () => {
+  const players=await readLoadingPlayers(lcu),p=players.allies.find(p=>p.gameName==='Hak i Latarnia');
+  const summary=await provider.summoner({...p,region:players.region});
+  const classic=playerCard(p,summary,game);
+  for(const mode of ['aram','mayhem']){
+    const card=playerCard(p,summary,game,Date.now(),mode);
+    assert.equal(card.loaded,true);assert.equal(card.profileMode,mode);
+    assert.equal(card.rank.queue,'Solo/duo');assert.deepEqual(card.rank,classic.rank);
+    assert.deepEqual(card.champion,classic.champion);assert.deepEqual(card.tags,[]);assert.equal(card.position,'');
+  }
+});

@@ -30,6 +30,9 @@ const {headlinerView}=require('./headliners');
 const {synergies}=require('./augment-synergies');
 const {MatchReview}=require('./match-review');
 const {readoutFor,BuildChanges}=require('./build-insight');
+const {purchaseKey,canBuy,withPurchaseGoal,PurchaseGoal}=require('./next-purchase');
+const {dataFreshness}=require('./data-freshness');
+let purchaseGoal;
 const {ownerKey,ResultResolver}=require('./match-result');
 const resultResolver=new ResultResolver();
 const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
@@ -122,6 +125,9 @@ function scheduleRefresh() {
 }
 
 function initStats() {
+  purchaseGoal=new PurchaseGoal(readJson(userFile('next-purchase.json'),null),value=>{
+    const file=userFile('next-purchase.json');fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
+  });
   try { visionConfig=augmentVision.migrateConfig(readJson(userFile('augment-screen.json'),null)); }
   catch { visionConfig={enabled:true,mode:'auto'}; }
   choicesStore = new ChoiceStore(readJson(userFile('choices.json'), {}), value => {
@@ -200,6 +206,10 @@ function requestNeeded(state, picks) {
 }
 
 function send(state) {
+  const b=state.final?.build||state.build,analysisKey=b?.fromStats?stats.analyses[b.alias]?._key:null;
+  const [analysisAlias,analysisRole,analysisMode]=(analysisKey||'').split(':');
+  state.dataStatus=dataFreshness(game||offlineGame,{connected:!!lcu&&!['no-client','error'].includes(state.status),mode:state.mode||currentMode,
+    analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null});
   if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.list()[0]||null;
   if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
     ||state.final.build.mayhem.matchKey!==lastState?.final?.build?.mayhem?.matchKey))stopVisionWorkers();
@@ -363,14 +373,18 @@ async function syncLiveInventory() {
 }
 
 function fetchPlayerStats(target) {
-  if (!settings.stats || isAram(currentMode)) return;
+  if (!settings.stats) return;
+  target.statsFetching ||= new Set();
   const players = [...target.allies, ...target.enemies].filter((p) => p.gameName && p.tagLine);
   let next = 0;
   const worker = async () => {
     while (next < players.length) {
+      if(loading!==target||!settings.stats)return;
       const p = players[next++];
+      const key=playerKey(p);if(target.statsFetching.has(key)||target.summaries[key])continue;
+      target.statsFetching.add(key);
       const summary = await provider.summoner({ gameName: p.gameName, tagLine: p.tagLine, region: target.region }).catch(() => null);
-      target.summaries[playerKey(p)] = summary || false;
+      target.statsFetching.delete(key);target.summaries[key] = summary || false;
       if (target === loading) loadingDirty = true;
     }
   };
@@ -378,11 +392,12 @@ function fetchPlayerStats(target) {
 }
 
 function buildLoadingView() {
-  const cardOf = (p) => playerCard(p, loading.summaries[playerKey(p)] || null, game);
+  const cardOf = (p) => playerCard(p, settings.stats?loading.summaries[playerKey(p)]||null:null, game,Date.now(),currentMode);
   const card = (p) => ({
     ...cardOf(p),
     championView: champView(p.championId, p.skinId),
-    pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName,
+    pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName&&!!p.tagLine,
+    statsDisabled:!settings.stats,
   });
   const me = loading.allies.find((p) => p.isMe);
   const aram = isAram(currentMode);
@@ -408,7 +423,7 @@ function buildLoadingView() {
     allies: loading.allies.map(card),
     enemies,
     statsEnabled: settings.stats,
-    statsStatus: aram ? { ok:true, message:currentMode === 'mayhem' ? 'Mayhem · build pod augmenty i ekwipunek' : 'ARAM · bez statystyk soloQ' } : settings.stats ? provider.status : { ok: false, message: 'OP.GG wyłączone' },
+    statsStatus: settings.stats ? provider.status : { ok: false, message: 'Profile OP.GG wyłączone' },
   };
 }
 
@@ -437,11 +452,23 @@ function finalWithEnemies(me) {
   const alias = game.championsById.get(me.championId)?.alias;
   try {
     lastSelectState = s;
-    const build = { ...buildFor(alias, s), provisional:false };
+    const natural = { ...buildFor(alias, s), provisional:false };
     const liveStatus = currentMode === 'mayhem' && mayhemSession.value?.autoInventory === false ? 'manual'
       : loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)>=6000 ? 'stale' : loading.liveStatus || 'waiting';
+    const goal=purchaseGoal.ensure(purchaseKey(loading.gameId||loading.sessionId,alias,currentMode,ownerKey(me.puuid)));
+    const result=withPurchaseGoal(alias,withChoices(alias,s),game,data,natural,goal.id);
+    if(goal.id&&!result.active&&liveStatus==='live')purchaseGoal.set(goal.key,goal.revision,null,result.reason);
+    const build={...result.build,provisional:false};
+    const naturalShop=shopPlan(natural,loading.liveSnapshot,game,liveStatus);
+    if(result.active&&naturalShop.target?.id!==goal.id)build.purchaseAlternative=naturalShop.target;
     build.shop = { ...shopPlan(build,loading.liveSnapshot,game,liveStatus),
       enemies:liveStatus === 'live' && Array.isArray(s.liveEnemies) ? 'live' : 'waiting' };
+    const options=[...natural.items,natural.boots,natural.mayhem?.nextItem,...(naturalShop.comparison||[]).map(o=>o.target)]
+      .filter((i,index,all)=>i?.id&&!i.owned&&canBuy(i.id,game,natural)&&all.findIndex(x=>x?.id===i.id)===index);
+    build.purchaseGoal={...purchaseGoal.value,name:game.items.get(purchaseGoal.value.id)?.name||null,
+      active:!!result.active,canEdit:liveStatus==='live'&&Number.isFinite(loading.liveSnapshot?.gold),
+      notice:purchaseGoal.value.notice||(!result.active&&goal.id?result.reason:''),options:options.map(i=>({id:i.id,name:i.name})),
+      suggestion:result.active&&naturalShop.target?.id!==goal.id?naturalShop.target:null};
     if (build.mayhem) {
       const auto = mayhemSession.value?.autoInventory !== false;
       const next = build.mayhem.nextItem;
@@ -455,7 +482,7 @@ function finalWithEnemies(me) {
           available:!!visionConfig?.enabled&&visionConfig.mode==='auto'},
         live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null },
         screen:{ enabled:!!visionConfig?.enabled, config:visionConfig, revision:visionRevision,
-          status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off' } };
+          status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off', error:loading.visionError||null } };
       const undo=augmentScreen.undoCandidate(mayhemSession.value);
       build.mayhem.undo=undo?{token:undo.token,names:undo.ids.map(id=>visionCatalog.find(a=>a.id===id)?.name).filter(Boolean)}:null;
       const offer=loading.visionOffer;
@@ -719,6 +746,29 @@ ipcMain.handle('import-runes', wrap(alias => choiceWrites(() => importRunes(alia
 ipcMain.handle('set-spells', wrap(setSpells));
 ipcMain.handle('export-item-set', wrap(alias => choiceWrites(() => exportItemSet(alias))));
 ipcMain.handle('get-state', () => lastState);
+ipcMain.handle('get-view-mode',()=>desktop?.isCompact()||false);
+ipcMain.handle('set-view-mode',wrap(compact=>{
+  if(typeof compact!=='boolean')throw Error('Nieprawidłowy widok.');
+  desktop?.setCompact(compact);return {ok:true};
+}));
+ipcMain.handle('set-next-purchase',wrap(input=>choiceWrites(async()=>{
+  if(!loading||lastState?.status!=='loading-screen')throw Error('Cel zakupu ustawisz podczas meczu.');
+  const target=loading,me=target.allies.find(p=>p.isMe),state=loadingSelectState(me);
+  const alias=game.championsById.get(me?.championId)?.alias;
+  const key=purchaseKey(target.gameId||target.sessionId,alias,currentMode,ownerKey(me.puuid));
+  if(input?.key!==key||purchaseGoal.value?.key!==key||input.revision!==purchaseGoal.value.revision)throw Error('Mecz lub cel się zmienił. Otwórz zakup ponownie.');
+  if(input.id!==null){
+    const [phase,flow]=await Promise.all([lcu.get('/lol-gameflow/v1/gameflow-phase'),lcu.get('/lol-gameflow/v1/session')]);
+    if(loading!==target||phase!=='InProgress'||!target.gameId||String(flow?.gameData?.gameId)!==String(target.gameId)
+      ||target.liveStatus!=='live'||Date.now()-(target.liveAt||0)>=6000||!Number.isFinite(target.liveSnapshot?.gold))throw Error('Poczekaj na świeży odczyt bieżącego meczu.');
+    const view=finalWithEnemies(me)?.build;
+    if(!view?.purchaseGoal?.options.some(i=>i.id===input.id))throw Error('Ten przedmiot nie jest już dostępny w planie. Wybierz cel ponownie.');
+    const base=buildFor(alias,state),result=withPurchaseGoal(alias,withChoices(alias,state),game,data,base,input.id);
+    if(!result.active)throw Error(result.reason||'Nie można przypiąć tego celu.');
+  }
+  purchaseGoal.set(key,input.revision,input.id,input.id===null?'Przywrócono automatyczny plan.':'');
+  loadingDirty=true;send(buildLoadingView());return {ok:true};
+})));
 
 function choiceContext(alias, scope) {
   if (!game || !lastSelectState || game.championsById.get(lastSelectState.me?.championId)?.alias !== alias) throw new Error('Wybór postaci się zmienił. Odśwież własne wybory.');
@@ -819,9 +869,9 @@ function updateVisionOffer(value,invalidatedAt){
   if(JSON.stringify(loading.visionOffer?.ids||null)!==JSON.stringify(value?.ids||null))loadingDirty=true;
   loading.visionOffer=value;
 }
-function visionStatus(status) {
-  if(!loading || loading.visionStatus===status&&!loadingDirty)return;
-  loading.visionStatus=status;loadingDirty=false;send(buildLoadingView());
+function visionStatus(status,error=null) {
+  if(!loading || loading.visionStatus===status&&loading.visionError===error&&!loadingDirty)return;
+  loading.visionStatus=status;loading.visionError=error;loadingDirty=false;send(buildLoadingView());
 }
 function noteVisionRead(){
   const now=Date.now();loading.visionAt=now;
@@ -861,11 +911,13 @@ ipcMain.handle('set-augment-screen',wrap(input=>choiceWrites(async()=>{
   offerTracker.reset();
   if(!config.enabled)stopVisionWorkers();
   else if(config.mode!=='auto')augmentClicks.stop();
-  loading.visionStatus=config.enabled?'waiting':'off';send(buildLoadingView());
+  loading.visionStatus=config.enabled?'waiting':'off';loading.visionError=null;send(buildLoadingView());
   return {ok:true,matchKey:state.mayhemKey};
 })));
 ipcMain.handle('augment-screen-problem',wrap(input=>{
-  mayhemContext(input?.matchKey);visionConsensus.reset();offerTracker.reset();visionStatus('waiting');return {ok:true};
+  mayhemContext(input?.matchKey);visionConsensus.reset();offerTracker.reset();
+  const error=typeof input.error==='string'?input.error.slice(0,220):'Nie udało się odczytać obrazu gry. Użyj okna bez ramek.';
+  visionStatus('capture-error',error);return {ok:true};
 }));
 ipcMain.handle('augment-screen-preview',wrap(async input=>{
   const state=mayhemContext(input?.matchKey);
@@ -888,7 +940,7 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
   return choiceWrites(async()=>{
   mayhemContext(input.matchKey);
   if(!visionConfig?.enabled || input.token!==visionToken || input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
-    if(!result?.readings){visionConsensus.reset();visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    if(!result?.readings){visionConsensus.reset();visionStatus(result?.error==='language'?'language':'ocr-error');return {ok:true};}
     noteVisionRead();
   const matches=[augmentVision.recognizeText(result.readings,visionCatalog,state.mayhemPool)];
   const stable=visionConsensus.observe(`${state.mayhemKey}:${visionRevision}:${visionToken}`,matches);
@@ -917,7 +969,7 @@ async function readAutomaticAugment(input,state){
   return choiceWrites(async()=>{
     mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
-    if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'waiting');return {ok:true};}
+    if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'ocr-error');return {ok:true};}
     if(augmentClicks.active())noteVisionRead();
     if(augmentClicks.active()&&automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
       const headliner=headlinerConsensus.observe(`${state.mayhemKey}:${visionToken}:${visionRevision}`,result,input.at);
@@ -970,6 +1022,7 @@ ipcMain.handle('toggle-stats', wrap(async () => {
   writeJson(userFile('settings.json'), settings);
   recomputeData();
   if (settings.stats) loadMeta();
+  if(loading){if(settings.stats)fetchPlayerStats(loading);loadingDirty=true;send(buildLoadingView());}
   lastSessionJson = '';
   return { ok: true, enabled: settings.stats };
 }));
@@ -1113,7 +1166,8 @@ app.whenReady().then(() => {
     autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
-  desktop = createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, settings,
+  desktop = createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen:require('electron').screen,settings,
+    onViewMode:compact=>win.webContents.send('view-mode',compact),
     saveSettings: () => writeJson(userFile('settings.json'), settings), log,
     notify: message => { dialog.showMessageBox({ type: 'info', title: 'Skrót klawiaturowy', message }).catch(err => log(err.message)); } });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));

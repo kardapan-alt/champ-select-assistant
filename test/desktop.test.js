@@ -23,6 +23,10 @@ function fixture({ background = true, packaged = true, portable = false, trayFai
   app.getLoginItemSettings = () => ({ openAtLogin: false, launchItems: calls.login.at(-1)?.openAtLogin
     ? [{ name: 'Champ Select Assistant', scope: 'user', enabled: true, path: 'C:\\App\\Champ Select Assistant.exe', args: [] }] : [] });
   win.isDestroyed = () => false;
+  let bounds={x:50,y:70,width:1100,height:760},maximized=false;
+  win.getBounds=()=>({...bounds});win.getNormalBounds=win.getBounds;
+  win.setBounds=value=>{bounds={...value};};win.setMinimumSize=(w,h)=>{calls.minimum=[w,h];};
+  win.isMaximized=()=>maximized;win.maximize=()=>{maximized=true;};win.unmaximize=()=>{maximized=false;};
   win.isMinimized = () => minimized;
   win.restore = () => { minimized = false; calls.restored++; };
   win.minimize = () => { minimized = true; focused = false; };
@@ -165,6 +169,7 @@ test('Ctrl+X pokazuje i chowa okno; widoczne pod inną aplikacją wraca na wierz
   const press = () => f.shortcuts.get('Control+X')();
   assert.equal(f.visible(), false);
   press(); assert.equal(f.visible(), true);
+  assert.equal(f.desktop.isCompact(),true);assert.equal(f.win.getBounds().width,520);
   press(); assert.equal(f.visible(), false);
   press(); f.win.blur(); press();
   assert.equal(f.visible(), true);
@@ -172,6 +177,14 @@ test('Ctrl+X pokazuje i chowa okno; widoczne pod inną aplikacją wraca na wierz
   f.win.minimize(); press();
   assert.equal(f.calls.restored, 1);
   assert.equal(f.visible(), true);
+});
+
+test('pełny widok wraca do poprzedniego rozmiaru; skrót z pełnego widoku otwiera mały',()=>{
+  const f=fixture();f.win.emit('ready-to-show');f.desktop.show();
+  f.win.setBounds({x:120,y:90,width:1250,height:800});
+  f.shortcuts.get('Control+X')();assert.equal(f.desktop.isCompact(),true);assert.equal(f.visible(),true);
+  f.desktop.setCompact(false);assert.deepEqual(f.win.getBounds(),{x:120,y:90,width:1250,height:800});
+  f.shortcuts.get('Control+X')();f.desktop.show();assert.equal(f.desktop.isCompact(),false);
 });
 
 test('skrót przed gotowością okna pamięta pokazanie i pozwala je anulować', () => {

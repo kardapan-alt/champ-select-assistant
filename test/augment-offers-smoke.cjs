@@ -11,7 +11,8 @@ let gameId=777;
 LcuClient.prototype.get=async function(url){if(url.endsWith('/items.json'))return require('../data/catalog.json').items;const result=await originalGet.call(this,url);
   if(url==='/lol-gameflow/v1/session'&&result){result.gameData.queue.gameMode='KIWI';result.gameData.gameId=gameId;}return result;};
 require('../src/liveclient').LiveClient.prototype.inventory=async()=>({status:'waiting'});
-require('../src/augment-screen').gameWindowHandle=async()=>'1234';
+let gameWindowAvailable=false;
+require('../src/augment-screen').gameWindowHandle=async()=>gameWindowAvailable?'1234':null;
 const {AugmentClicks}=require('../src/augment-clicks');let onInput=null,watcher=null;
 const {WindowsOcr}=require('../src/windows-ocr'),originalRead=WindowsOcr.prototype.read;let beforeOcrResult=null;
 WindowsOcr.prototype.read=async function(png){const result=await originalRead.call(this,png);const callback=beforeOcrResult;beforeOcrResult=null;if(callback)await callback();return result;};
@@ -39,7 +40,12 @@ server.once('listening',async()=>{
         }
       };drawOffer();return c.captureStream(5);
     };void 0`);
-    await waitFor(()=>evaluate('lastState?.final?.build?.mayhem?.screen.status==="offers"'),'Nie odczytano kart');
+    await waitFor(()=>evaluate('lastState?.final?.build?.mayhem?.screen.status==="capture-error"'),'Błąd okna ukryty pod oczekiwaniem');
+    assert.ok(await evaluate('document.querySelector("[data-readout=augments]").textContent.includes("Nie widzę okna gry")'));
+    assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);
+    gameWindowAvailable=true;
+    await waitFor(()=>evaluate('lastState?.final?.build?.mayhem?.screen.status==="offers"'),'Nie odczytano kart po powrocie okna gry');
+    assert.equal(await evaluate('lastState.final.build.mayhem.screen.error'),null);
     assert.ok(await evaluate('lastState.final.build.mayhem.screen.config.mode==="auto"'));
     assert.ok(await evaluate('!document.querySelector("#augment-calibration[open]")'));
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);

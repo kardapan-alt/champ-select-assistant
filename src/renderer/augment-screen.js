@@ -1,7 +1,7 @@
 // Tylko okno procesu gry. Pełna klatka pozostaje w rendererze, do lokalnego
 // Windows OCR trafia obraz gry lub wskazany tytuł. Bez plików i sieci.
 let augmentStream=null,augmentVideo=null,augmentCaptureKey='',augmentReaderBusy=false,augmentCalibrationOpen=false;
-let augmentScreenContext=null,augmentFrame=0,augmentGeneration=0,augmentStarting=null;
+let augmentScreenContext=null,augmentFrame=0,augmentGeneration=0,augmentStarting=null,augmentRetryAt=0;
 function stopAugmentCapture(){
   augmentGeneration++;augmentStream?.getTracks().forEach(t=>t.stop());augmentStream=null;
   if(augmentVideo){augmentVideo.srcObject=null;augmentVideo.remove();augmentVideo=null;}
@@ -15,7 +15,9 @@ async function startAugmentCapture(matchKey){
   augmentStarting=(async()=>{
     const context=await window.assist.augmentScreenSource(matchKey);
     if(!context.ok)throw Error(context.error);
-    const media=await navigator.mediaDevices.getUserMedia({audio:false,video:{mandatory:{chromeMediaSource:'desktop',chromeMediaSourceId:context.sourceId,maxFrameRate:5}}});
+    let media;
+    try{media=await navigator.mediaDevices.getUserMedia({audio:false,video:{mandatory:{chromeMediaSource:'desktop',chromeMediaSourceId:context.sourceId,maxFrameRate:5}}});}
+    catch{throw Error('Nie udało się przechwycić obrazu gry. Ustaw w LoL tryb okna bez ramek.');}
     if(generation!==augmentGeneration || lastState?.final?.build?.mayhem?.matchKey!==matchKey){media.getTracks().forEach(t=>t.stop());throw Error('Mecz się zmienił.');}
     augmentStream=media;augmentCaptureKey=matchKey;augmentScreenContext=context;
     augmentVideo=document.createElement('video');augmentVideo.muted=true;augmentVideo.srcObject=media;
@@ -36,7 +38,7 @@ function augmentTitlePng(frame,region){
   const png=canvas.toDataURL('image/png').split(',')[1];canvas.width=0;canvas.height=0;return png;
 }
 async function pollAugmentScreen(){
-  if(augmentReaderBusy || augmentCalibrationOpen)return;
+  if(augmentReaderBusy || augmentCalibrationOpen || Date.now()<augmentRetryAt)return;
   const m=lastState?.final?.build?.mayhem;
   if(lastState?.status!=='loading-screen'||!m?.screen?.enabled){if(augmentStream)stopAugmentCapture();return;}
   augmentReaderBusy=true;
@@ -47,9 +49,11 @@ async function pollAugmentScreen(){
       at,width:frame.width,height:frame.height,grid:automatic?.grid,
       png:automatic?.png || (AugmentVision.sameLayout(config,frame.width,frame.height)?augmentTitlePng(frame,config.regions[0]):null)});
     frame.width=0;frame.height=0;
-    if(!result.ok)stopAugmentCapture();
-  }catch{
-    stopAugmentCapture();await window.assist.augmentScreenProblem({matchKey:m.matchKey}).catch(()=>{});
+    if(!result.ok)throw Error(result.error||'Ponawiam odczyt okna gry.');
+    augmentRetryAt=0;
+  }catch(err){
+    augmentRetryAt=Date.now()+4000;
+    stopAugmentCapture();await window.assist.augmentScreenProblem({matchKey:m.matchKey,error:err.message}).catch(()=>{});
   }finally{augmentReaderBusy=false;}
 }
 function augmentOfferFrame(frame){

@@ -31,6 +31,8 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
   if (build.inventory.bootsSlot !== 'none' && build.boots?.id) order.splice(Math.min(1,order.length),0,build.boots);
   const upgrade = build.mayhem?.nextItem?.upgrade ? build.mayhem.nextItem : null;
   if (upgrade && exists(upgrade.id)) order.unshift(upgrade);
+  const pinned=build.nextPurchase?.id&&order.find(i=>i.id===build.nextPurchase.id&&!i.owned);
+  if(pinned)order.unshift(pinned);
   const next = order.find(i=>!i.owned && exists(i.id));
   if (!next) return { status:order.some(i=>!i.owned)?'unavailable':'complete', gold };
   const tree = recipeFor(next.id,inventory,game);
@@ -80,13 +82,15 @@ function shopPlan(build,snapshot,game,status='waiting'){
   const mainFocus=focus(main.target.id);
   const later=build.items.filter(i=>!i.owned&&i.id!==main.target.id).map(i=>({...i,kind:'later'}));
   const alternatives=(build.alternatives||[]).filter(i=>!i.owned&&i.id!==main.target.id).map(i=>({...i,kind:'alternative'}));
+  if(build.purchaseAlternative&&build.purchaseAlternative.id!==main.target.id)
+    alternatives.unshift({...build.purchaseAlternative,kind:'alternative'});
   const seen=new Set([main.target.id]);
   const options=[{...main,kind:'plan',focus:mainFocus,benefit:main.target.why,tradeoff:'Zachowujesz bieżącą kolejność buildu.'}];
   // One later planned purchase and one compatible engine alternative, if available.
   for(const pool of [later,alternatives]){
     for(const candidate of pool){
       if(seen.has(candidate.id))continue;
-      const option=singlePlan({...build,items:[candidate],boots:null,mayhem:null},snapshot,game,status);
+      const option=singlePlan({...build,items:[candidate],boots:null,mayhem:null,nextPurchase:null},snapshot,game,status);
       if(!option.target)continue;
       seen.add(candidate.id);
       const candidateFocus=focus(candidate.id),delayed=mainFocus.filter(x=>!candidateFocus.includes(x));
