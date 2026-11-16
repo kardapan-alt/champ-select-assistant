@@ -26,6 +26,10 @@ function getJson(path) {
 
 const riotId = p => p?.riotId || (p?.riotIdGameName && p?.riotIdTagLine ? `${p.riotIdGameName}#${p.riotIdTagLine}` : p?.summonerName || '');
 const sameId = (a,b) => !!a && !!b && a.normalize('NFC').toLowerCase() === b.normalize('NFC').toLowerCase();
+// Live Client używa obu kluczy lokalizacji (m.in. Character_Aatrox_Name).
+// Nadal wymagamy dokładnego aliasu z LCU oraz osobnej zgodności Riot ID.
+const matchesChampion = (player,alias) => typeof alias==='string' && !!alias
+  && [ `game_character_displayname_${alias}`, `Character_${alias}_Name` ].includes(player?.rawChampionName);
 
 function inventoryOf(items, game, alias, mode = 'mayhem', sideBoots = false) {
   if (!Array.isArray(items) || items.length > 12) return null;
@@ -67,7 +71,7 @@ class LiveClient {
     if (!sameId(riotId(active),expected)) return { status:'mismatch' };
     const matches = players.filter(p => sameId(riotId(p),expected));
     const own = matches.length === 1 ? matches[0] : null;
-    if (!own || own.rawChampionName !== `game_character_displayname_${alias}`) return { status:'mismatch' };
+    if (!own || !matchesChampion(own,alias)) return { status:'mismatch' };
     const mode = options.mode || (pool === 'CLASSIC' ? 'classic' : pool === 'ARAM' ? 'aram' : 'mayhem');
     const inventory = inventoryOf(own.items,game,alias,mode,options.sideBoots);
     if (!inventory) return { status:'invalid' };
@@ -89,7 +93,7 @@ function enemyInventories(players, own, expected, game, mode) {
     const matches = opponents.filter(p=>sameId(riotId(p),id));
     const found = matches.length === 1 ? matches[0] : null;
     const alias = game.championsById.get(enemy.championId)?.alias;
-    if (!found || used.has(found) || !alias || found.rawChampionName !== `game_character_displayname_${alias}`) return null;
+    if (!found || used.has(found) || !alias || !matchesChampion(found,alias)) return null;
     const inventory = inventoryOf(found.items,game,alias,mode,true);
     if (!inventory) return null;
     used.add(found);

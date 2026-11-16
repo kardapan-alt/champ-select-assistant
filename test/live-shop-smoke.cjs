@@ -29,7 +29,9 @@ LiveClient.prototype.inventory=async function(...args){
     assert.equal(endpoint,'/liveclientdata/allgamedata');requests++;
     const snapshot=connected?{activePlayer:{riotId:'Daniel#EUNE',currentGold:gold},gameData:{gameMode:mode,gameTime:300},
       allPlayers:[...flow.gameData.teamOne.map(p=>({...p,team:'ORDER'})),...flow.gameData.teamTwo.map(p=>({...p,team:'CHAOS'}))].map(p=>({
-        riotId:`${p.gameName}#${p.tagLine}`,team:p.team,rawChampionName:`game_character_displayname_${enemyReadFailure&&p.gameName==='Gwiezdna'?'Unknown':champions.find(c=>c.id===p.championId).alias}`,
+        riotId:`${p.gameName}#${p.tagLine}`,team:p.team,rawChampionName:p.gameName==='Gwiezdna'
+          ? `Character_${enemyReadFailure?'Unknown':champions.find(c=>c.id===p.championId).alias}_Name`
+          : `game_character_displayname_${champions.find(c=>c.id===p.championId).alias}`,
         items:(p.gameName==='Daniel'?ownItems:p.gameName==='Gwiezdna'?enemyItems:[]).map((itemID,slot)=>({itemID,slot,count:1}))}))}:null;
     if(pending){const hold=pending;pending=null;await hold.promise;}
     return snapshot;

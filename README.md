@@ -2,6 +2,14 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.27
+
+- **Naprawiony odczyt zakupów przeciwników:** Live Client może zwracać nazwę postaci jako `Character_Aatrox_Name` zamiast `game_character_displayname_Aatrox`. Oba dokładne formaty są teraz obsługiwane dla własnej postaci i przeciwników, nadal z weryfikacją konta, drużyny i championa. Ten wariant nazwy nie wyłącza już analizy całej drużyny wroga.
+- **Randuin przeciw rzeczywistym buildom pod kryty:** zweryfikowano przypadek Trundle’a przeciw Ezrealowi, Aatroxowi i Xayah z przedmiotami krytycznymi. Po przywróceniu odczytu istniejąca reguła wskazuje Randuin’s Omen jako następny zakup, zachowując kupione itemy. Sprawdzono również wariant po pierwszym przedmiocie, w ARAM i Mayhem.
+- Zawiera wszystkie zmiany 0.6.26: odczyt okna gry, karty graczy, przypięcie zakupu, mały widok i informacje o danych.
+
+Walidacja: 208 testów logiki, test pełnego przepływu zakupów przez aplikację oraz odczyt i przeliczenie faktycznych danych trwającego meczu. To nie jest automatyczny zakup w grze.
+
 ## Wersja 0.6.26
 
 - **Naprawiony odczyt okna gry:** Windows może zwracać pustą ścieżkę chronionego procesu LoL, mimo dostępnego okna. Asystent rozpoznaje teraz dokładny proces i tytuł okna także w takim przypadku; nadal przechwytuje wyłącznie to okno. Błąd przechwytywania ma konkretny komunikat i automatyczne ponowienie, zamiast ciągłego „Czekam na obraz”. Rozpoznawanie rozpoczyna się od kolejnych widocznych kart; pominięte wcześniejsze wybory można uzupełnić w edytorze.

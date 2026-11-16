@@ -55,6 +55,43 @@ test('niepewny skład wroga wyłącza jego analizę, a brak złota nie oznacza z
   assert.equal(JSON.stringify((await read(f)).enemies).includes('EUNE'),false,'Brak nazw kont w przekazywanym ekwipunku');
 });
 
+test('oba klucze nazwy championa z Live Client zachowują weryfikację konta i składu',async()=>{
+  for(const ownName of ['game_character_displayname_Ahri','Character_Ahri_Name']){
+    for(const enemyName of ['game_character_displayname_Ahri','Character_Ahri_Name']){
+      const f=fixture();f.allPlayers[1].rawChampionName=ownName;f.allPlayers[0].rawChampionName=enemyName;
+      const result=await read(f);assert.equal(result.status,'live');assert.equal(result.enemies.length,1);
+    }
+  }
+  for(const name of ['Character_Lux_Name','Character_Ahri_Name_extra','Ahri','Character__Name',null]){
+    const f=fixture();f.allPlayers[0].rawChampionName=name;assert.equal((await read(f)).enemies,null);
+    f.allPlayers[1].rawChampionName=name;assert.equal((await read(f)).status,'mismatch');
+  }
+  const f=fixture();f.allPlayers[0].rawChampionName='Character_Ahri_Name';f.allPlayers[0].riotId='Inny#EUNE';
+  assert.equal((await read(f)).enemies,null);
+});
+
+test('Trundle przeciw trzem zakupionym buildom pod kryty dostaje Randuina jako następny cel',async()=>{
+  const {shopPlan}=require('../src/shop-plan');
+  const enemies=[['Ezreal',[3042,3158,3508,6676,3033,3003]],['Aatrox',[3031,3036,3095,6676,1053,3111]],
+    ['Sett',[3084,3111,3083,2504,2501]],['Xayah',[3032,3006,6675,3031,3153,1043]],['Xerath',[6655,3135,3020,4645,3089,4628]]];
+  const expected=enemies.map(([alias],i)=>({gameName:'Enemy'+i,tagLine:'TEST',championId:game.championsByAlias.get(alias).id}));
+  for(const mode of ['aram','mayhem'])for(const owned of [[3078,3047],[3078,3047,223069,3053,6609]]){
+    const snapshot={activePlayer:{riotId:'Gracz#EUNE',currentGold:3000},gameData:{gameMode:mode==='aram'?'ARAM':'KIWI',gameTime:1000},allPlayers:[
+      {riotId:'Gracz#EUNE',team:'ORDER',rawChampionName:'game_character_displayname_Trundle',items:owned.map((id,slot)=>item(id,slot))},
+      ...enemies.map(([alias,ids],i)=>({riotId:`Enemy${i}#TEST`,team:'CHAOS',rawChampionName:alias==='Aatrox'?'Character_Aatrox_Name':`game_character_displayname_${alias}`,items:ids.map((id,slot)=>item(id,slot))}))]};
+    const result=await new LiveClient(async()=>snapshot).inventory(me,'Trundle',snapshot.gameData.gameMode,game,{mode,enemies:expected});
+    assert.equal(result.enemies.length,5);
+    const state={mode,me:{championId:48},allies:[],enemies:expected,liveInventory:result.inventory,liveEnemies:result.enemies,
+      ...(mode==='mayhem'?{mayhem:{augments:[],effects:{},completed:[],owned:result.inventory.owned,ownedBoots:result.inventory.ownedBoots}}:{})};
+    const build=engine.buildFor('Trundle',state,game,data);
+    const response=build.liveAdaptation.find(s=>s.item===3143);
+    assert.deepEqual(response.evidence.map(e=>e.name).sort(),['Aatrox','Ezreal','Xayah']);
+    assert.equal(build.items.find(i=>!i.owned).id,3143);
+    assert.equal(shopPlan(build,result,game,result.status).target.id,3143);
+    assert.ok(result.inventory.owned.every(id=>build.items.some(i=>i.id===id&&i.owned)));
+  }
+});
+
 test('boczne buty ADC tylko przy potwierdzonym slocie i właściwej roli',()=>{
   const items=[item(3031),item(3006,7),item(3340,6)];
   assert.equal(inventoryOf(items,game,'Ashe','classic',true).ownedBoots,3006);
