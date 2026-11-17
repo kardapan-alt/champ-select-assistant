@@ -1,0 +1,47 @@
+{
+  "format": "champ-select-assistant/build-report",
+  "schema": 1,
+  "version": "",
+  "patch": null,
+  "scenario": {
+    "alias": "Zoe",
+    "role": "",
+    "mode": "mayhem",
+    "allies": [],
+    "enemies": [],
+    "choices": {
+      "items": [],
+      "boots": null
+    },
+    "mayhem": {
+      "augments": [
+        3150
+      ],
+      "completed": [],
+      "effects": {},
+      "owned": [],
+      "ownedBoots": null,
+      "headliner": null
+    },
+    "context": {
+      "allyRoles": [],
+      "enemyRoles": [],
+      "roleQuests": false,
+      "pool": "KIWI",
+      "inventory": [],
+      "enemies": [],
+      "goal": null
+    }
+  },
+  "observed": {
+    "gold": null,
+    "source": "Scenariusz odtworzony ze zgłoszenia",
+    "plan": [],
+    "questSlot": null,
+    "target": null
+  },
+  "expectation": {
+    "kind": "include",
+    "itemId": 4646
+  }
+}

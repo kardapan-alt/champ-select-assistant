@@ -16,6 +16,7 @@ const EFFECTS = {
   shield:'Przedmioty z tarczą', move:'Prędkość ruchu', slow:'Spowolnienia', stackitems:'Przedmioty na stacki', jungleitem:'Przedmioty Spirit',
 };
 const RULES = require('./mayhem-rules');
+const {observedRewards} = require('./mayhem-quest-state');
 const headliners = require('./headliners');
 const { itemInteraction, onHitExamples } = require('./mayhem-interactions');
 
@@ -212,18 +213,21 @@ class MayhemSession {
   }
   set(key, selection) {
     if (!key || this.value?.key !== key) throw Error('Mecz się zmienił. Otwórz augmenty ponownie.');
-    const next = { ...this.value, selection:JSON.parse(JSON.stringify(selection)) }; this.save(next); this.value = next;
-    return next;
+    return this.patch(key,{selection:JSON.parse(JSON.stringify(selection))});
   }
   setInventory(key, inventory) {
     if (!key || this.value?.key !== key) return false;
-    if (JSON.stringify(this.value.inventory) === JSON.stringify(inventory)) return false;
-    const next = { ...this.value, inventory };
+    const questReceipts=observedRewards(this.value,this.value.autoInventory===false?null:inventory);
+    if (JSON.stringify(this.value.inventory) === JSON.stringify(inventory)
+      && JSON.stringify(this.value.questReceipts||[])===JSON.stringify(questReceipts)) return false;
+    const next = { ...this.value, inventory, questReceipts };
     this.save(next); this.value = next; return true;
   }
   patch(key, changes) {
     if(!key || this.value?.key!==key)throw Error('Mecz się zmienił. Otwórz augmenty ponownie.');
-    const next={...this.value,...changes};this.save(next);this.value=next;return next;
+    const next={...this.value,...changes};
+    if(changes.selection && next.questReceipts) next.questReceipts=observedRewards(next,null);
+    this.save(next);this.value=next;return next;
   }
   setAutoInventory(key, enabled) {
     if (!key || this.value?.key !== key) throw Error('Mecz się zmienił. Otwórz ekwipunek ponownie.');
@@ -232,7 +236,9 @@ class MayhemSession {
   }
 }
 function effectiveSelection(session) {
-  if (session.autoInventory === false || !session.inventory) return session.selection;
-  return { ...session.selection, owned:session.inventory.owned, ownedBoots:session.inventory.ownedBoots };
+  const receipts=observedRewards(session,null);
+  const selection=receipts.length ? {...session.selection,completed:[...new Set([...(session.selection.completed||[]),...receipts])]} : session.selection;
+  if (session.autoInventory === false || !session.inventory) return selection;
+  return { ...selection, owned:session.inventory.owned, ownedBoots:session.inventory.ownedBoots };
 }
 module.exports = { choicesCatalog, validateSelection, adaptation, upgradeTargets, MayhemSession, effectiveSelection, EFFECTS, ownedAvailable, repeatItems };

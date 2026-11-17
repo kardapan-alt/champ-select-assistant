@@ -60,6 +60,11 @@ async function openMatchReviews(){
       <form id="review-feedback"><h4>Twoja ocena</h4><div class="choice-grid"><label>Wynik · opcjonalna korekta<select name="result">${[['auto','Automatycznie z gry'],['win','Wygrana — moja korekta'],['loss','Przegrana — moja korekta']].map(([v,t])=>`<option value="${v}" ${(['win','loss'].includes(m.feedback?.result)?m.feedback.result:'auto')===v?'selected':''}>${t}</option>`).join('')}</select></label><label>Czy porady pomogły?<select name="rating">${[['none','Jeszcze nie oceniam'],['helpful','Pomogły'],['mixed','Częściowo'],['unhelpful','Nie pomogły']].map(([v,t])=>`<option value="${v}" ${(m.feedback?.rating||'none')===v?'selected':''}>${t}</option>`).join('')}</select></label></div><button type="submit">Zapisz ocenę</button><p role="status" id="feedback-status"></p></form>
       <p class="note">Historia jest lokalna, bez nazw kont przeciwników. Wynik meczu nie dowodzi skuteczności konkretnej porady.</p>`}`;
     dialog.querySelector('[data-close-review]').onclick=()=>dialog.close();
+    const notesButton = document.createElement('button');
+    notesButton.textContent = 'Notes matchupów SoloQ';
+    notesButton.dataset.openMatchupNotes = '';
+    notesButton.onclick = () => openMatchupNotes(m?.key);
+    dialog.querySelector('[data-close-review]').before(notesButton);
     if(!m){refreshOpenReview=null;return;}
     bindOfferHistory(dialog,m,renderReview);
     refreshOpenReview=fresh=>{if(fresh.key!==m.key)return;Object.assign(m,fresh);const badge=dialog.querySelector('#review-outcome');if(badge)badge.textContent=reviewOutcome(m);};

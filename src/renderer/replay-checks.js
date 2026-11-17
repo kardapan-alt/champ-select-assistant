@@ -13,7 +13,8 @@ function replayCheckCard(c) {
       </li>`;
   }).join('');
   return `<details class="replay-case" data-case="${esc(c.id)}" data-report-id="${esc(c.caseId)}">
-    <summary><strong>${esc(c.name)}</strong> · ${esc(mode)} · ${esc(when)} · ${esc(label)}</summary>
+    <summary><strong>${esc(c.name)}</strong> · ${esc(mode)} · ${esc(when)} · ${esc(label)}${c.expectation ? (c.expectation.passed?' · Warunek spełniony':' · Warunek niespełniony'):''}</summary>
+    ${c.expectation ? '<p>'+esc(c.expectation.message)+'</p>' : ''}
     <p class="muted">Zapis z wersji ${esc(c.originalVersion || 'nieznanej')} · patch ${esc(c.patch || 'nieznany')} · ${esc(c.source)}</p>
     ${c.error ? `<p class="note">${esc(c.error)}</p>` : `<p><b>W meczu</b> · ${order(c.before)}</p><p><b>Obecna wersja</b> · ${order(c.after)}</p>
     ${changes ? `<ul>${changes}</ul>` : ''}${c.quest ? `<p>Slot questa · ${esc(c.quest.before || 'pusty')} → ${esc(c.quest.after || 'pusty')}</p>` : ''}`}

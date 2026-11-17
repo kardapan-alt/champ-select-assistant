@@ -114,9 +114,9 @@ for (const [name,items] of Object.entries({ Upgrade_Collector:[6676], Upgrade_IE
 }
 rule('Upgrade_Immolate', [], 'Immolate generuje złoto. Preferuję jeden z ulepszonych przedmiotów; wybór uwzględnia obrażenia wroga.', { items:[3068,6664], anyItem:true, upgrade:true });
 rule('Quest_SteelYourHeart', ['health'], 'Zadanie wymaga Heartsteel i jego ładunków. Przyspieszam ten zakup.', { items:[3084], quest:true });
-rule('Quest_WoogletsWitchcap', ['ap'], 'Zadanie wymaga Rabadona i Zhonyi. Po połączeniu oznacz ukończenie i posiadaną nagrodę.', { items:[3089,3157], quest:true, consumed:true });
-rule('Quest_VoidImmolation', ['health'], 'Sunfire i Hollow Radiance łączą się w nagrodę. Po połączeniu oznacz ukończenie i posiadaną nagrodę.', { items:[3068,6664], quest:true, consumed:true });
-rule('Quest_UltraHydra', ['ad'], 'Zadanie wymaga Ravenous, Profane i Titanic Hydry. Po połączeniu oznacz ukończenie i posiadaną nagrodę.', { items:[3074,6698,3748], quest:true, consumed:true });
+rule('Quest_WoogletsWitchcap', ['ap'], 'Zdobądź Rabadona i Zhonyę. Po wykryciu kapelusza Woogleta składniki znikną z planu zakupów.', { items:[3089,3157], quest:true, consumed:true });
+rule('Quest_VoidImmolation', ['health'], 'Sunfire i Hollow Radiance łączą się w Void Immolation. Wykrycie nagrody kończy plan zakupu składników.', { items:[3068,6664], quest:true, consumed:true });
+rule('Quest_UltraHydra', ['ad'], 'Zdobądź Ravenous, Profane i Titanic Hydrę. Po wykryciu Ultra Hydry składniki znikną z planu zakupów.', { items:[3074,6698,3748], quest:true, consumed:true });
 rule('FutureSightHeartsteel', ['health'], 'Bonusowe HP odblokowuje darmowy Heartsteel. Nie każę kupować nagrody; po otrzymaniu zaznacz ją w ekwipunku.', { exclude:[3084] });
 rule('DoOrDie', ['stackitems'], 'Augment podnosi limity stacków przedmiotów. Dobieram pasujący do postaci item na stacki zamiast kupować wszystkie.');
 rule('DontStopCleavin', [], 'Pierwszy Black Cleaver rozpoczyna skalowanie kolejnych kopii. Premiuję go; już posiadane kopie zachowuję.', { items:[773071], repeat:[773071] });
@@ -128,8 +128,8 @@ neutral('TransmuteGold|TransmutePrismatic|TransmuteChaos|PandorasBox', 'Augment 
 neutral('Stats|StatsOnStats|StatsOnStatsOnStats|OmniSoul', 'Nagroda jest losowa. Sam augment nie określa otrzymanych statystyk, więc zachowuję zakupy championa i odpowiedzi na wrogów.');
 neutral('KingMe', 'Ukończ pierwszy przedmiot legendarny i wykonaj warunek augmentu. Otrzymany losowy augment dodaj do wyboru; nie zgaduję jego efektu.');
 neutral('WeaponOfDestiny', 'Pierwszy przedmiot legendarny zbiera ulepszenia. Zachowuję bazowy pierwszy zakup oraz zaznaczone posiadane itemy.');
-neutral('Quest_UrfsChampion', 'Zadanie kończą udziały w zabójstwach, nie zakupy. Po otrzymaniu Golden Spatula zaznacz ją jako posiadaną.');
-rule('Quest_Sneakerhead', [], 'Augment daje buty i osobny quest. Nie polecam kupowania nagrody; zaznacz otrzymane buty w ekwipunku.', { neutral:true, freeBoots:true });
+rule('Quest_UrfsChampion', [], 'Zadanie kończą udziały w zabójstwach. Po otrzymaniu Golden Spatula potwierdź ukończenie w edytorze.', {neutral:true,quest:true});
+rule('Quest_Sneakerhead', [], 'Augment daje buty i osobny quest. Odczyt Jarvan I’s potwierdza zdobycie nagrody.', { neutral:true, freeBoots:true, quest:true });
 neutral('DoransBiggestFan', 'Premia dotyczy startowych itemów Dorana. Ulepszaj posiadany start zgodnie z augmentem; docelowy build legendarny pozostaje bez zmian.');
 rule('SpiritOfTheJungleMain', ['jungleitem'], 'Premia wzmacnia przedmioty Spirit w tym wariancie. Dobieram ich wersję do AP, AD lub wytrzymałości postaci.');
 neutral('DrinkUp|SummonersSafari|Fruitify', 'Augment daje mikstury, owoce lub inne zasoby. Nie zajmuję nimi miejsc docelowych przedmiotów legendarnych.');

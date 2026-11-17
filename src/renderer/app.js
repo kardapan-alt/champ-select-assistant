@@ -450,7 +450,7 @@ function loadingScreen(s) {
     ? rosterPanel(s)
     : tab === 'build'
       ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane postaci.</p>'}${priorityAdvicePanel(s)}${planDetails}${adviceDetails(list)}`
-    : `${botPlanPanel(s.botPlan)}${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
+    : `${matchupRemindersPanel(s.noteReminders)}${botPlanPanel(s.botPlan)}${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
       ${priorityAdvicePanel(s)}
       ${runeSummary(s.final?.myChampion)}
       ${planDetails}
@@ -487,6 +487,8 @@ function render(s) {
   if (!s) return;
   const previous = lastState;
   lastState = s;
+  const laneDialog=document.getElementById('lane-variants-dialog');
+  if(laneDialog?.open && laneDialog.dataset.key!==s.laneVariants?.key) laneDialog.close();
   if (s.status === 'champselect' && previous?.status !== 'champselect') labEntry++;
   if (previous?.status === 'loading-screen' && s.status !== 'loading-screen') {
     for (const key of expanded.keys()) if (key.startsWith('detail:roster-')) expanded.delete(key);
@@ -532,6 +534,7 @@ function render(s) {
     pickPoolPanel(s.pickPool),
     isAramView(s.mode) ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
     botPlanPanel(s.botPlan),
+    s.laneVariants ? '<div class="actions"><button data-lane-variants>Porównaj warianty linii</button></div>' : '',
     s.build ? buildPanel({ ...s.build, mode: s.mode }, false, s.autoItemSet) : '',
     s.build ? priorityAdvicePanel(s) : '',
     s.myChampion ? disclosure('runes', s.mode==='mayhem'?'Czary przywoływacza':'Runy, czary i dopasowanie do matchupu', myChampionPanel(s.myChampion, false, s.autoRunes)) : '',

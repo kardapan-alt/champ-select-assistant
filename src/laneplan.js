@@ -72,7 +72,8 @@ function lanePlan(me, enemies, cardFor, game, data) {
   // Jungler wroga mocny na początku: ostrzeżenie o wczesnych gankach.
   if (found.role !== 'jungle') {
     const jungler = enemies.find((e) => toDataRole(e.position) === 'jungle')
-      || enemies.find((e) => e.championId && (champInfo(aliasOf(e.championId), game, data).roles || [])[0] === 'jungle');
+      || enemies.find((e) => !['top','jungle','middle','bottom','support'].includes(toDataRole(e.position)) && e.championId
+        && (champInfo(aliasOf(e.championId), game, data).roles || [])[0] === 'jungle');
     const jAlias = jungler && aliasOf(jungler.championId);
     const jt = jAlias ? champInfo(jAlias, game, data).traits || [] : [];
     if (jAlias && (jt.includes('early') || jt.includes('pick'))) tips.push(`Ich jungler (${name(jAlias)}) jest groźny wcześnie: postaw ward w rzece przed 3. minutą.`);

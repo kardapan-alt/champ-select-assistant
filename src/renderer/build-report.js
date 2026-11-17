@@ -15,6 +15,7 @@ async function openReportInLab(report) {
 
 function previewBuildReport(draft) {
   const { report } = draft;
+  const options = draft.items.map(i=>`<option value="${i.id}">${esc(i.name)} (#${i.id})</option>`).join('');
   let dialog = document.getElementById('build-report-dialog');
   if (!dialog) {
     dialog = document.createElement('dialog'); dialog.id = 'build-report-dialog'; document.body.appendChild(dialog);
@@ -24,22 +25,44 @@ function previewBuildReport(draft) {
     <ol>${report.observed.plan.map(i=>`<li><b>${esc(i.name)}</b> · ${esc(i.reason)}</li>`).join('')}</ol>
     ${report.observed.questSlot ? `<p>Slot questa · ${esc(report.observed.questSlot.name)}</p>` : ''}
     <p>Plik zawiera skład z nazwami postaci, augmenty, przedmioty i powody zakupów. Zapisujesz go lokalnie i sam decydujesz, komu go przekazać.</p>
+    <fieldset><legend>Co powinno się zmienić?</legend>
+      <label>Warunek do sprawdzenia <select data-expect-kind>
+        <option value="">Bez warunku</option><option value="include">W buildzie powinien być</option>
+        <option value="exclude">Z buildu powinien wypaść</option><option value="after">Można kupić dopiero po innym przedmiocie</option>
+      </select></label>
+      <label hidden data-item-field>Przedmiot <select data-expect-item>${options}</select></label>
+      <label hidden data-prior-field>Wcześniejszy zakup <select data-expect-prior>${options}</select></label>
+      <p class="muted">Po zapisaniu zgłoszenia z warunkiem jego wynik znajdziesz w „Porównaj wersje”.</p>
+    </fieldset>
     <details><summary>Cała zawartość zgłoszenia</summary><pre class="build-report-json"></pre></details>
     <div class="actions"><button data-save class="primary">Zapisz plik JSON</button><button data-replay>Otwórz w testerze</button></div>
     <p role="status"></p>`;
-  dialog.querySelector('pre').textContent = JSON.stringify(report,null,2);
+  const kind = dialog.querySelector('[data-expect-kind]'), item = dialog.querySelector('[data-expect-item]'), prior = dialog.querySelector('[data-expect-prior]');
+  if (report.observed.plan.length) item.value = String(report.observed.plan[0].id);
+  const currentReport = () => kind.value ? {...report,expectation:{kind:kind.value,itemId:Number(item.value),
+    ...(kind.value === 'after' ? {prerequisiteId:Number(prior.value)} : {})}} : report;
+  const update = () => {
+    dialog.querySelector('[data-item-field]').hidden = !kind.value;
+    dialog.querySelector('[data-prior-field]').hidden = kind.value !== 'after';
+    for (const option of prior.options) option.disabled = option.value === item.value;
+    if (prior.selectedOptions[0]?.disabled) prior.value = [...prior.options].find(o=>!o.disabled)?.value || '';
+    dialog.querySelector('pre').textContent = JSON.stringify(currentReport(),null,2);
+    dialog.querySelector('[role=status]').textContent = '';
+  };
+  for (const field of [kind,item,prior]) field.onchange = update;
+  update();
   dialog.querySelector('[data-close]').onclick = () => dialog.close();
   dialog.querySelector('[data-save]').onclick = async e => {
     const button=e.currentTarget; button.disabled=true;
     try {
-      const res = await window.assist.saveBuildReport(draft.token);
+      const res = await window.assist.saveBuildReport(draft.token,currentReport().expectation);
       if (!res.ok) throw Error(res.error);
       dialog.querySelector('[role=status]').textContent = res.saved ? 'Zapisano plik. Możesz go otworzyć z Testera draftów.' : '';
     } catch (err) { dialog.querySelector('[role=status]').textContent = err.message; }
     finally { button.disabled=false; }
   };
   dialog.querySelector('[data-replay]').onclick = async () => {
-    try { dialog.close(); await openReportInLab(report); } catch (err) { toast(err.message,true); }
+    try { dialog.close(); await openReportInLab(currentReport()); } catch (err) { toast(err.message,true); }
   };
   if (!dialog.open) dialog.showModal();
 }

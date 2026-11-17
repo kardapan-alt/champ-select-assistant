@@ -1,0 +1,223 @@
+{
+  "format": "champ-select-assistant/build-report",
+  "schema": 1,
+  "version": "0.6.30",
+  "patch": null,
+  "scenario": {
+    "alias": "Zed",
+    "role": "",
+    "mode": "mayhem",
+    "allies": [],
+    "enemies": [
+      "Ambessa",
+      "Lillia",
+      "TwistedFate",
+      "Yasuo",
+      "Rakan"
+    ],
+    "choices": {
+      "items": [],
+      "boots": null
+    },
+    "mayhem": {
+      "augments": [
+        3088
+      ],
+      "completed": [],
+      "effects": {},
+      "owned": [],
+      "ownedBoots": null,
+      "headliner": null
+    },
+    "context": {
+      "allyRoles": [],
+      "enemyRoles": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "roleQuests": false,
+      "pool": "KIWI",
+      "inventory": [
+        {
+          "itemID": 126697,
+          "slot": 0,
+          "count": 1
+        },
+        {
+          "itemID": 3158,
+          "slot": 1,
+          "count": 1
+        },
+        {
+          "itemID": 1036,
+          "slot": 2,
+          "count": 1
+        },
+        {
+          "itemID": 2020,
+          "slot": 3,
+          "count": 1
+        }
+      ],
+      "enemies": [
+        {
+          "alias": "Ambessa",
+          "items": [
+            {
+              "itemID": 126697,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 6692,
+              "slot": 1,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "Lillia",
+          "items": [
+            {
+              "itemID": 6653,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 3009,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 1028,
+              "slot": 2,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "TwistedFate",
+          "items": [
+            {
+              "itemID": 3089,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 3020,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 3086,
+              "slot": 2,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "Yasuo",
+          "items": [
+            {
+              "itemID": 3077,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 6676,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 1043,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 3006,
+              "slot": 5,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "Rakan",
+          "items": [
+            {
+              "itemID": 3070,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 3802,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 4646,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 3020,
+              "slot": 3,
+              "count": 1
+            }
+          ]
+        }
+      ],
+      "goal": null
+    }
+  },
+  "observed": {
+    "gold": null,
+    "source": "Baza wbudowana",
+    "plan": [
+      {
+        "id": 126697,
+        "name": "Hubris",
+        "reason": "Już posiadasz — zachowany w buildzie",
+        "source": "owned"
+      },
+      {
+        "id": 3158,
+        "name": "Ionian Boots of Lucidity",
+        "reason": "Już posiadane buty",
+        "source": ""
+      },
+      {
+        "id": 3142,
+        "name": "Youmuu's Ghostblade",
+        "reason": "augment SZKARŁATNY KOBALT: skalowanie championa",
+        "source": "augment"
+      },
+      {
+        "id": 6694,
+        "name": "Serylda's Grudge",
+        "reason": "augment SZKARŁATNY KOBALT: skalowanie championa",
+        "source": "augment"
+      },
+      {
+        "id": 3156,
+        "name": "Maw of Malmortius",
+        "reason": "dużo obrażeń magicznych",
+        "source": "core"
+      },
+      {
+        "id": 6333,
+        "name": "Death's Dance",
+        "reason": "dużo obrażeń fizycznych",
+        "source": "core"
+      }
+    ],
+    "questSlot": null,
+    "target": null
+  },
+  "expectation": {
+    "kind": "exclude",
+    "itemId": 3124
+  }
+}

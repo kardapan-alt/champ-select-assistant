@@ -93,4 +93,4 @@ function rememberAllyRoles(state, queueId, gameId) {
   return { gameId: String(gameId), meId: state.me.championId, positions };
 }
 
-module.exports = { botLanePlan, rememberAllyRoles };
+module.exports = { botLanePlan, rememberAllyRoles, enemyThreat };

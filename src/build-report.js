@@ -2,6 +2,7 @@ const { inventoryOf } = require('./liveclient');
 const { validateHeadliner, MAX_AUGMENTS } = require('./headliners');
 const { EFFECTS } = require('./mayhem');
 const { planOf, questSlotOf } = require('./plan-diff');
+const { normalizeExpectation } = require('./build-expectation');
 
 const FORMAT = 'champ-select-assistant/build-report';
 const roles = ['top', 'jungle', 'middle', 'bottom', 'utility'];
@@ -61,6 +62,7 @@ function readReport(text) {
     || ![...r.scenario.allies,...r.scenario.enemies].every(a=>typeof a === 'string') || ![...roles,''].includes(r.scenario.role)
     || !Array.isArray(r.observed?.plan) || r.observed.plan.length > 8 || !r.observed.plan.every(i=>i && id(i.id) && typeof i.name === 'string'))
     throw Error('Plik nie zawiera obsługiwanego zgłoszenia buildu.');
+  if (r.expectation != null) r.expectation = normalizeExpectation(r.expectation);
   return r;
 }
 

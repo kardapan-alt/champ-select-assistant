@@ -1,0 +1,219 @@
+{
+  "format": "champ-select-assistant/build-report",
+  "schema": 1,
+  "version": "0.6.28",
+  "patch": null,
+  "scenario": {
+    "alias": "Xayah",
+    "role": "",
+    "mode": "mayhem",
+    "allies": [],
+    "enemies": [
+      "Nidalee",
+      "Ryze",
+      "RekSai",
+      "Yuumi",
+      "Sion"
+    ],
+    "choices": {
+      "items": [],
+      "boots": null
+    },
+    "mayhem": {
+      "augments": [],
+      "completed": [],
+      "effects": {},
+      "owned": [],
+      "ownedBoots": null,
+      "headliner": null
+    },
+    "context": {
+      "allyRoles": [],
+      "enemyRoles": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "roleQuests": false,
+      "pool": "KIWI",
+      "inventory": [
+        {
+          "itemID": 3032,
+          "slot": 0,
+          "count": 1
+        },
+        {
+          "itemID": 3006,
+          "slot": 1,
+          "count": 1
+        },
+        {
+          "itemID": 6675,
+          "slot": 2,
+          "count": 1
+        },
+        {
+          "itemID": 3033,
+          "slot": 3,
+          "count": 1
+        }
+      ],
+      "enemies": [
+        {
+          "alias": "Nidalee",
+          "items": [
+            {
+              "itemID": 6655,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 4646,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 3020,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 3145,
+              "slot": 3,
+              "count": 1
+            },
+            {
+              "itemID": 1058,
+              "slot": 4,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "Ryze",
+          "items": [
+            {
+              "itemID": 2420,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 3070,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 6657,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 3089,
+              "slot": 3,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "RekSai",
+          "items": [
+            {
+              "itemID": 3089,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 2031,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 6653,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 2022,
+              "slot": 3,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "Yuumi",
+          "items": [
+            {
+              "itemID": 6655,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 2031,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 3089,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 3145,
+              "slot": 3,
+              "count": 1
+            }
+          ]
+        },
+        {
+          "alias": "Sion",
+          "items": [
+            {
+              "itemID": 3084,
+              "slot": 0,
+              "count": 1
+            },
+            {
+              "itemID": 3801,
+              "slot": 1,
+              "count": 1
+            },
+            {
+              "itemID": 2502,
+              "slot": 2,
+              "count": 1
+            },
+            {
+              "itemID": 1011,
+              "slot": 3,
+              "count": 1
+            },
+            {
+              "itemID": 1001,
+              "slot": 4,
+              "count": 1
+            },
+            {
+              "itemID": 1011,
+              "slot": 5,
+              "count": 1
+            }
+          ]
+        }
+      ],
+      "goal": null
+    }
+  },
+  "observed": {
+    "gold": null,
+    "source": "Zachowany skład i ekwipunek bez pierwotnego planu zakupów",
+    "plan": [],
+    "questSlot": null,
+    "target": null
+  },
+  "expectation": {
+    "kind": "include",
+    "itemId": 3031
+  }
+}

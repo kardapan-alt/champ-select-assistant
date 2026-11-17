@@ -53,7 +53,9 @@ server.once('listening',async()=>{
     let b=(await state()).final.build;
     await evaluate("document.querySelector('[data-build-report]').click()");
     await waitFor(()=>evaluate("document.getElementById('build-report-dialog')?.open"),'Nie otwarto podglądu zgłoszenia');
+    await evaluate(`const kind=document.querySelector('[data-expect-kind]');kind.value='include';kind.dispatchEvent(new Event('change'));void 0`);
     const report=await evaluate("JSON.parse(document.querySelector('.build-report-json').textContent)");
+    assert.deepEqual(report.expectation,{kind:'include',itemId:b.items[0].id});
     assert.equal(report.scenario.alias,b.alias);assert.equal(report.observed.gold,1000);
     assert.deepEqual(report.scenario.context.inventory.map(i=>i.itemID),ownItems);
     assert.doesNotMatch(JSON.stringify(report),/puuid|Daniel#|gameName|matchKey/i);
@@ -62,6 +64,8 @@ server.once('listening',async()=>{
     await evaluate("document.querySelector('#build-report-dialog [data-save]').click()");
     await waitFor(()=>evaluate("document.querySelector('#build-report-dialog [role=status]').textContent.startsWith('Zapisano plik')"),'Nie zapisano zgłoszenia');
     assert.deepEqual(JSON.parse(fs.readFileSync(reportFile,'utf8')),report);
+    const checked=await evaluate('window.assist.checkSavedMatches()');
+    assert.ok(checked.checks.some(row=>row.saved && row.expectation?.passed));
     await evaluate("document.querySelector('#build-report-dialog [data-replay]').click()");
     await waitFor(()=>evaluate("labActive && !!labView?.build && !!openedBuildReport"),'Nie otwarto przypadku w testerze');
     assert.deepEqual(await evaluate('labView.build.items.map(i=>i.id)'),b.items.map(i=>i.id));

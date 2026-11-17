@@ -1,6 +1,7 @@
 const {createHash} = require('node:crypto');
 const {comparePlans,planOf,questSlotOf} = require('./plan-diff');
 const draftlab = require('./draftlab');
+const {checkExpectation} = require('./build-expectation');
 
 // Keep a decision before purchases constrain the build, plus a later one with
 // the player's actual augments, opponents and room for alternative purchases.
@@ -18,7 +19,9 @@ function rememberReplay(match,time,build,makeReport) {
 
 function reportId(r) {
   // Preserve distinct saved recommendations even if they concern the same champion.
-  return createHash('sha256').update(JSON.stringify([r.version,r.patch,r.scenario,r.observed.plan,r.observed.questSlot])).digest('hex');
+  const identity = [r.version,r.patch,r.scenario,r.observed.plan,r.observed.questSlot];
+  if (r.expectation) identity.push(r.expectation);
+  return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
 }
 
 class ReplayLibrary {
@@ -74,7 +77,8 @@ function checkReplay(entry,game,data) {
     const quest = oldQuest?.id !== newQuest?.id ? {before:oldQuest?.name,after:newQuest?.name} : null;
     // Keep the old and new reasons beside the slot that changed. In particular
     // an absent item has no new rule of its own; show the item that replaced it.
-    return {...details,status:changes.length||quest?'changed':'same',before,after,changes,quest};
+    return {...details,status:changes.length||quest?'changed':'same',before,after,changes,quest,
+      expectation:checkExpectation(r.expectation,after,newQuest,game)};
   } catch (e) { return {...details,status:'unavailable',error:e.message}; }
 }
 module.exports = {rememberReplay,ReplayLibrary,replayEntries,checkReplay};

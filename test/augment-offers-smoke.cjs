@@ -1,8 +1,10 @@
-const {app,desktopCapturer}=require('electron');
+const {app,desktopCapturer,globalShortcut}=require('electron');
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const profile=path.resolve(__dirname,'../../offers-preview/profile');fs.mkdirSync(profile,{recursive:true});
 app.setPath('userData',profile);app.disableHardwareAcceleration();
-for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:''},'mayhem-session.json':null,'augment-screen.json':null,'match-review.json':{matches:[],active:null}}))
+let pressCompactShortcut;
+globalShortcut.register=(key,handler)=>{assert.equal(key,'Control+X');pressCompactShortcut=handler;return true;};
+for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:'Control+X'},'mayhem-session.json':null,'augment-screen.json':null,'match-review.json':{matches:[],active:null}}))
   fs.writeFileSync(path.join(profile,name),JSON.stringify(value));
 process.argv.push('--background');process.env.PORT='0';process.env.STEP='8';
 const server=require('../mock/mock-lcu');
@@ -12,8 +14,9 @@ LcuClient.prototype.get=async function(url){if(url.endsWith('/items.json'))retur
   if(url==='/lol-gameflow/v1/session'&&result){Object.assign(result.gameData.queue,{gameMode:'KIWI',id:2400});result.gameData.gameId=gameId;}return result;};
 const startedAt=Date.now();
 let inventoryReady=false;
+let heldItems=[{id:3145,slot:0,name:'Hextech Alternator',kind:'component',count:1}];
 require('../src/liveclient').LiveClient.prototype.inventory=async()=>inventoryReady
-  ? {status:'live',gameTime:120+(Date.now()-startedAt)/1000,gold:350,inventory:{items:[],owned:[],ownedBoots:null},enemies:null}
+  ? {status:'live',gameTime:120+(Date.now()-startedAt)/1000,gold:350,inventory:{items:heldItems,owned:heldItems.filter(i=>i.kind==='finished').map(i=>i.id),ownedBoots:null},enemies:null}
   : {status:'waiting'};
 let gameWindowAvailable=false;
 require('../src/augment-screen').gameWindowHandle=async()=>gameWindowAvailable?'1234':null;
@@ -159,6 +162,13 @@ server.once('listening',async()=>{
     await waitFor(()=>evaluate("lastState.final?.build?.shop?.gold===350"),'Brak próbki zakupów przed wyborem');
     await evaluate('drawOffer(["Upgrade Stormsurge","Back To Basics","Ice Cold"])');
     await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards[0].id===3150'),'Brak karty Stormsurge');
+    assert.equal(await evaluate('document.querySelectorAll("[data-activation-cost]").length'),3);
+    pressCompactShortcut();
+    await waitFor(()=>evaluate('document.querySelectorAll(".compact-content [data-activation-cost]").length===3'),'Ctrl+X: trzy koszty ofert');
+    const quoted=await evaluate("document.querySelector('.compact-content [data-offer-id=\"3150\"] [data-activation-cost]').innerText");
+    assert.match(quoted,/1700 zł/);assert.match(quoted,/850 zł/);assert.match(quoted,/1100 zł/);
+    assert.match(quoted,/plan|Później/i);
+    await evaluate('window.assist.setViewMode(false)');
     for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
     await evaluate('drawOffer(null)');
     await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(3150)'),'Stormsurge nie zapisany');
@@ -174,6 +184,16 @@ server.once('listening',async()=>{
     win.setSize(820,640);await new Promise(r=>setTimeout(r,250));
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
     fs.writeFileSync(path.resolve(profile,'../automatic-build.png'),(await win.webContents.capturePage()).toPNG());
+    const addedQuest=await evaluate('(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({...c,selection:{...c.selection,augments:[...c.selection.augments,1156]},knownScreenAugments:c.screenAugments})})()');
+    assert.ok(addedQuest.ok,addedQuest.error);
+    heldItems=[{id:1058,name:'Needlessly Large Rod',kind:'component',slot:0,count:1}];
+    await waitFor(()=>evaluate('document.querySelector("[data-quest-progress]")?.innerText.includes("Needlessly Large Rod")'),'Brak składnika w postępie zadania');
+    pressCompactShortcut();
+    await waitFor(()=>evaluate('document.querySelector(".compact-content [data-quest-progress]")?.innerText.includes("Czekam na nagrodę")'),'Ctrl+X: brak postępu zadania');
+    heldItems=[{id:228002,name:"Wooglet's Witchcap",kind:'finished',slot:0,count:1}];
+    await waitFor(()=>evaluate('document.querySelector(".compact-content [data-quest-progress]")?.innerText.includes("Nagroda wykryta")'),'Nagroda po połączeniu przedmiotów');
+    assert.ok(await evaluate('!lastState.final.build.items.some(i=>[3157,3089].includes(i.id))'));
+    await evaluate('window.assist.setViewMode(false)');
     await fetch(`${process.env.LCU_MOCK}/__step?n=-1`);await waitFor(()=>evaluate('lastState.status==="idle"'),'Lobby');
     await evaluate('document.getElementById("match-history").click()');
     const history='[data-history-offer][data-picked="3150"]';

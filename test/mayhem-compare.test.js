@@ -22,7 +22,7 @@ test('posiadane przedmioty i wcześniejsze augmenty są konkretnym uzasadnieniem
 });
 test('zadanie pokazuje brakujące zakupy i nie udaje gotowej nagrody',()=>{
   const r=compare(['Quest_WoogletsWitchcap','Deft','Goliath'],'Ahri',{owned:[3157]},[3089]);
-  assert.ok(r.cards[0].warnings.some(w=>w.includes(game.items.get(3089).name)&&w.includes('złota')));
+  assert.ok(r.cards[0].warnings.some(w=>w.includes(game.items.get(3089).name)));
   assert.ok(!r.cards[0].recommended);
 });
 test('wyłączone R oraz konflikty konwersji nie dostają rekomendacji',()=>{

@@ -9,6 +9,14 @@ function augmentItemEvidence(interaction){
     <p class="note" title="${esc(interaction.descriptionKey)}">Źródło · opis karty w danych gry Riot (CommunityDragon)${examples?' i opisy przedmiotów w Data Dragon':''}, patch ${esc(interaction.patch)}.</p>
     ${interaction.otherPatch?`<p class="offer-warning">Klient używa patcha ${esc(interaction.otherPatch)}. Ta interakcja czeka na ponowne sprawdzenie.</p>`:''}`;
 }
+function activationView(activation){
+  if(!activation)return '';
+  return `<div class="activation-cost" data-activation-cost><strong>${esc(activation.label)}</strong>${(activation.details||[]).map(line=>`<small>${esc(line)}</small>`).join('')}${activation.impact?`<small>${esc(activation.impact)}</small>`:''}</div>`;
+}
+function questProgressView(quests){
+  if(!quests?.length)return '';
+  return `<section class="mayhem-quests" aria-label="Postęp zadań Mayhem"><b>Zadania Mayhem</b>${quests.map(q=>`<article data-quest-progress="${q.id}"><strong>${esc(q.name)}</strong> · ${esc(q.status)}${q.rows.map(row=>`<small>${esc(row.name)} · ${row.held?'posiadasz':!q.known?'brak odczytu':q.exact&&row.cost!==null?`pozostało ${row.cost} zł`:'do zdobycia'}${row.components?.length?' · masz '+row.components.map(esc).join(', '):''}</small>`).join('')}</article>`).join('')}</section>`;
+}
 function mayhemChoiceView(m,compact=false){
   if(!m||labActive||!m.matchKey)return '';
   const comparison=m.comparison;
@@ -16,12 +24,12 @@ function mayhemChoiceView(m,compact=false){
   if(comparison){
     if(compact){
       cards=`<section class="augment-comparison" aria-label="Trzy karty augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${comparison.paused?'Ostatnia oferta z gry':'Kolejność jak w grze'}</span></div>
-        <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer" data-offer-id="${c.id}"><div class="offer-position">${['Lewa','Środkowa','Prawa'][i]}</div><b>${esc(c.name)}</b>${c.english&&c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}</article>`).join('')}</div></section>`;
+        <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer" data-offer-id="${c.id}"><div class="offer-position">${['Lewa','Środkowa','Prawa'][i]}</div><b>${esc(c.name)}</b>${c.english&&c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}${activationView(c.activation)}</article>`).join('')}</div></section>`;
     }else cards=augmentComparison(comparison);
   }
   const saved=m.undo?`<div class="augment-receipt"><span>Ostatnio zapisano <b>${m.undo.names.map(esc).join(', ')}</b></span><button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Cofa ostatni zapis w asystencie">Cofnij odczyt</button></div>`:'';
   const missed=m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
-  return cards+missed+saved;
+  return cards+missed+saved+questProgressView(m.quests);
 }
 function mayhemPanel(b) {
   if (!b?.mayhem) return '';
@@ -58,6 +66,7 @@ function augmentComparison(comparison){
       <div class="offer-position">${['Lewa','Środkowa','Prawa'][i]} · ${esc(c.recommended?'Najwięcej synergii':status[c.status]||status.unknown)}</div>
       <b title="${esc(c.english)}">${esc(c.name)}</b>
       ${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}
+      ${activationView(c.activation)}
       <p class="${c.warnings.length?'offer-warning':''}">${esc(c.warnings[0]||c.reasons[0]||'Sprawdź opis efektu.')}</p>
       ${disclosure('offer-'+c.id,'Dlaczego?',`${augmentItemEvidence(c.interaction)}<p>Reguła zakupów · ${esc(c.summary)}</p>${c.fit?`<dl class="augment-fit"><dt>Postać</dt><dd>${esc(c.fit.champion)}</dd><dt>Już kupione</dt><dd>${esc(c.fit.owned.join(', ')||'Brak bezpośredniego dopasowania')}</dd><dt>Planowane</dt><dd>${esc(c.fit.planned.join(', ')||'Brak bezpośredniego dopasowania')}</dd><dt>Inne augmenty</dt><dd>${(c.synergies||[]).map(p=>esc(p.names.join(' + ')+': '+p.text)).join('<br>')||'Brak potwierdzonej interakcji efektów'}</dd></dl>`:''}${c.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${c.warnings.map(w=>`<p class="offer-warning">${esc(w)}</p>`).join('')}`)}
     </article>`).join('')}</div><p class="offer-note">${esc(comparison.note)}</p></section>`;
@@ -95,7 +104,7 @@ async function openMayhemEditor() {
       const a=chosen.get(id); if(!a)return '';
       const manual=Object.hasOwn(selection.effects,id), value=manual ? selection.effects[id][0] || 'none' : 'auto';
       return `<div class="selected-augment"><div><b>${esc(a.name)}</b> <span class="muted">${esc(a.english)}</span><button type="button" data-remove-augment="${id}" aria-label="Usuń ${esc(a.name)}">×</button></div>
-        <p class="note">${esc(a.summary)}</p>${a.quest ? `<label><input type="checkbox" data-quest-completed="${id}" ${selection.completed.includes(id) ? 'checked' : ''}> Zadanie ukończone — nie proponuj ponownie składników nagrody</label>` : ''}
+        <p class="note">${esc(a.summary)}</p>${a.quest ? context.questReceipts?.includes(id) ? '<p>Nagroda potwierdzona w ekwipunku</p>' : `<label><input type="checkbox" data-quest-completed="${id}" ${selection.completed.includes(id) ? 'checked' : ''}> Potwierdzam ukończenie zadania</label>` : ''}
         <details ${manual?'open':''}><summary>${manual?'Własna korekta aktywna':'Automatyczna reguła · opcjonalna własna korekta'}</summary><label>Wpływ na zakupy<select data-augment-effect="${id}"><option value="auto" ${value==='auto'?'selected':''}>${a.supported ? 'Automatycznie z reguły augmentu' : 'Bez reguły — zachowaj bazowy build'}</option><option value="none" ${value==='none'?'selected':''}>Bez dodatkowego priorytetu</option>${Object.entries(context.effects).map(([k,v]) => `<option value="${k}" ${value===k?'selected':''}>Ręcznie: ${esc(v)}</option>`).join('')}</select></label></details></div>`;
     }).join('')}`;
   };

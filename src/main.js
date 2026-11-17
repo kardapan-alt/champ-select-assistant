@@ -7,6 +7,7 @@ const engine = require('./engine');
 const { OpggProvider, mergeStats } = require('./opgg');
 const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
 const { lanePlan } = require('./laneplan');
+const { laneVariantOptions, compareLaneVariants } = require('./lane-variants');
 const { botLanePlan, rememberAllyRoles } = require('./bot-plan');
 const { PickPools, comparison: comparePoolPicks } = require('./pick-pool');
 let pickPools;
@@ -18,6 +19,7 @@ const { roleQuestsEnabled } = require('./rolequests');
 const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
 const draftlab = require('./draftlab');
 const { createReport, readReport } = require('./build-report');
+const { normalizeExpectation } = require('./build-expectation');
 const { ReplayLibrary, replayEntries, checkReplay } = require('./replay-checks');
 let replayLibrary;
 const mayhem = require('./mayhem');
@@ -34,9 +36,11 @@ const augmentOffers=require('./augment-offers');
 const {testOfferScreenshot}=require('./augment-screenshot');
 const screenshotOcr=new WindowsOcr();
 const {compareAugments}=require('./mayhem-compare');
+const {activationFor,questProgress}=require('./mayhem-cost');
 const {headlinerView}=require('./headliners');
 const {synergies}=require('./augment-synergies');
 const {MatchReview}=require('./match-review');
+const { MatchupNotes, matchupContexts, recordMatchup } = require('./matchup-notes');
 const { MayhemFavorites } = require('./mayhem-favorites');
 const {augmentImpact}=require('./augment-impact');
 const {readoutFor,BuildChanges}=require('./build-insight');
@@ -49,6 +53,7 @@ const resultResolver=new ResultResolver();
 const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
 const headlinerConsensus=new HeadlinerConsensus();
 let matchReview;
+let matchupNotes;
 let mayhemFavorites;
 const offerTracker=new augmentOffers.OfferTracker();
 const offerHistory=require('./offer-history');
@@ -184,6 +189,11 @@ function initStats() {
     const file=userFile('match-review.json');fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
   });
   if(matchReview.value.active)matchReview.gap();
+  const noteFile = userFile('matchup-notes.json');
+  matchupNotes = new MatchupNotes(readJson(noteFile,[]), entries => {
+    fs.writeFileSync(noteFile+'.tmp',JSON.stringify(entries),'utf8');
+    fs.renameSync(noteFile+'.tmp',noteFile);
+  });
   const favoritesFile = userFile('mayhem-favorites.json');
   mayhemFavorites = new MayhemFavorites(readJson(favoritesFile,[]), entries => {
     fs.writeFileSync(favoritesFile+'.tmp',JSON.stringify(entries),'utf8');
@@ -500,17 +510,24 @@ function buildLoadingView() {
   if (currentMode !== 'mayhem') try { teamPlan = gamePlan(loading.allies, loading.enemies, aram ? null : cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(card);
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
+  let noteReminders = [];
   if (Number(currentQueueId) === 420 && me?.championId && loading.gameId) {
     const own = game.championsById.get(me.championId);
     const sameDraft = String(loading.gameId) === botDraft?.gameId && me.championId === botDraft.meId;
     const role = training.knownRole(me.position) || (sameDraft ? botDraft.positions.get(me.championId) : null);
-    if (own) training.recordTraining(matchReview, {key:`${loading.gameId}:${own.alias}:${currentMode}`,
-      gameId:loading.gameId, owner:ownerKey(me.puuid), alias:own.alias, name:own.name, mode:currentMode, championId:me.championId},
-      currentQueueId, role, loading.liveStatus==='live' ? loading.liveSnapshot : null);
+    if (own && currentMode==='classic') {
+      const meta = {key:`${loading.gameId}:${own.alias}:${currentMode}`, gameId:loading.gameId,
+        owner:ownerKey(me.puuid), alias:own.alias, name:own.name, mode:currentMode, championId:me.championId};
+      training.recordTraining(matchReview, meta, currentQueueId, role, loading.liveStatus==='live' ? loading.liveSnapshot : null);
+      const contexts = matchupContexts(loading,currentQueueId,currentMode,game,botDraft);
+      recordMatchup(matchReview,meta,contexts);
+      noteReminders = matchupNotes.reminders(meta.owner,contexts);
+    }
   }
   return {
     status: 'loading-screen',
     region: loading.region,
+    noteReminders,
     plan,
     botPlan: botLanePlan({ me, allies: loading.allies, enemies: loading.enemies, mode: currentMode, gameId: loading.gameId },
       currentQueueId, game, data, botDraft),
@@ -584,10 +601,26 @@ function finalWithEnemies(me) {
           missed:!!loading.visionMissed,diagnostics:loading.visionDiagnostics||null } };
       const undo=augmentScreen.undoCandidate(mayhemSession.value);
       build.mayhem.undo=undo?{token:undo.token,names:undo.ids.map(id=>visionCatalog.find(a=>a.id===id)?.name).filter(Boolean)}:null;
+      const costs={selection:s.mayhem,game,manual:!auto,
+        inventory:liveStatus==='live'?loading.liveSnapshot?.inventory:null,
+        gold:liveStatus==='live'?loading.liveSnapshot?.gold:null};
+      build.mayhem.quests=questProgress(costs,mayhemSession.value.questReceipts);
       const offer=loading.visionOffer;
       if(offer&&Date.now()-offer.at<30000){
         const enemy=engine.teamProfile(s.enemies.filter(e=>e.championId).map(e=>engine.champInfo(game.championsById.get(e.championId)?.alias,game,data)));
-        const comparison=compareAugments(offer.ids,{champion:engine.champInfo(alias,game,data),selection:s.mayhem,build,game,pool:s.mayhemPool,enemy});
+        const champion=engine.champInfo(alias,game,data);
+        const comparison=compareAugments(offer.ids,{champion,selection:s.mayhem,build,game,pool:s.mayhemPool,enemy});
+        let offerSnapshot=null;
+        if(comparison&&(liveStatus==='live'||liveStatus==='manual')){
+          const scenario=withChoices(alias,s);
+          const key=JSON.stringify([offer.ids,s.mayhem,s.liveInventory,s.liveEnemies,s.enemies.map(e=>e.championId),scenario.choices,goal.id,liveStatus]);
+          if(loading.offerPreview?.key!==key||loading.offerPreview.game!==game||loading.offerPreview.data!==data){
+            try {offerSnapshot=offerHistory.snapshotOffer(offer.ids,scenario,alias,goal.id,game,data,liveStatus);}
+            catch(error){log(`porównanie zakupów z kart: ${error.message}`);}
+            loading.offerPreview={key,game,data,snapshot:offerSnapshot};
+          } else offerSnapshot=loading.offerPreview.snapshot;
+        }
+        if(comparison)for(const card of comparison.cards)card.activation=activationFor(card,{...costs,enemy,champion,offerSnapshot});
         build.mayhem.comparison=comparison?{...comparison,paused:!augmentClicks.active()}:null;
       }
     }
@@ -623,6 +656,7 @@ function buildView(session, gameId) {
     mode: state.mode,
     botPlan: botLanePlan(state, currentQueueId, game, data),
     pickPool: comparePoolPicks(state, currentQueueId, game, data, pickPools),
+    laneVariants: laneVariantOptions(state,currentQueueId,game,data),
     aramChoices: aram ? engine.aramChoices(state, game, data).map((c) => ({ ...c, icon: champView(c.championId).icon })) : [],
     phase: state.phase,
     allLocked: state.allLocked,
@@ -941,6 +975,12 @@ ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
   return { ok: true, choices: own };
 })));
 ipcMain.handle('draft-catalog', wrap(() => ({ ok: true, ...draftlab.catalog(game || offlineGame, baseData) })));
+ipcMain.handle('preview-lane-variants', wrap(input => {
+  if(lastState?.status!=='champselect' || !lastState.laneVariants || input?.key!==lastState.laneVariants.key || !lastSelectState)
+    throw Error('Draft uległ zmianie. Otwórz podgląd ponownie.');
+  const alias=game.championsById.get(lastSelectState.me.championId).alias;
+  return {ok:true,rows:compareLaneVariants(withChoices(alias,lastSelectState),currentQueueId,game,data,input.ids)};
+}));
 ipcMain.handle('get-pick-pools', wrap(() => {
   const champions = [...(game || offlineGame).championsByAlias.values()]
     .filter(c => !c.alias.startsWith('Jade_')).map(c => ({ alias: c.alias, name: c.name }))
@@ -958,11 +998,16 @@ ipcMain.handle('capture-build-report', wrap(token => {
   const report = shownBuildReports.get(token);
   if (!report) throw Error('Build się zmienił. Otwórz zgłoszenie jeszcze raz.');
   buildReportDraft = {token:crypto.randomUUID(),report};
-  return {ok:true,...buildReportDraft};
+  const catalog = draftlab.catalog(game || offlineGame,baseData,report.scenario,report.scenario.alias);
+  const items = [...new Map([...catalog.items,...catalog.boots,...report.observed.plan,report.observed.questSlot]
+    .filter(Boolean).map(i=>[i.id,{id:i.id,name:i.name}])).values()].sort((a,b)=>a.name.localeCompare(b.name,'pl')||a.id-b.id);
+  return {ok:true,...buildReportDraft,items};
 }));
-ipcMain.handle('save-build-report', wrap(async token => {
+ipcMain.handle('save-build-report', wrap(async (token, input) => {
   const draft = buildReportDraft;
   if (!draft || draft.token !== token) throw Error('Otwórz ponownie podgląd zgłoszenia.');
+  const expectation = normalizeExpectation(input);
+  const report = expectation ? {...draft.report,expectation} : draft.report;
   const {filePath,canceled} = await dialog.showSaveDialog(win,{
     title:'Zapisz anonimowe zgłoszenie buildu',defaultPath:`build-${draft.report.scenario.alias}.json`,
     filters:[{name:'Zgłoszenie Champ Select Assistant',extensions:['json']}]
@@ -970,9 +1015,10 @@ ipcMain.handle('save-build-report', wrap(async token => {
   if (!canceled && filePath) {
     const tempFile = filePath + '.' + crypto.randomUUID() + '.tmp';
     try {
-      await fs.promises.writeFile(tempFile,JSON.stringify(draft.report,null,2),{encoding:'utf8',flag:'wx'});
+      await fs.promises.writeFile(tempFile,JSON.stringify(report,null,2),{encoding:'utf8',flag:'wx'});
       await fs.promises.rename(tempFile,filePath);
     } finally { await fs.promises.rm(tempFile,{force:true}); }
+    if (expectation) replayLibrary.add(report);
   }
   return {ok:true,saved:!canceled && !!filePath};
 }));
@@ -986,6 +1032,20 @@ ipcMain.handle('inspect-items', wrap(() => ({ok:true, items:draftlab.inspectionC
 ipcMain.handle('inspect-draft-item', wrap((input,id) => ({ok:true, ...draftlab.preview(input,game || offlineGame,baseData,{inspectItem:id})})));
 ipcMain.handle('mayhem-catalog', wrap(pool => ({ ok:true, ...mayhem.choicesCatalog(pool === 'KIWI_JADE' ? pool : 'KIWI') })));
 ipcMain.handle('match-reviews',wrap(()=>({ok:true,matches:matchReview.list()})));
+async function noteAccount() {
+  const summoner = await lcu?.get('/lol-summoner/v1/current-summoner');
+  const owner = ownerKey(summoner?.puuid);
+  if (!owner) throw Error('Połącz klienta LoL, aby otworzyć notes swojego konta.');
+  return owner;
+}
+ipcMain.handle('matchup-notes',wrap(async key => ({ok:true,
+  ...matchupNotes.view(await noteAccount(),matchReview.value.matches.find(m=>m.key===key))})));
+ipcMain.handle('edit-matchup-note',wrap(async input => {
+  const owner = await noteAccount();
+  const view = matchupNotes.edit(owner,matchReview.value.matches.find(m=>m.key===input?.match),input);
+  if (loading) loadingDirty = true;
+  return {ok:true,...view};
+}));
 const currentReplays = () => replayEntries(matchReview.value.matches,replayLibrary);
 ipcMain.handle('check-saved-matches',wrap(async () => {
   const {entries,missing}=currentReplays(), catalog=game || offlineGame, currentData=baseData, checks=[];
@@ -1039,6 +1099,7 @@ function mayhemContext(key) {
 ipcMain.handle('get-mayhem', wrap(() => {
   const state = mayhemContext(), alias = game.championsById.get(state.me.championId).alias;
   return { ok:true, matchKey:state.mayhemKey, alias, selection:mayhemSession.value.selection,
+    questReceipts:mayhemSession.value.questReceipts||[],
     autoHeadliner:automaticHeadliner(mayhemSession.value),headlinerSource:mayhemSession.value.headlinerSource||'manual',
     autoInventory:mayhemSession.value.autoInventory !== false,
     screenAugments:mayhemSession.value.screenSlots || [],

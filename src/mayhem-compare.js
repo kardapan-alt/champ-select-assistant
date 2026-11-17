@@ -61,8 +61,7 @@ function evaluateAugments(ids,{champion={},selection={},build={},game,pool='KIWI
     if(excludedOwned.length){card.score-=6;warnings.push(`Osłabia dotychczasowy plan z: ${excludedOwned.map(itemName).join(', ')}.`);}
     if(r.quest&&r.items?.length){
       const missing=r.items.filter(item=>!owned.has(item));
-      if(missing.length){const cost=missing.reduce((n,id)=>n+(game.items.get(id)?.priceTotal||0),0);
-        warnings.push(`Do zadania brakuje: ${missing.map(itemName).join(', ')}${cost?` (łącznie ${cost} złota przed odjęciem komponentów)`:''}.`);}
+      if(missing.length)warnings.push(`Do zadania potrzeba: ${missing.map(itemName).join(', ')}.`);
       else reasons.unshift('Masz przedmioty wymagane do zadania; pozostałe warunki nadal trzeba spełnić.');
     }
     if(r.neutral){card.status='independent';reasons.push('Efekt działa poza dopasowaniem zakupów — brak premii w tej ocenie nie oznacza słabego augmentu.');}
