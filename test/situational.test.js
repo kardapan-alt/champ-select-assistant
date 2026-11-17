@@ -99,7 +99,8 @@ test('jungle: Smite zamiast Teleportu i runy junglera dla championa z topa (Shen
   assert.ok(ids.includes(engine.SPELL.smite) && ids.includes(engine.SPELL.flash) && !ids.includes(engine.SPELL.tp), String(ids));
   assert.match(why, /Smite|czary typowe dla tej roli/);
   const page = engine.runePageFor('Shen', game, data, state);
-  assert.match(page.adaptations[0], /^Runy i czary pod rolę Jungle jak u /);
+  assert.equal(page.runeSource.position,'jungle');
+  assert.deepEqual(page.selectedPerkIds,[...data.champions.Shen.runesByRole.jungle.perks,...data.champions.Shen.runesByRole.jungle.shards]);
   // Na topie zostaje Teleport i własne runy.
   const top = { ...state, me: { ...state.me, position: 'top' } };
   assert.ok(engine.spellsFor('Shen', top, game, data).ids.includes(engine.SPELL.tp));
@@ -125,5 +126,5 @@ test('support spoza danych (tank): czary, build i runy supporta, nie topa', () =
   assert.ok(!ids.includes(engine.SPELL.tp), String(ids));
   const build = engine.buildFor('Zoe', state, game, tankData);
   assert.ok(build.items.some((i) => [3190, 3109, 3050].includes(i.id)), build.items.map((i) => i.id).join(','));
-  assert.match(engine.runePageFor('Zoe', game, tankData, state).adaptations[0], /pod rolę Support jak u .*brak danych o/);
+  assert.match(engine.runePageFor('Zoe', game, tankData, state).adaptations[0], /pod rolę Support jak u .*brak własnych danych o runach/);
 });

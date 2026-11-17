@@ -152,6 +152,8 @@ function myChampionPanel(m, readonly = false, auto = null) {
     </div>
     <div class="rune-names"><b>${esc(r.keystone.name)}</b> · ${r.perks.slice(0, 3).map((p) => esc(p.name)).join(', ')} <span class="muted">| ${r.perks.slice(3).map((p) => esc(p.name)).join(', ')}</span></div>
     <div class="rune-names muted">Odłamki: ${r.shards.map((x) => esc(x.name)).join(', ')}</div>
+    ${r.sourceNote?`<div class="note rune-source">${esc(r.sourceNote)}</div>`:''}
+    ${r.laneInferred?`<div class="note">Przeciwnik z linii jest przewidywany na podstawie typowej roli.</div>`:''}
     ${r.adaptations.length ? `<div class="adapt"><h4>Dopasowane ${r.laneOpponent ? `pod ${esc(r.laneOpponent)} i skład wroga` : 'pod skład wroga'}</h4>${r.adaptations.map((a) => `<div>• ${esc(a)}</div>`).join('')}</div>` : ''}
     <div class="spells-line">${r.spells.map((x) => img(x.icon, 'spell', x.name)).join('')}<span>${r.spells.map((x) => esc(x.name)).join(' + ')}${r.spellsWhy ? ` <span class="muted">· ${esc(r.spellsWhy)}</span>` : ''}</span></div>
     <div class="actions rune-choice-actions"><button data-choice="${r.pinned ? 'unpin-runes' : 'runes'}">${r.pinned ? 'Odblokuj runy' : 'Przypnij te runy'}</button>${!labActive ? '<button data-choice="client-runes">Zachowaj moje runy z klienta</button>' : ''}</div>

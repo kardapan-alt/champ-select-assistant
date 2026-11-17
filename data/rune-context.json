@@ -1,0 +1,1417 @@
+{
+  "patch": "16.22",
+  "reviewed": "2026-11-17",
+  "source": "Riot client /lol-game-data/assets/v1/champions/{id}.json",
+  "note": "Tenacity targets: substantial stuns/roots/charms/fears/taunts/sleep in kit; excludes minion-only fear and stuns accompanying forced displacement. Not a complete CC catalogue.",
+  "champions": {
+    "Aatrox": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "f1a1f36c2f348fa7e58f12b6b2a8466cf45ab30d8622c5b56f501f9c11692253"
+    },
+    "Camille": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Hookshot"
+      ],
+      "sha256": "baefc1db700693ece417bdc4bbf7eee346d9ad8e3e67469bbffb3859b0570e51"
+    },
+    "Darius": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "41faa05a46d3cd27e18dabb58d3701cf9c2b66e25fc81a305d84add62e1778cb"
+    },
+    "Fiora": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Riposte"
+      ],
+      "sha256": "386d1dc58ce89b255643384648eaf5937383e6340e3d082883747f3cb2ddeaa9"
+    },
+    "Garen": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "8fb2369b54ac9a7293f987aadf899cca72c4cdf8881cf344af4da16e12310976"
+    },
+    "Jax": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Counter Strike"
+      ],
+      "sha256": "da59a20d497b6e38468e5e09714e74baf7f5a90e7f2dd887c34d0fe66f4fba79"
+    },
+    "Malphite": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "0c6191084e1aff4c226a57d4b50c36a1e91edacf14f11533817901cb1714774a"
+    },
+    "Mordekaiser": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "b404cacfa7d23129da63da12fb6507d308f0d4a4118df25ce83c3f71b4e481c1"
+    },
+    "Nasus": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "c2c68c374991d6b53a571560640bfc3eb17b7b3222a53943d7500923b436da69"
+    },
+    "Ornn": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "4bcc37b2fba68c90de57818212b7ff28f8e55c8269efea826788d0e9fa913c43"
+    },
+    "Renekton": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Ruthless Predator"
+      ],
+      "sha256": "c842f8dc4024a8256887dacc43a3f1d658ac937278dd4fb58995be9c0e86672d"
+    },
+    "Sett": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Facebreaker"
+      ],
+      "sha256": "b4abaee7d0d1721a7e81ff7a2670fca55448400c339dadd5780e7245c0434e7a"
+    },
+    "Shen": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Shadow Dash"
+      ],
+      "sha256": "bb080c1364bef8d734f9fd63722f7668bc550d725a7cd660fcd22c40b74d61df"
+    },
+    "Teemo": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "6dd077f61085299931e28eeabfd35721ed175e2f660e3b3dbdb9b0cc0bbbfc1a"
+    },
+    "LeeSin": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "3fa3d55c7f3cc15618f996d241d99677321abc7532269a31b084346b9079a657"
+    },
+    "Vi": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "f91367a9237ca9e7cb759dd139a87efda3cd345ff5a550f9d470ff9ec21e7492"
+    },
+    "Warwick": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Primal Howl"
+      ],
+      "sha256": "d2d55c173696ef7bd2d6b2aaef4938267520e2fb666ada97b13ffeb306336649"
+    },
+    "Amumu": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Bandage Toss",
+        "Curse of the Sad Mummy"
+      ],
+      "sha256": "19e367cfe9bb7c75f38c203a40d6c7f949ac9d1deaa8b1265908cc6cf9be9024"
+    },
+    "Kayn": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "d8080a8300aa83d8a4fd87e2ea681ff57829bac5f44536113c8ee5207e2eafd6"
+    },
+    "Graves": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "8a33c97d7dcb45ef34718a31588fdd98671de9024e6869ac0631b0e7b38c518a"
+    },
+    "Khazix": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "c394fed0d5dca8cba71e548c16b4279b3d7132528a27c019558344fcb8f626f2"
+    },
+    "JarvanIV": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "ad5fdae9c16616110008de8e42e4af86e5985083810328c4cf9f90a834c61fc6"
+    },
+    "Sejuani": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Permafrost",
+        "Glacial Prison"
+      ],
+      "sha256": "69e85fd4e47403ba15636d1f41731c800467d15a7a23baf208297a8367f2b17f"
+    },
+    "Viego": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Spectral Maw"
+      ],
+      "sha256": "7d764ccbcf0d6c6d4471950c3ebf9ff4d3cdca26b883e688214daa59acb25145"
+    },
+    "Hecarim": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Onslaught of Shadows"
+      ],
+      "sha256": "dbcd45f34a6dcac0b61f822cd0ca53f382d85587403a21a3f27b3055f0ff129d"
+    },
+    "Diana": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "1fb2c39dfbc4c1612ed67ae1b5adde9cc79169b6612111de3d5851a4408ae426"
+    },
+    "Ahri": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Charm"
+      ],
+      "sha256": "8b27f3197487e39aaa44c2e2b9084181439f5a61aaf1a478916a3a8fad673579"
+    },
+    "Lux": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Light Binding"
+      ],
+      "sha256": "307466565029aad1a67b193033ea0205b977e4f6d3643afab7d8b8c4cfb843d4"
+    },
+    "Syndra": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Scatter the Weak"
+      ],
+      "sha256": "ab6bffed8e50f849c30832f22faec5a4e3d8a3e64128947ce07f6447cc047ef3"
+    },
+    "Orianna": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "9f8114b6bafcc8e3ae34edbcf2c1eb3f98dac15294505280cd3f598e04edd4a9"
+    },
+    "Viktor": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Gravity Field"
+      ],
+      "sha256": "79b3b50b0580fc9e2e7736accbfcf1725503ac9568d1a146dc5b08ee8085d7d3"
+    },
+    "Zed": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "e600ff6e2fe74c6af62a4b0d9acfdf04a92d73a61cd7ec44a88309afcb7c32a7"
+    },
+    "Yasuo": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "aa0d668951f58d3d6879f97130320f3bc45377527036368c9f2da52fa517d4be"
+    },
+    "Yone": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "fb369f84926d3bcbc325e5b31b0f3aee6ed38d8db182d73b8dafd97025d76f41"
+    },
+    "Katarina": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "26b9238b6a44bd286cf45cad853db8e67718090f37d548825583b0bf59f5e3f0"
+    },
+    "Fizz": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "c240ba4543db712eeb91874151ef4f91e73f02a96281d099c5e4d4bb2ad8e815"
+    },
+    "Veigar": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Event Horizon"
+      ],
+      "sha256": "805be099245f287bf79a930e7384bd20c7b43e8e717afc50a38d1f0885abd8b2"
+    },
+    "Annie": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "ea2b5fff2dcd01a70ffe4cab3fcd72b4e670083933a2d237b8e1ba99ebf4a330"
+    },
+    "Malzahar": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "a5c622e5c5c55172c5afe9eab71bc81d8dfea7a8b7dfc2830cdcaa905c9dc101"
+    },
+    "Vex": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "eac582f94213d151e684c4376948c004d70c78a282525394e9a7f6b141f430ce"
+    },
+    "Jinx": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Flame Chompers!"
+      ],
+      "sha256": "36f7f3cde6f2364e3b72ab9e43b629a602b2cbb04918d28cde7c1338ca022f64"
+    },
+    "Caitlyn": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Yordle Snap Trap"
+      ],
+      "sha256": "ce30c0c48de954d85ac429a943297d9697749eab0354f3dc2d4d6a30360a3920"
+    },
+    "Ezreal": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "271bef54f2dc51e676e1605adaf10e856dd9945c1723eb7467a31958b12bc670"
+    },
+    "Kaisa": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "a195e69cdfc0f088d06866656d0ac23b39218be6cdf66beecd7b971d274d209f"
+    },
+    "Jhin": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Deadly Flourish"
+      ],
+      "sha256": "7131d5c3551e54eff58ba04a76604d73c4d608f884d7e1f05a5561fe719ec6fc"
+    },
+    "Ashe": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Enchanted Crystal Arrow"
+      ],
+      "sha256": "0aacd8fd1803ba62475965debd0c960a5ab8cfe60aeb9bb8e4569cd605efee0d"
+    },
+    "MissFortune": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "79a47c83b31706fad8edfe139ff1a09a90c9e7b8bee619933aa0e29091b8d8e8"
+    },
+    "Vayne": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Condemn"
+      ],
+      "sha256": "81c595169078f74d0d1e6b8a5afca9b7e11e3e780d8ced6069415e9922d88429"
+    },
+    "Lucian": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "b39598fd54d2fee10fa74f6bc7a8f72a69120f3fd232ab30e57ca6766e24cc7c"
+    },
+    "Sivir": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "61bbf8418c5701ae57d44a4309e128ac5ff9178e737ae5dee1be1cdc3e77228d"
+    },
+    "Draven": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "9dc5b7ecc87233d5835bf385632a31d991b4b33305769eb006076119dd03a15e"
+    },
+    "Samira": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "3eb916f6bd223cac88fdf553d418a89474aafced8d44f6a0c0b9200f98c6c3bf"
+    },
+    "Thresh": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Death Sentence"
+      ],
+      "sha256": "dbaff908d93e1a60736ef533c6665554b2a550a075d1e6c5eb1c94242e7bc8b7"
+    },
+    "Leona": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Shield of Daybreak",
+        "Zenith Blade",
+        "Solar Flare"
+      ],
+      "sha256": "42a5487e6c38f6ab051f17ad2c17daf3e14f59e4e7fcf7d75920aedf18c97e5b"
+    },
+    "Nautilus": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Dredge Line",
+        "Depth Charge"
+      ],
+      "sha256": "b597d9f013fc1d30ab711e273e0fcb0b76c7399601ca65ea5f358876f3e43b22"
+    },
+    "Lulu": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Whimsy"
+      ],
+      "sha256": "63a6bf42381419efb851300160056dbe6dfc6407ba1ac6fae52b5bdf1dab9114"
+    },
+    "Janna": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "89e43da448ba11ac1a11ce1c1f53737707fc6c135e251ff916f90b2b3e023324"
+    },
+    "Soraka": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Equinox"
+      ],
+      "sha256": "fcbb836973ecfa7bde49af8497557c03454cdc40e87f101ce151c25f5eb1b122"
+    },
+    "Morgana": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Dark Binding",
+        "Soul Shackles"
+      ],
+      "sha256": "1545193014642dcb6780e35a224125f7744644ae8b1bccdfe8233e06bc58ca07"
+    },
+    "Blitzcrank": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "4636c7999c6211aac8ab3f1dcab4b5400119aeb5d2b158980b7bc1c97cac2547"
+    },
+    "Karma": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Focused Resolve",
+        "Mantra"
+      ],
+      "sha256": "a865a4b6766897e1feb2709539beb14cd6b149688e0aa281f85741dc8122c881"
+    },
+    "Nami": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Aqua Prison"
+      ],
+      "sha256": "ccf5c23ec336b08e5658cc886fe111cbda48a91c680dbf0cdd04649a71a21c26"
+    },
+    "Rakan": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "The Quickness"
+      ],
+      "sha256": "64857c144b888928612cbc69d791ba97231504808e049de3826a23c6ae33cf64"
+    },
+    "Braum": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Concussive Blows"
+      ],
+      "sha256": "d73adb28bcb5c5b9b94f24ea66531aee4b2fc5324e37fa7c47c3e648fa62fe4c"
+    },
+    "Pyke": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Phantom Undertow"
+      ],
+      "sha256": "8c0b6d12abfcf8f96a8fe4121e3438ec02833e74e34ec3eff391fb49e2e86ff8"
+    },
+    "Akali": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "591cc8800e1695ec708626e9b1c1fb3696881ddfccb98b573dc279203e8adc8e"
+    },
+    "Akshan": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "5acd6011a9d7f7ccfe54acde31dee435415af8d4972d7af45b42f9f82814081b"
+    },
+    "Alistar": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Trample"
+      ],
+      "sha256": "abfd7f8735302274dc0f9aabd2fd5f9fc96a95f2fab9e092da61718c6e40b629"
+    },
+    "Ambessa": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Public Execution"
+      ],
+      "sha256": "4a9f9c83db2cb523ed25e26c93d12594a7997fdb9a49edc361d26011e2df4fae"
+    },
+    "Anivia": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Flash Frost"
+      ],
+      "sha256": "9c59ef19d0402494fa9510f54ef4b99b59f9168567b27546273b85e2e03f724b"
+    },
+    "Aphelios": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "628720a34ad4df94934670a31b5581919306d9aee73ca45351490733da0b6b9b"
+    },
+    "AurelionSol": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Falling Star / The Skies Descend"
+      ],
+      "sha256": "39091b983ef1a213c31f2cc1dd110a3d16ffe2626aa9399e427bb1b0f14b9940"
+    },
+    "Aurora": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "2ca0217a5a8bb51cdc6fd7342b4d087d3c974854ab00c74b0738fae675aa6d35"
+    },
+    "Azir": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "48b8e21e5a6879b31ce8094a0784a1ead06803e8817ffd0adbae305bf68bc596"
+    },
+    "Bard": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Cosmic Binding"
+      ],
+      "sha256": "a4932e1645adfeae4f151ea718b780ef340a6f1ae3785f6d8ed4a2e5c7361291"
+    },
+    "Belveth": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "b74f1551dd1e930a3efd30347c6da1e3ac2a179108290dfa47885235bc54ed4f"
+    },
+    "Brand": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Sear"
+      ],
+      "sha256": "32a00f8bf874a4737872c25e0a9c90a9ab2a0c9cf4dd222ea8929a8cb0ed90af"
+    },
+    "Briar": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Head Rush",
+        "Chilling Scream"
+      ],
+      "sha256": "d64de0ba60fbd19bafc6c65a3b337d33e3845d3c95a0000333b772cfb9ba04ea"
+    },
+    "Cassiopeia": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Petrifying Gaze"
+      ],
+      "sha256": "ed023b07865b275e45be8e8910193386be1f139c3ccb0f4024b95fa0e345d370"
+    },
+    "Chogath": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "87e214cc1883a9443185f08a0c9a7e191557582fe1d6dd0b008deb9b336073a1"
+    },
+    "Corki": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "92b23373c912390cd0584e41e2183c58d8929383728c68cf2aec126be8195b46"
+    },
+    "DrMundo": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "921025d56b19db445b5ada5a479168cbd10b755adb2e1f45fd7b1047252c1eda"
+    },
+    "Ekko": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Parallel Convergence"
+      ],
+      "sha256": "bb75dc1b6b3ee4f45b7d9a88681d148dcb7682766810d772b45a8c7a10d20811"
+    },
+    "Elise": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Cocoon / Rappel"
+      ],
+      "sha256": "9f0db4f5820274002c9874a0b05f56751cf019b60a387d5436204201ca06796e"
+    },
+    "Evelynn": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Allure"
+      ],
+      "sha256": "73c84ff24f8bc1716293308e25b383048805557f2850375f68137e52005d9c61"
+    },
+    "FiddleSticks": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Terrify"
+      ],
+      "sha256": "160f365dfed9d3d5e3fdf45fd4f9dfbc0a030f291999319bb318584c7e4bcd7f"
+    },
+    "Galio": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Shield of Durand"
+      ],
+      "sha256": "2c0f8224c9b202a625cd06abeaa5bfc8617f0fe99551effd996a021e47b95831"
+    },
+    "Gangplank": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "b90e67efbf6c10f3134c0960cffe78b1a6751721ce14ce21c7b03684b306b90f"
+    },
+    "Gnar": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "GNAR!"
+      ],
+      "sha256": "b9f0fb155a2be83209496fb703229b85086eea82ef8c08fe7d226492c380d9d9"
+    },
+    "Gragas": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "ccb7728e03350addc3f3fdff88a00f30e48a8094958c82e31fffa4e9228f6778"
+    },
+    "Gwen": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "27062b217d3833fd5c6e2f74cc32be2bee58e138b34a02f95e5f81c05ff3fa4a"
+    },
+    "Heimerdinger": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "CH-2 Electron Storm Grenade",
+        "UPGRADE!!!"
+      ],
+      "sha256": "dbbb3130ea10bee56fa6bf743dff6cb8fd90b235256f917751d91b1e69d2d946"
+    },
+    "Hwei": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Subject: Torment"
+      ],
+      "sha256": "a0f3f2af9efcc6b754e965083f7a91aeb702a41272ebe5885c64eb68542730ee"
+    },
+    "Illaoi": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "ca127a0efffd08875d69ee71a62554f2364bbb1328421233d73831e440f43b48"
+    },
+    "Irelia": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Flawless Duet"
+      ],
+      "sha256": "4cd500badeb8295f0ca33c8175a80af24f8a93c5f61eb0a0eee26dfa05b84f39"
+    },
+    "Ivern": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Rootcaller"
+      ],
+      "sha256": "484e12f3622bc06da37f989e392fe56a66a99c076a2a6d14282bc40ac15ae1a9"
+    },
+    "Jayce": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "c989dcc96b9d86782412dcaccaff11c16f058a9284a364fa55f79d601885fd67"
+    },
+    "Kalista": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "1f269024aad60a4ee50ed854e6578dd36a22f5bbfa77f806658a6782b1cb4883"
+    },
+    "Karthus": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "91755ee067dd0fbbf290b5e54f5c82197fd64d5d46adb6df1e2ef15765a0341c"
+    },
+    "Kassadin": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "5d929f1cc32f8b1bf4b40b357b3bcd562fd1c20e05b9a055d4e3f248cb573c5f"
+    },
+    "Kayle": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "9f7422a666eb182fdb95031ccc9694d1df9a1da7cd7c5230337474fa4d08d79c"
+    },
+    "Kennen": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Mark of the Storm"
+      ],
+      "sha256": "2631ed2e9830295058d82aba4193ec41994811289d744351135aac1455a5ed2d"
+    },
+    "Kindred": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "b4ce4837dfc005483495743e0efdbd4e815cbaabc1cec3eb8386ccd10ae48c51"
+    },
+    "Kled": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "27b64cda6564418e9f7f09270a54c00ae0f32cd871915a0032dfe19acb593a99"
+    },
+    "KogMaw": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "5aa30291a356d5f51b4090c072dbc0d3eaf064ab77a5669e406d39fa4c4e3bdd"
+    },
+    "KSante": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Ntofo Strikes",
+        "Path Maker"
+      ],
+      "sha256": "4f296c68f687d7e0d5b743748809a712c41211ff6d2c07dce6c4de780dabbd8d"
+    },
+    "Leblanc": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Ethereal Chains",
+        "Mimic"
+      ],
+      "sha256": "ee4fbe439379e13d1743d26e2b40b8961432f0c79f29d1541a41b3ecadeb7aaa"
+    },
+    "Lillia": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "35c15081fdeca6c82af5f0e6a9240bf56a67675f1a306738750aa4c8c209d0e3"
+    },
+    "Lissandra": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Ring of Frost",
+        "Frozen Tomb"
+      ],
+      "sha256": "b8d9f30b78555b96f983cbde19bfb0fd67c35bf3ba2f0148f6c0287558972339"
+    },
+    "Locke": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "f0e03986e2bf4bb7cd9c5ee3ba6f52128e104264de64584456018b21ea208d57"
+    },
+    "Maokai": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Twisted Advance",
+        "Nature's Grasp"
+      ],
+      "sha256": "420d6f7ba47ff52e65989d5b63f684368568a58e06ae82a5c19487fccb56bc11"
+    },
+    "MasterYi": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "820eff83ff2f9218cd437c55f819b6f11c33fc80109424a40072f48fcc25b2e4"
+    },
+    "Mel": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Solar Snare"
+      ],
+      "sha256": "464a42dbc442da40798ef3e41dff80240c19470daf10b7c8701ecea46820fc7f"
+    },
+    "Milio": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "d1b3068d60bdd4ec69d2f6ff184a91cc5939f0dac00ad611b3d8a1f94e767508"
+    },
+    "MonkeyKing": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "9978893dfc17d475f13255c3b2cb2c050361927f3ba5710cfc57be2bb0e5becd"
+    },
+    "Naafiri": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "0d51bb1c9d9f7fc547ef0d88efc6ccc005fd4eba5db79b3ace19b8cf4eb5ea31"
+    },
+    "Neeko": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Tangle-Barbs",
+        "Pop Blossom"
+      ],
+      "sha256": "8951dd5f977a1491a7a76dff06373755a775e16379fd4d844916c9a08b5264a6"
+    },
+    "Nidalee": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "609d29d8bac5b78c6037e9e3b7d0185216bb2401036df9505b1d6d2e8a439c1f"
+    },
+    "Nilah": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "c2b91015632a89f43fa3834307c0d4801c7e1cdc089c9e0cc86172ebec6a8c59"
+    },
+    "Nocturne": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Unspeakable Horror"
+      ],
+      "sha256": "4e4575fe224ea405a2349dc033a17b5dbec56dac4f22c44f472ca2377204e0a0"
+    },
+    "Nunu": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Snowball Barrage"
+      ],
+      "sha256": "bca6a076a0b5b2d932df4ba80ebab56d40a77d3653aae4f122ae3ea347897cd7"
+    },
+    "Olaf": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "80e5266bf5e55d8c5f5e21feee3835a762f63c20ba5099f709818322d8b43f33"
+    },
+    "Pantheon": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Shield Vault"
+      ],
+      "sha256": "ce7787c915e105af2db2d3f3cc3028f963507f51abca98a5f91d174e1b3be534"
+    },
+    "Poppy": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Heroic Charge"
+      ],
+      "sha256": "48f575fd6624965143e27b57c63d476471b70941241fb50a01cccbd4b5bd6ba7"
+    },
+    "Qiyana": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Elemental Wrath / Edge of Ixtal",
+        "Supreme Display of Talent"
+      ],
+      "sha256": "df323ebc142ca1d94073962e15fd6c428402cdf329357d9ebcb8d14e1b1f3b60"
+    },
+    "Quinn": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "d1cc160448d5355a80aa8fc1135f8937335f1ddf48f35793708f4693dd1aee6e"
+    },
+    "Rammus": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Frenzying Taunt"
+      ],
+      "sha256": "de1a1dea1590e1df1fa5b4b272966e268a86c5c6b2d91f286b81dc3a26402522"
+    },
+    "RekSai": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "93da988c3ac1ac7494941e9f53d080f9094320aee6cfbc3375b0107af6e5e1bf"
+    },
+    "Rell": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Shattering Strike"
+      ],
+      "sha256": "f1541618b1c94fb7a533ab739edcad9acad10e6eb37c31cfa7ee987b5ec0a54c"
+    },
+    "Renata": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Handshake"
+      ],
+      "sha256": "558ee1ae516ef42d70c30214413a993f6594db3bd6c1255d1f201ab0b0db6edb"
+    },
+    "Rengar": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Bola Strike"
+      ],
+      "sha256": "ed2f22fb95bb87ed14218ace0893225232710c951f174a3b3c7a5b050c4b2806"
+    },
+    "Riven": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Ki Burst"
+      ],
+      "sha256": "5d9488d1cac9354e437de5e9355c9460b04c251f40276cb2b459a35ebfe117f7"
+    },
+    "Rumble": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "2566d479fa047c50aaf44475f0f917ed8732704413c906083ea0c14b324e69fd"
+    },
+    "Ryze": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Rune Prison"
+      ],
+      "sha256": "21fb6de19f587b432a7021928b76f299ef27b2634851bf22da8f419f7181504f"
+    },
+    "Senna": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Last Embrace"
+      ],
+      "sha256": "0551da27ab9e1f9fceab41562bcb0f36ce141a01aa03d09982c1b04bada6e60a"
+    },
+    "Seraphine": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Beat Drop",
+        "Encore"
+      ],
+      "sha256": "6fe79f615b947baa128fa28ac7ac04b28b2578d4d178635dd975a8581d050d73"
+    },
+    "Shaco": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Jack In The Box",
+        "Hallucinate"
+      ],
+      "sha256": "87b77cb859ba4727efe6b69b0a9b4f5bdbaf33a5714ba5191595274c4d542b37"
+    },
+    "Shyvana": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "6b711c1c620b52621bb62ca29c4394f961c9525e1006fdaffacef1a6b8e955de"
+    },
+    "Singed": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Fling"
+      ],
+      "sha256": "e6bf1f428f4d845e25f7617b4170fe0773d073804cbe3f228e3ac3f2c5b618e0"
+    },
+    "Sion": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Decimating Smash",
+        "Unstoppable Onslaught"
+      ],
+      "sha256": "d0fa76432c6ef22f04ec58adfda19d94280dc0bb6e9cc71a83b2311188849a99"
+    },
+    "Skarner": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Ixtal's Impact"
+      ],
+      "sha256": "187abaa360ebe930b8ac51a3de5daabc37dc4d124eecb63382d91bfa7001e2aa"
+    },
+    "Smolder": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "558b148263bc696a8afc8efeb70e86516340d6dae8b54bf992100ef9c54d1bf6"
+    },
+    "Sona": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Crescendo"
+      ],
+      "sha256": "6bda09bdd51f985a652cba81755a088f7cd38d73da283d4db1ffc8e13bc95d8f"
+    },
+    "Swain": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Nevermove"
+      ],
+      "sha256": "4299dc061049c225e604b1cc47504ad9e6e84e3af7cbb71a58cc8a53d5244514"
+    },
+    "Sylas": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "a1b6077be34a8a67e006b4635bd70d27fb4dca129592f61e464096ede94765ec"
+    },
+    "TahmKench": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Tongue Lash"
+      ],
+      "sha256": "be04efb82e216459f6f8df91f33b1158cea0415cc7ed3ffbfdc17a0814680c66"
+    },
+    "Taliyah": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Threaded Volley",
+        "Unraveled Earth"
+      ],
+      "sha256": "d4c546a8580df7460bc3e2d1fe1cb8ea85d1f3d86303591bad88ae76314f72c8"
+    },
+    "Talon": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "141b9c6de0fdf64a6e0eaf129cd8b5b45f5f65f6c06727b0015e7dd6604c16c6"
+    },
+    "Taric": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Dazzle"
+      ],
+      "sha256": "1a6525166628497821431ae2a5607f242ae0b251938802643c63db61f40e0435"
+    },
+    "Tristana": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "fb11ab5b231c12d1be8457ee52df68187a8761d39bd3abe11a677f7cbc99781c"
+    },
+    "Trundle": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "5bf283d9832c3b44531076c2b43260cfc9b14458122bfb0aced30c40d7f71cfb"
+    },
+    "Tryndamere": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "6d1c6d45e5b0676baa8ff4b66bd61f1d0d7f8ade58bd7eda638f8236ce311d78"
+    },
+    "TwistedFate": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Pick a Card"
+      ],
+      "sha256": "9fde5a0436225e22f0a88309f00cf56c6dbbed86ec640e53d525ec546f834440"
+    },
+    "Twitch": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "42ae38575758c63a11d8f6c7a5a4b5899b687c5ef9db90c058df389ff58425c8"
+    },
+    "Udyr": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Blazing Stampede"
+      ],
+      "sha256": "475258fcf1950dc515faadbb080031920acf020fc962c5efc3b89baa596194a0"
+    },
+    "Urgot": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Disdain",
+        "Fear Beyond Death"
+      ],
+      "sha256": "e18b7df7fccc80e98cc1faae1caf03d2df14cf24e253e021dfa88e8a873c7355"
+    },
+    "Varus": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Chain of Corruption"
+      ],
+      "sha256": "6d7253bee0e487376c598c81cbf7c6cd085c188379d28085f4bf3b9eb304926d"
+    },
+    "Velkoz": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "82f00a8e2c2fb30af7f0bcd14c1784853fbeead3126ce6e85125af108e9905cf"
+    },
+    "Vladimir": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "962510c9d880a6f68127545955ab049890daa3439899fa37093ac351740d1cef"
+    },
+    "Volibear": {
+      "ranged": false,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Thundering Smash"
+      ],
+      "sha256": "305d1226c388c93c9172d20361cf63a1de772f3eddf517b96612688538b36a56"
+    },
+    "Xayah": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": false,
+      "abilities": [
+        "Bladecaller"
+      ],
+      "sha256": "17c760d40630e2b41df1770ae455ccb604401acb3f85ccb65b9a0d09a6f3e73e"
+    },
+    "Xerath": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Shocking Orb"
+      ],
+      "sha256": "3e9d35a541189f4c06ee06aeb5b929ddbf8648b7a173286d366a24b7820be572"
+    },
+    "XinZhao": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "77e231eb6893d83e1dc34e12ae1d997550a06b83a69e3300297bb081c10a2094"
+    },
+    "Yorick": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "a281f08c676c9531f33e390c218bfe61c430abcfac019cb9739671dbd11ea63e"
+    },
+    "Yunara": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "db9654f92bb3948bd5a590a70425fc8de31f02eef259c468b2ab5808ab7f7109"
+    },
+    "Yuumi": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "4cffd66581c6f8a437951fdbaf6dfdbebdc46a5a8911597479de08e7d127cb25"
+    },
+    "Zaahen": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "4d87bbb863fe4b161e885fc5e0960b56fa41387a4750667fadb899155c938ed8"
+    },
+    "Zac": {
+      "ranged": false,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "9cbd19db30c1ebbe40961d5e5f9a652a18a86c6bdfd88f6503390cd7271070c0"
+    },
+    "Zeri": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": false,
+      "abilities": [],
+      "sha256": "3b3ffc114fc7a0f6d6146398f699f6318279e55ea2a283876b37d51fc752dd67"
+    },
+    "Ziggs": {
+      "ranged": true,
+      "tenacityCC": false,
+      "poke": true,
+      "abilities": [],
+      "sha256": "e116689b1e7f788af6f01cf9cf0e44fb98f75106b0a0ae9e2d5045065e6be40c"
+    },
+    "Zilean": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Time Bomb"
+      ],
+      "sha256": "6c7000e502806171bf44355aa9fa44ace6d21d4f3bc184a0b4f7a85d5c8b0d22"
+    },
+    "Zoe": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Sleepy Trouble Bubble"
+      ],
+      "sha256": "8e45a5e4af84a97fd2c0afb6eeb6627279f6664161b5e5c8d290ef86b72e4d71"
+    },
+    "Zyra": {
+      "ranged": true,
+      "tenacityCC": true,
+      "poke": true,
+      "abilities": [
+        "Grasping Roots"
+      ],
+      "sha256": "a92b4d44179b10e69d26ed826bf55cd42708fb71c8b6be54c73d9dd9c3a87b62"
+    }
+  }
+}

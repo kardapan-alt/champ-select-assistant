@@ -4,7 +4,8 @@
 const { detectSituations, situationView, reasonFor } = require('./situational');
 const { liveSituations, mergeSituations } = require('./live-build');
 const { itemAvailable, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
-const { canonicalAlias, usesMana } = require('./champion-identity');
+const { canonicalAlias, usesMana, resourceFor } = require('./champion-identity');
+const runeContext = require('../data/rune-context.json').champions;
 const { buildIdentity, isSupportCore } = require('./base-build');
 const { roleQuestFor, BOOT_UPGRADES, SUPPORT_ITEMS, baseBoots, isBootItem } = require('./rolequests');
 const { normalizePins, validateRunes } = require('./choices');
@@ -48,6 +49,7 @@ function readSession(session, mode = 'classic', extra = {}) {
   // Przeciwnicy: tylko championy widoczne w kliencie, bez żadnych danych graczy.
   const enemies = (session.theirTeam || []).map((p) => ({
     cellId: p.cellId,
+    position: p.assignedPosition || '',
     championId: p.championId || 0,
     skinId: p.selectedSkinId || 0,
     locked: lockedCells.has(p.cellId) && p.championId > 0,
@@ -451,11 +453,12 @@ function defaultTemplate(champ, data) {
 function resolveRunes(champ, data) {
   const tpl = defaultTemplate(champ, data);
   const ref = champ.runes || tpl.runes;
-  return typeof ref === 'string' ? data.runePresets[ref] : ref;
+  return (typeof ref === 'string' ? data.runePresets[ref] : ref) || data.runePresets[tpl.runes];
 }
 
 // Dopasowuje stronę run do aktualnego patcha z klienta: nieistniejące runy zastępuje pierwszą w danym rzędzie.
 function normalizeRunes(page, game) {
+  page={...page,perks:page.perks.map(id=>id===8138?8140:id)};
   if (!game.styles || game.styles.size === 0) return { ...page, perks: [...page.perks], shards: [...page.shards] };
   const primary = game.styles.get(page.p) || [...game.styles.values()][0];
   let secondary = game.styles.get(page.s);
@@ -489,13 +492,20 @@ function normalizeRunes(page, game) {
 // ---------- dopasowanie pod mecz ----------
 
 const MELEE_CLASSES = ['fighter', 'tank', 'assassin'];
-const isRanged = (c) => !MELEE_CLASSES.includes(c.class);
+const isRanged = (c) => runeContext[canonicalAlias(c.alias)]?.ranged ?? !MELEE_CLASSES.includes(c.class);
 
 // Przeciwnik z Twojej linii (gdy jest już widoczny w champ selekcie).
 function laneOpponentOf(state, game, data) {
   const position = toDataRole(state && state.me ? state.me.position : '');
   if (!position) return null;
-  return teamInfos(state.enemies || [], game, data).find((e) => e.roles && e.roles[0] === position) || null;
+  const enemies=(state.enemies||[]).filter(p=>p.championId).map(p=>({
+    ...champInfo(game.championsById.get(p.championId)?.alias,game,data),assigned:toDataRole(p.position||p.assignedPosition||'')
+  }));
+  const confirmed=enemies.filter(e=>e.assigned===position);
+  if(confirmed.length===1)return {...confirmed[0],laneInferred:false};
+  if(confirmed.length>1)return null;
+  const inferred=enemies.filter(e=>!e.assigned && e.roles?.[0]===position);
+  return inferred.length===1?{...inferred[0],laneInferred:true}:null;
 }
 
 // Wynik matchupu z perspektywy championa: własny wpis ma pierwszeństwo przed wpisem przeciwnika.
@@ -509,7 +519,7 @@ function matchupVerdict(champ, lane) {
 }
 
 // Champion grany poza swoją rolą bez statystyk OP.GG dla tej roli (np. Alistar na supporcie, Cho'Gath w jungli):
-// runy, czary, itemy, buty i start od championa tej samej klasy, dla którego ta rola jest główna.
+// Zachowuje własny build i runy. Brakujące dane i czary bierze od championa tej klasy i roli.
 // Umiejętności, cechy i matchupy zostają własne.
 function roleAdjusted(champ, role, data) {
   // Champion spoza danych (albo znany tylko z mety OP.GG) nie ma własnych run i itemów, tylko szablon klasy:
@@ -523,7 +533,7 @@ function roleAdjusted(champ, role, data) {
   if (!donor) return champ;
   const [from, d] = donor;
   const pick = (k) => (d[k] !== undefined ? d[k] : undefined);
-  return { ...champ, runes: pick('runes'), spells: pick('spells'), items: champ.items?.length?champ.items:pick('items'), boots: champ.boots||pick('boots'), starters: pick('starters'), roleFrom: from };
+  return { ...champ, runes: champ.runes||pick('runes'), runeRoleFrom:champ.runes?null:from, spells: pick('spells'), items: champ.items?.length?champ.items:pick('items'), boots: champ.boots||pick('boots'), starters: pick('starters'), roleFrom: from };
 }
 
 function matchContext(alias, state, game, data) {
@@ -532,10 +542,21 @@ function matchContext(alias, state, game, data) {
   const position = aram ? 'aram' : toDataRole(state && state.me ? state.me.position : '') || (base.roles || [])[0] || '';
   let champ = roleAdjusted(base, position, data);
   if(aram && !champ.statsBuild && base.aram) champ={...champ,...base.aram};
+  // Rune data may be available without a build (and vice versa). Never let an
+  // item-only analysis or another role's donor overwrite the champion's page.
+  const roleRunes=base.runesByRole?.[position];
+  const runeBase=base.statsRunes?base.runes:aram?base.aram?.runes:roleRunes||base.runes;
+  if(runeBase)champ={...champ,runes:runeBase,runeRoleFrom:null,
+    runeRoleFallback:!aram&&!base.statsRunes&&!!base.runesByRole&&!roleRunes};
   champ=buildIdentity(champ,game);
   const enemyInfos = state ? teamInfos(state.enemies || [], game, data) : [];
   const lane = position === 'jungle' || aram ? null : laneOpponentOf(state, game, data);
-  return { champ, position, lane, enemyInfos, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
+  const laneEnemies=lane?[lane]:[];
+  if(state&&!aram&&['bottom','support'].includes(position)){
+    const other=laneOpponentOf({...state,me:{...state.me,position:position==='bottom'?'support':'bottom'}},game,data);
+    if(other&&!laneEnemies.some(e=>e.alias===other.alias))laneEnemies.push(other);
+  }
+  return { champ, position, lane, laneEnemies, enemyInfos, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
 }
 
 const PERK = { secondWind: 8444, bonePlating: 8473, overgrowth: 8451, revitalize: 8453, conditioning: 8429, unflinching: 8242, cutDown: 8017, resolve: 8400 };
@@ -549,10 +570,10 @@ function adaptRunes(page, ctx, game) {
   const out = { ...page, perks: [...page.perks], shards: [...page.shards] };
   const perkName = (id) => game.perks.get(id)?.name || String(id);
   const regularSlots = (styleId) => (game.styles.get(styleId)?.slots || []).filter((s) => s.type !== 'kStatMod');
-  const swap = (want, why) => {
+  const swap = (want, why, replace = () => true) => {
     for (let i = 1; i < out.perks.length; i++) {
       const slot = regularSlots(i < 4 ? out.p : out.s).find((s) => s.perks.includes(out.perks[i]));
-      if (slot && slot.perks.includes(want)) {
+      if (slot && slot.perks.includes(want) && replace(out.perks[i])) {
         if (out.perks[i] !== want) {
           changes.push(`${perkName(want)} zamiast ${perkName(out.perks[i])}: ${why}`);
           out.perks[i] = want;
@@ -563,41 +584,47 @@ function adaptRunes(page, ctx, game) {
     return false;
   };
 
-  const { lane, champ } = ctx;
-  if (lane) {
-    const laneName = nameOf(lane.alias, game);
-    const lt = lane.traits || [];
-    const allIn = lane.class === 'assassin' || lt.includes('burst') || (lt.includes('early') && !isRanged(lane));
-    const poke = lt.includes('poke') || (isRanged(lane) && !allIn && !isRanged(champ));
+  const { champ } = ctx;
+  if(usesMana(champ.alias)===false)swap(8275,'Twoja postać nie korzysta z many',id=>id===8226);
+  const resource=resourceFor(champ.alias);
+  if(resource && !['Mana','Energy'].includes(resource))swap(9111,'Twoja postać nie korzysta z many ani energii',id=>id===8009);
+  if(ctx.position==='aram'){
+    swap(8140,'ARAM: zamiast wardów premia do odnowienia czarów przywoływacza',id=>[8137,8141].includes(id));
+    swap(8236,'ARAM: na tej mapie nie ma rzeki',id=>id===8232);
+  }
+  const laneEnemies=ctx.laneEnemies||[];
+  if (laneEnemies.length) {
+    const pokers=laneEnemies.filter(e=>(e.traits||[]).includes('poke') || runeContext[canonicalAlias(e.alias)]?.poke
+      || (['top','middle'].includes(ctx.position)&&isRanged(e)&&!isRanged(champ)));
+    const engagers=laneEnemies.filter(e=>e.class==='assassin'||(e.traits||[]).some(t=>['burst','engage'].includes(t))||((e.traits||[]).includes('early')&&!isRanged(e)));
+    const poke=pokers.length>0,allIn=engagers.length>0;
+    const laneName=(poke?pokers:engagers).map(e=>nameOf(e.alias,game)).join(', ');
     if (poke || allIn) {
       const want = poke ? PERK.secondWind : PERK.bonePlating;
       const why = poke ? `powtarzające się obrażenia i poke ${laneName}` : `krótkie wymiany i burst ${laneName}`;
-      const resolve = regularSlots(PERK.resolve);
-      // Brak Determinacji na stronie: na górnej i środkowej linii bierzemy ją jako drugie drzewko.
-      if (!swap(want, why) && !isRanged(champ) && out.p !== PERK.resolve && ['top', 'middle'].includes(ctx.position)
-        && resolve[2] && resolve[2].perks.includes(want) && resolve[3]) {
-        const before = game.styles.get(out.s)?.name || '';
-        const last = resolve[3].perks.includes(PERK.overgrowth) ? PERK.overgrowth : resolve[3].perks[0];
-        out.s = PERK.resolve;
-        out.perks = [...out.perks.slice(0, 4), want, last];
-        changes.push(`${game.styles.get(PERK.resolve).name} zamiast ${before} jako drugie drzewko (${perkName(want)}): ${why}`);
+      const secondaryResource=usesMana(champ.alias)===true&&out.perks.slice(4).some(id=>[8226,8009].includes(id));
+      if(!swap(want,why) && !isRanged(champ) && ['top','middle'].includes(ctx.position)
+        && out.p!==PERK.resolve && !secondaryResource){
+        const resolve=regularSlots(PERK.resolve);
+        if(resolve[2]?.perks.includes(want)&&resolve[3]?.perks.includes(PERK.overgrowth)){
+          const before=game.styles.get(out.s)?.name||'';
+          out.s=PERK.resolve;out.perks=[...out.perks.slice(0,4),want,PERK.overgrowth];
+          changes.push(`Resolve zamiast ${before} jako drugie drzewko (${perkName(want)}): ${why}`);
+        }
       }
-    } else if (ctx.enemyCount >= 4 && ['tank', 'fighter'].includes(champ.class)) {
-      swap(PERK.conditioning, 'spokojniejsza linia, odporności na późniejsze walki');
     }
   }
 
   if (ctx.position === 'aram') {
-    const pokeCount = (ctx.enemyInfos || []).filter((e) => (e.traits || []).includes('poke')).length;
+    const pokeCount = (ctx.enemyInfos || []).filter((e) => (e.traits || []).includes('poke') || runeContext[canonicalAlias(e.alias)]?.poke).length;
     if (pokeCount >= 2) swap(PERK.secondWind, 'ARAM: kilku przeciwników z poke');
     else if (ctx.enemy.burst >= 2) swap(PERK.bonePlating, 'ARAM: burst kilku przeciwników');
   }
   if (ctx.enemy.tanks >= 2 && !['tank', 'support'].includes(champ.class)) {
-    swap(PERK.cutDown, 'wielu tanków: więcej obrażeń na początku walki, gdy mają dużo zdrowia');
+    swap(PERK.cutDown, 'frontline wroga: więcej obrażeń przeciw celom powyżej 60% zdrowia',id=>id===8014);
   }
-  const healing = (champ.traits || []).some((t) => ['heal', 'enchanter', 'sustain'].includes(t));
-  if (healing) swap(PERK.revitalize, 'wzmocnienie leczenia i tarcz Twojej postaci');
-  else if (ctx.enemy.cc >= 3 && !isRanged(champ)) swap(PERK.unflinching, 'dodatkowe odporności podczas CC w walce z bliska');
+  const durationCC=(ctx.enemyInfos||[]).filter(e=>runeContext[canonicalAlias(e.alias)]?.tenacityCC);
+  if (durationCC.length >= 3 && !isRanged(champ)) swap(PERK.unflinching, 'dodatkowe odporności podczas CC w walce z bliska',id=>id!==PERK.revitalize);
 
   // Odłamki: trzeci rząd (obrona).
   const def = (game.styles.get(out.p)?.slots || []).filter((s) => s.type === 'kStatMod')[2];
@@ -607,7 +634,7 @@ function adaptRunes(page, ctx, game) {
       out.shards[2] = want;
     }
   };
-  if (ctx.enemy.cc >= 3) shard(SHARD.tenacity, `wrogowie mają dużo CC (${ctx.enemy.cc} postaci)`);
+  if (durationCC.length >= 3) shard(SHARD.tenacity, `CC skracane nieustępliwością: ${durationCC.map(e=>nameOf(e.alias,game)).join(', ')}`);
   return { page: out, changes };
 }
 
@@ -694,10 +721,16 @@ function runePageFor(alias, game, data, state = null) {
       pinned = true;
     } catch { changes.unshift('Zapisana strona run nie pasuje do aktualnych danych. Sprawdź własne wybory.'); }
   }
-  if (source.roleFrom && !pinned) {
+  if (source.runeRoleFrom && !pinned) {
     const role = POSITION_LABELS[ctx.position === 'support' ? 'utility' : ctx.position] || ctx.position;
-    changes.unshift(`Runy i czary pod rolę ${role} jak u ${nameOf(source.roleFrom, game)}: ${(source.roles || [])[0] && source.roles[0] !== ctx.position ? `${nameOf(alias, game)} gra zwykle na innej roli` : `brak danych o ${nameOf(alias, game)} na tej roli`}`);
+    changes.unshift(`Runy pod rolę ${role} jak u ${nameOf(source.runeRoleFrom, game)}: brak własnych danych o runach ${nameOf(alias, game)}`);
   }
+  const runeSource=pinned?null:resolveRunes(source,data).source||null;
+  const sourceRole=runeSource?.position;
+  const roleLabel=POSITION_LABELS[sourceRole==='support'?'utility':sourceRole]||sourceRole||'';
+  const sourceNote=pinned?'Twoja przypięta strona run.':runeSource
+    ? `Runy: ${ctx.position==='aram'?'ARAM':roleLabel} · OP.GG${runeSource.patch?' '+runeSource.patch:''}${runeSource.live?' · bieżący odczyt':', zapis '+runeSource.fetched}.${source.runeRoleFallback?' Brak danych dla tej roli — baza własnego championa.':''}`
+    : 'Runy: wbudowany szablon — brak statystyk dla tej postaci i roli.';
   const name = game.championsByAlias.get(alias)?.name || alias;
   const describe = (id) => ({ id, name: game.perks.get(id)?.name || String(id), icon: game.perks.get(id)?.iconPath || '' });
   const spells = spellsFor(alias, state, game, data);
@@ -705,6 +738,8 @@ function runePageFor(alias, game, data, state = null) {
     name: `CS Assist: ${name}${ctx.lane ? ` vs ${nameOf(ctx.lane.alias, game)}` : ''}`.slice(0, 50),
     primaryStyleId: page.p,
     pinned,
+    runeSource,
+    sourceNote,
     subStyleId: page.s,
     selectedPerkIds: [...page.perks, ...page.shards],
     primaryStyle: game.styles.get(page.p)?.name || String(page.p),
@@ -714,6 +749,7 @@ function runePageFor(alias, game, data, state = null) {
     shards: page.shards.map(describe),
     adaptations: changes,
     laneOpponent: ctx.lane ? nameOf(ctx.lane.alias, game) : null,
+    laneInferred:ctx.lane?.laneInferred||false,
     spells: spells.ids.map((sid) => ({ id: sid, name: game.spells.get(sid)?.name || String(sid), icon: game.spells.get(sid)?.iconPath || '' })),
     spellsWhy: spells.why,
   };

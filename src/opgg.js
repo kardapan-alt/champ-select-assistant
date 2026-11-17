@@ -694,7 +694,7 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
 // ---------- dostawca: pamięć podręczna i nakładka na dane ----------
 
 const TTL_MS = 6 * 60 * 60 * 1000;
-const BUILD_CACHE_SCHEMA = 2;
+const BUILD_CACHE_SCHEMA = 3;
 const isBuildCache = key => key==='meta' || key.startsWith('analysis:');
 
 class OpggProvider {
@@ -770,7 +770,11 @@ class OpggProvider {
       const tools = await this.tools();
       const tool = findTool(tools, [/champion[-_]?analysis/i, /get_?champion_?analysis/i]);
       if (!tool) throw new Error('brak narzędzia z analizą championa');
-      return interpretAnalysis(await this.client.call(tool.name, buildArgs(tool, { champion: alias, championName: name, position, mode })), game);
+      const raw=await this.client.call(tool.name, buildArgs(tool, { champion: alias, championName: name, position, mode }));
+      const analysis=interpretAnalysis(raw,game),payload=parsePayload(raw);
+      if(analysis?.runes)analysis.runeSource={provider:'OP.GG',live:true,mode,position,
+        patch:payload?.data?.trends?.win?.version||null,fetched:new Date().toISOString().slice(0,10),sample:payload?.data?.runes?.play||null};
+      return analysis;
     });
   }
 
@@ -865,7 +869,7 @@ function mergeStats(base, { meta, analyses = {} } = {}, game) {
     if (!a) continue;
     const own = data.champions[alias] || (game ? require('./engine').champInfo(alias,game,base) : null);
     if(!own)continue;
-    const merged = { ...own, statsBuild: !!(a.items && a.items.length>=2) };
+    const merged = { ...own, statsBuild: !!(a.items && a.items.length>=2), statsRunes:!!a.runes };
     // Przy sprzecznych danych wygrywają statystyki: matchup z OP.GG nadpisuje nasz wpis.
     const statCounters = a.counters || [];
     const statWeak = a.weakVs || [];
@@ -879,7 +883,7 @@ function mergeStats(base, { meta, analyses = {} } = {}, game) {
     if (a.matchupEvidence) merged.matchupEvidence = a.matchupEvidence;
     if (a.spells) merged.spells = a.spells;
     if (a.skills) merged.skills = a.skills;
-    if (a.runes) merged.runes = a.runes;
+    if (a.runes) merged.runes = {...a.runes,source:a.runeSource||{provider:'OP.GG',live:true}};
     if (a.synergy && a.synergy.length) merged.synergyStats = a.synergy;
     data.champions[alias] = merged;
   }

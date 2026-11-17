@@ -8,4 +8,5 @@ function usesMana(alias) {
   const resource=resourceByAlias.get(canonicalAlias(alias).toLowerCase());
   return resource ? resource==='Mana' : null;
 }
-module.exports={canonicalAlias,usesMana};
+const resourceFor=alias=>resourceByAlias.get(canonicalAlias(alias).toLowerCase()) || null;
+module.exports={canonicalAlias,usesMana,resourceFor};

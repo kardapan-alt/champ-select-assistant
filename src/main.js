@@ -209,7 +209,8 @@ function send(state) {
   const b=state.final?.build||state.build,analysisKey=b?.fromStats?stats.analyses[b.alias]?._key:null;
   const [analysisAlias,analysisRole,analysisMode]=(analysisKey||'').split(':');
   state.dataStatus=dataFreshness(game||offlineGame,{connected:!!lcu&&!['no-client','error'].includes(state.status),mode:state.mode||currentMode,
-    analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null,baseSource:b?.baseSource});
+    analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null,baseSource:b?.baseSource,
+    runeSource:(state.final?.myChampion||state.myChampion)?.runes?.runeSource});
   if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.list()[0]||null;
   if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
     ||state.final.build.mayhem.matchKey!==lastState?.final?.build?.mayhem?.matchKey))stopVisionWorkers();
@@ -616,7 +617,7 @@ async function autoImportRunes() {
   if (!settings.autoRunes || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
   // Gdy dojdą statystyki OP.GG dla Twojego championa, runy importują się jeszcze raz (już z aktualnego patcha).
-  const key = [alias, ...s.enemies.map((e) => e.championId), statsKey(alias), choiceKey(alias, s), JSON.stringify(choicesStore.get(alias, s))].join(':');
+  const key = [alias, ...s.enemies.map((e) => `${e.championId}@${e.position||''}`), statsKey(alias), choiceKey(alias, s), JSON.stringify(choicesStore.get(alias, s))].join(':');
   if (!alias || key === autoRunes.key) return;
   const target = autoRunes = { key, done: '', error: '' };
   try {

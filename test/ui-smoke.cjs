@@ -48,6 +48,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('get-state', () => fixture);
   ipcMain.handle('app-version', () => require('../package.json').version);
   ipcMain.handle('get-update', () => null);
+  ipcMain.handle('get-view-mode', () => false);
   const lab = require('../src/draftlab');
   ipcMain.handle('draft-catalog', () => ({ok:true,...lab.catalog(game,data)}));
   let delayNextPreview = 0;

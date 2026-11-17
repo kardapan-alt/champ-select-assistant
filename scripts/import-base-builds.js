@@ -35,14 +35,14 @@ for(const c of roster) {
       imported:items,sha256:crypto.createHash('sha256').update(typeof input.raw==='string'?input.raw:JSON.stringify(input.raw)).digest('hex')};
   }
   const {alias,unknown,aram,baseSource,items,boots,lateItems,...info}=current;
-  data.champions[c.alias]={...info,roles:meta.roles[c.alias]||info.roles,...modes.classic,aram:modes.aram};
+  data.champions[c.alias]={...info,roles:meta.roles[c.alias]||info.roles,...modes.classic,aram:{...aram,...modes.aram}};
 }
-data.version=6;
+data.version=Math.max(data.version,6);
 // Keep the existing non-build sections readable and unchanged.
 const at=original.indexOf('  "champions": {');
 if(at<0)throw Error('Missing champions section');
-const text=original.slice(0,at).replace(/"version":\s*\d+/, '"version": 6')+'  "champions": {\n'
+const text=original.slice(0,at).replace(/"version":\s*\d+/, '"version": '+data.version)+'  "champions": {\n'
   +Object.entries(data.champions).map(([name,c])=>'    '+JSON.stringify(name)+': '+JSON.stringify(c)).join(',\n')+'\n  }\n}\n';
 fs.writeFileSync(file,text);
 fs.writeFileSync(path.join(__dirname,'../data/base-build-evidence.json'),JSON.stringify(evidence,null,2)+'\n');
-console.log(`Imported ${roster.length} champions × 2 modes; data version 6.`);
+console.log(`Imported ${roster.length} champions × 2 modes; data version ${data.version}.`);

@@ -1,13 +1,13 @@
-## Wersja 0.6.32
+## Wersja 0.6.33
 
-- Uzupełniona baza wszystkich 173 championów: osobne rdzenie i późniejsze zakupy dla Summoner’s Rift oraz ARAM, na podstawie publicznych danych OP.GG z patcha 16.22. Mayhem korzysta z bazy ARAM przed dopasowaniem do augmentów.
-- Naprawione odczyty buildów: komponenty nie wypychają trzeciego gotowego przedmiotu; Muramana, Seraph’s Embrace, Fimbulwinter i Diadem wskazują właściwy przedmiot do kupienia. Warianty Jade nie przejmują ról zwykłych championów.
-- Późniejsze zakupy respektują wybrany styl AP/AD, kryty, on-hit i wsparcie. Zwykła zmiana roli nie zastępuje własnego rdzenia zestawem innej postaci. IE pozostaje w bazowych buildach pod kryty, a postacie bez many nie dostają przypadkowych ofensywnych przedmiotów many.
-- Rozszerzony filtr wspólnego Spellblade, również dla Dusk and Dawn i Essence Reaver. Kupione i przypięte przedmioty nadal mają pierwszeństwo.
-- Widoczne źródło, patch i data zapisanej bazy. Nieaktualny format pamięci analiz jest odrzucany; stara baza lokalna ma kopię zapasową przed migracją. Ustawienia aplikacji i własne przypięcia pozostają zachowane.
+- Zweryfikowana baza run dla wszystkich 173 championów: 253 strony dla popularnych ról na Summoner’s Rift i 173 osobne strony ARAM, z publicznych danych OP.GG dla patcha 16.22. Zmiana roli korzysta z własnej strony championa; przy braku statystyk pokazuje informację o użyciu własnej bazy zamiast kopiować runy innej postaci.
+- Obrona reaguje na poke i krótkie wymiany oraz obu przeciwników na dolnej linii. Potwierdzona pozycja z klienta ma pierwszeństwo przed typową rolą; niejednoznaczny skład nie wymusza zgadywania linii. Zamiana ról przy tych samych championach odświeża także automatyczny import run.
+- Runy kluczowe pozostają zgodne z bazą championa. Reguły chronią Last Stand i potrzebne runy zasobów przed ogólną zamianą. Presence of Mind pozostaje dostępne dla postaci z energią; Manaflow Band nie trafia na postacie bez many. Odłamek nieustępliwości bierze pod uwagę konkretne CC zamiast liczyć każde podbicie jako odpowiedni powód.
+- Naprawione stare presety z usuniętą Eyeball Collection. ARAM nie dostaje run wymagających wardów lub rzeki. Mayhem nadal ma wyłączony import run.
+- Panel run pokazuje tryb/rolę, źródło, patch i datę bazy; szczegóły danych obejmują osobno stronę run. Własne przypięcia i zmiany w kliencie pozostają zachowane. Migracja zapisuje kopię poprzedniej bazy.
 
-Walidacja: 237 testów logiki, w tym 2076 zestawów bez augmentów (173 postacie × 3 tryby × 4 składy przeciwników), warianty klienta, parser OP.GG, konwersje, zasoby i dotychczasowa macierz 5094 kombinacji augmentów. Pełny test aplikacji obejmuje zakupy, migrację bazy i prezentację źródła. Testy sprawdzają spójność rekomendacji; nie są pomiarem winrate ani gwarancją najlepszego buildu w każdym meczu.
+Walidacja: 247 testów logiki, w tym 2556 draftów dla 426 stron run, wszystkie role, warianty Jade, zasoby, ARAM, rodzaje CC i ręczne przypięcia. Pełny test aplikacji sprawdza import do symulowanego klienta, zamianę ról, ochronę ręcznych zmian, ARAM, Mayhem i migrację bazy. Strony są punktem wyjścia do dopasowania; statystyki popularności nie gwarantują najlepszego wyboru w każdym meczu.
 
-Zapisane buildy ARAM nie są statystykami Mayhem. Prośby, liczby gier i hashe odpowiedzi źródłowych opisano w data/base-build-evidence.json; odświeżanie bazy dokumentuje scripts/import-base-builds.js.
+Źródła i ślady przeglądu: data/base-rune-evidence.json (OP.GG), data/rune-context.json (katalog lokalnego klienta Riot), oficjalne opisy run Riot Data Dragon 16.22.1. Import bazy: scripts/import-base-runes.js.
 
 Po pobraniu aktualizacji wybierz „Uruchom ponownie”. Krzyżyk tylko ukrywa okno. Sprawdzanie wydań odbywa się przy starcie i co 6 godzin.
