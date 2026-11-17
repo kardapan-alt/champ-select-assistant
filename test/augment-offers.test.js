@@ -85,4 +85,24 @@ test('zniknięcie musi być kolejne: powrót kart zeruje potwierdzenie',()=>{
   assert.equal(observe(2400,null,cleanGrid()),null);assert.equal(observe(3100),null);
   assert.equal(observe(3800,null,cleanGrid()),null);assert.equal(observe(4500,null,cleanGrid()),ids[0]);
 });
+
+test('wolniejszy OCR nadal potwierdza dwie klatki i wybór, lecz odrzuca długą przerwę',()=>{
+  for(const stale of [false,true]){
+    const {t,cards,grid}=trackerFixture();t.reset();
+    const observe=(at,c=cards,g=grid)=>t.observe({at,aspect:16/9,cards:c,grid:g,active:true,readMs:2300});
+    observe(1000);observe(3800);assert.equal(t.streak,2);
+    const clickAt=stale?11000:5000;
+    for(const [type,at] of [['down',clickAt],['up',clickAt+100]])t.input({type,at,x:195,y:160,width:640,height:360});
+    assert.equal(observe(clickAt+1800,null,cleanGrid()),null);
+    assert.equal(observe(clickAt+4600,null,cleanGrid()),stale?null:ids[0]);
+  }
+});
+
+test('pojedyncza pionowa krawędź mapy nie udaje pozostawionej karty',()=>{
+  const {t,cards,observe,input}=trackerFixture(),grid=cleanGrid();
+  const x=Math.round(cards[0].rect.x*grid.width);
+  for(let y=0;y<grid.height;y++)grid.pixels[y*grid.width+x]=255;
+  assert.equal(oldCardsVisible(grid,cards),false);
+  input('down',1800);input('up',1900);assert.equal(observe(2400,null,grid),null);assert.equal(observe(3100,null,grid),ids[0]);
+});
 module.exports={fixture};

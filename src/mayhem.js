@@ -18,6 +18,19 @@ const RULES = require('./mayhem-rules');
 const headliners = require('./headliners');
 
 const ruleFor = augment => RULES[augment.api.replace(/^ARAM_/, '')];
+function upgradeTargets(rule,champion,selection={},enemy={}){
+  if(!rule?.upgrade)return [];
+  if(!rule.spellbladeUpgrade){
+    const targets=rule.items||[],owned=targets.filter(id=>selection.owned?.includes(id));
+    if(!rule.anyItem)return targets;
+    return owned.length?owned:[targets.includes(6664)&&enemy.apShare>=.55?6664:targets[0]].filter(Boolean);
+  }
+  const owned=(selection.owned||[]).filter(id=>[3100,3078,6662].includes(id));
+  if(owned.length)return owned;
+  const conversion=(selection.augments||[]).map(id=>byId.get(id)).filter(Boolean).map(ruleFor).find(r=>r?.conversion)?.conversion;
+  return conversion==='ap'?[3100]:conversion==='ad'?[3078]:champion.class==='tank'?[6662]
+    :champion.dmg==='ap'||champion.class==='mage'?[3100]:[3078];
+}
 const repeatItems = augments => new Set((augments || []).flatMap(id=>ruleFor(byId.get(Number(id)) || {api:''})?.repeat || []));
 // Posiadany przedmiot może być nagrodą albo automatycznym ulepszeniem, którego nie da się kupić.
 function ownedAvailable(id, game, alias = '', mode = 'mayhem') {
@@ -97,7 +110,8 @@ function adaptation(selection, champion, context = {}) {
     const overridden = Object.hasOwn(s.effects || {}, a.id);
     hints.push({ id:a.id, name:a.name, english:a.english, supported:!!r || effects.length > 0, quest:!!r?.quest,
       neutral:!!r?.neutral || disabled,
-      completed:(s.completed || []).includes(a.id), summary:disabled ? 'Back To Basics wyłącza ultimate, więc pomijam synergię tego augmentu z R.' : overridden ? `Ręcznie wskazany wpływ: ${effects.map(e=>EFFECTS[e]).join(', ') || 'bez dodatkowego priorytetu'}.` : r?.summary || 'Brak sprawdzonej reguły zakupów dla tego augmentu.', effects });
+      completed:(s.completed || []).includes(a.id), itemTargets:overridden?[]:upgradeTargets(r,champion,s,enemy),oneItem:!!r?.anyItem,
+      summary:disabled ? 'Back To Basics wyłącza ultimate, więc pomijam synergię tego augmentu z R.' : overridden ? `Ręcznie wskazany wpływ: ${effects.map(e=>EFFECTS[e]).join(', ') || 'bez dodatkowego priorytetu'}.` : r?.summary || 'Brak sprawdzonej reguły zakupów dla tego augmentu.', effects });
     const why = `augment ${a.name}`;
     for (const effect of effects) {
       if (effect === 'health') add(healthConversion ? (ap ? [] : [3814,3071,3181]) : durable ? [3084,2502,3083,3748] : support ? [3107,3190,6617] : ap ? [3116,4633] : [3071,3181], 7, why + ': zdrowie');
@@ -136,8 +150,9 @@ function adaptation(selection, champion, context = {}) {
     if (r?.consumed && (s.completed || []).includes(a.id)) r.items.forEach(id => excluded.add(id));
     const upgradeFrom = !overridden && r?.replace?.find(id=>(s.owned || []).includes(id));
     if (upgradeFrom) { upgrades.push({ from:upgradeFrom, to:r.items[0] });excluded.add(r.items[0]); }
-    if (r?.items && !overridden && !(s.completed || []).includes(a.id)) {
-      const ids = r.anyItem && (s.owned || []).some(id => r.items.includes(id)) ? [] : r.items;
+    if ((r?.items||r?.spellbladeUpgrade) && !overridden && !(s.completed || []).includes(a.id)) {
+      const targets=r.upgrade?upgradeTargets(r,champion,s,enemy):r.items;
+      const ids = r.anyItem && (s.owned || []).some(id => targets.includes(id)) ? [] : targets;
       add(ids, 26, why + (r.quest ? ': przedmiot do zadania' : ': ulepszony przedmiot'), !r.anyItem && !r.repeat);
     }
   }
@@ -178,4 +193,4 @@ function effectiveSelection(session) {
   if (session.autoInventory === false || !session.inventory) return session.selection;
   return { ...session.selection, owned:session.inventory.owned, ownedBoots:session.inventory.ownedBoots };
 }
-module.exports = { choicesCatalog, validateSelection, adaptation, MayhemSession, effectiveSelection, EFFECTS, ownedAvailable, repeatItems };
+module.exports = { choicesCatalog, validateSelection, adaptation, upgradeTargets, MayhemSession, effectiveSelection, EFFECTS, ownedAvailable, repeatItems };

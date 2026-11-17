@@ -100,14 +100,14 @@ rule('GlassCannon', ['adaptive','shield'], 'Mniej maksymalnego HP oznacza więks
 rule('GiantSlayer', ['move','adaptive'], 'Mały rozmiar i mobilność wspierają obrażenia przeciw większym celom. Zachowuję ofensywne skalowanie championa.');
 rule('HeavyIsTheCrown', ['move'], 'Siła ofensywna kosztuje prędkość ruchu. Dobieram mobilność, która pozwoli wykorzystać dodatkowe obrażenia.');
 
-rule('Upgrade_Sheen', ['spellblade'], 'Spellblade zyskuje obrażenia i leczenie. Dobieram wariant do AP lub AD postaci.');
+rule('Upgrade_Sheen', [], 'Przyspieszam jeden przedmiot ze Spellblade dobrany do postaci. Nie kupuj kilku wariantów dla tego samego efektu.', { upgrade:true, spellbladeUpgrade:true, anyItem:true, items:[3100,3078,6662] });
 for (const [name,items] of Object.entries({ Upgrade_Collector:[6676], Upgrade_IE:[3031], Upgrade_ZH:[3157],
   Upgrade_SunderedSky:[6610], Upgrade_Ravenous:[3074], Upgrade_DeathDance:[6333],
   Upgrade_Stormsurge:[4646], Upgrade_SwordOfBlossom:[124011], Upgrade_ZzRotPortal:[773512],
   Upgrade_DeathFireGrasp:[773128], Upgrade_InnervatingLocket:[773084] })) {
-  rule(name, [], 'Przyspieszam zakup przedmiotu bezpośrednio ulepszanego przez ten augment.', { items });
+  rule(name, [], 'Przyspieszam zakup przedmiotu bezpośrednio ulepszanego przez ten augment.', { items, upgrade:true });
 }
-rule('Upgrade_Immolate', [], 'Immolate generuje złoto. Preferuję jeden z ulepszonych przedmiotów; wybór uwzględnia obrażenia wroga.', { items:[3068,6664], anyItem:true });
+rule('Upgrade_Immolate', [], 'Immolate generuje złoto. Preferuję jeden z ulepszonych przedmiotów; wybór uwzględnia obrażenia wroga.', { items:[3068,6664], anyItem:true, upgrade:true });
 rule('Quest_SteelYourHeart', ['health'], 'Zadanie wymaga Heartsteel i jego ładunków. Przyspieszam ten zakup.', { items:[3084], quest:true });
 rule('Quest_WoogletsWitchcap', ['ap'], 'Zadanie wymaga Rabadona i Zhonyi. Po połączeniu oznacz ukończenie i posiadaną nagrodę.', { items:[3089,3157], quest:true, consumed:true });
 rule('Quest_VoidImmolation', ['health'], 'Sunfire i Hollow Radiance łączą się w nagrodę. Po połączeniu oznacz ukończenie i posiadaną nagrodę.', { items:[3068,6664], quest:true, consumed:true });

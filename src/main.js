@@ -482,7 +482,8 @@ function finalWithEnemies(me) {
           available:!!visionConfig?.enabled&&visionConfig.mode==='auto'},
         live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null },
         screen:{ enabled:!!visionConfig?.enabled, config:visionConfig, revision:visionRevision,
-          status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off', error:loading.visionError||null } };
+          status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off', error:loading.visionError||null,
+          diagnostics:loading.visionDiagnostics||null } };
       const undo=augmentScreen.undoCandidate(mayhemSession.value);
       build.mayhem.undo=undo?{token:undo.token,names:undo.ids.map(id=>visionCatalog.find(a=>a.id===id)?.name).filter(Boolean)}:null;
       const offer=loading.visionOffer;
@@ -870,6 +871,14 @@ function updateVisionOffer(value,invalidatedAt){
   loading.visionOffer=value;
 }
 function visionStatus(status,error=null) {
+  if(loading&&(Date.now()-(loading.visionSavedAt||0)>=5000||loading.visionStatus!==status)){
+    loading.visionSavedAt=Date.now();
+    writeJson(userFile('augment-diagnostics.json'),{version:app.getVersion(),at:Date.now(),status,error,
+      ...(loading.visionDiagnostics||{}),focused:augmentClicks.active(),
+      inputAgeMs:augmentClicks.lastSeen?Date.now()-augmentClicks.lastSeen:null,
+      streak:offerTracker.streak,pending:offerTracker.pending?.id||null,
+      saved:mayhemSession.value?.selection?.augments?.length||0});
+  }
   if(!loading || loading.visionStatus===status&&loading.visionError===error&&!loadingDirty)return;
   loading.visionStatus=status;loading.visionError=error;loadingDirty=false;send(buildLoadingView());
 }
@@ -963,9 +972,11 @@ async function readAutomaticAugment(input,state){
   if(!augmentClicks.child)return {ok:false,error:'Ponawiam odczyt okna gry.'};
   if(!augmentClicks.active()){offerTracker.reset();headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
   const grid=augmentOffers.readGrid(input.grid);
+  loading.visionDiagnostics={...(loading.visionDiagnostics||{}),width:input.width,height:input.height,
+    frame:input.frame,frameValid:!!grid?.valid,receivedAt:Date.now()};
   if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
-    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus('waiting');return {ok:true};}
-  const result=await windowsOcr.read(input.png);
+    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus('unreadable-frame');return {ok:true};}
+  const started=Date.now(),result=await windowsOcr.read(input.png),readMs=Date.now()-started;
   return choiceWrites(async()=>{
     mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
@@ -978,7 +989,10 @@ async function readAutomaticAugment(input,state){
     }
     const cropWidth=Math.min(1,input.height*16/9/input.width);
     const detected=augmentOffers.detectOffer({...result,crop:{x:(1-cropWidth)/2,y:0,w:cropWidth,h:1}},grid,visionCatalog,state.mayhemPool);
-    const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:augmentClicks.active()});
+    loading.visionDiagnostics={...loading.visionDiagnostics,readMs,
+      titles:detected.candidates.length,cards:detected.cards?.length||0,
+      recognizedIds:detected.candidates.map(c=>c.id)};
+    const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:augmentClicks.active(),readMs});
     if(augmentClicks.active())updateVisionOffer(detected.cards&&offerTracker.streak>=2?{ids:detected.cards.map(c=>c.id),at:input.at}:null);
     if(id){
       try{
@@ -989,7 +1003,7 @@ async function readAutomaticAugment(input,state){
         }
       }catch{visionStatus('conflict');return {ok:true};}
     }
-    visionStatus(id?'detected':offerTracker.pending?'confirming':detected.cards?'offers':'scanning');
+    visionStatus(id?'detected':offerTracker.pending?'confirming':detected.cards?offerTracker.streak>=2?'offers':'reading-offers':detected.candidates.length?'partial':'scanning');
     if(loadingDirty){loadingDirty=false;send(buildLoadingView());}
     return {ok:true};
   });

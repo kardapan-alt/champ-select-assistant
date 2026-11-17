@@ -1,3 +1,6 @@
+function augmentGrade(rating){
+  return `<div class="augment-rating" title="${esc(rating?.reason||'Brak wystarczających danych do oceny dopasowania.')}" aria-label="Ocena dopasowania ${esc(rating?.grade||'brak')}"><span>Ocena dla Ciebie</span><strong class="grade-${esc(rating?.grade||'none')}">${esc(rating?.grade||'—')}</strong></div>`;
+}
 function mayhemPanel(b) {
   if (!b?.mayhem) return '';
   const m = b.mayhem, canEdit = labActive || !!m.matchKey;
@@ -8,11 +11,14 @@ function mayhemPanel(b) {
   screenText.undone='Rozpoznanie cofnięte · możesz wskazać poprawny augment w edytorze';
   screenText['capture-error']=m.screen?.error||'Nie udało się przechwycić obrazu gry';
   screenText['ocr-error']='OCR nie odpowiada · ponawiam odczyt';
+  screenText['unreadable-frame']='Otrzymuję pusty lub nieczytelny obraz. Ustaw w grze okno bez ramek.';
+  screenText['partial']='Czytam nazwy, ale jeszcze nie potwierdziłem trzech kart';
+  screenText['reading-offers']='Trzy karty odczytane · potwierdzam obraz';
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
     ${m.headliner?`<div class="headliner-tip"><b>Headliner ${m.headlinerDetection?.source==='screen'?'· wykryty automatycznie':''}: ${esc(m.headliner.name)}${m.headliner.ability?' · '+esc(m.headliner.ability):''}</b><p>${esc(m.headliner.tip)}</p>${m.headliner.warning?`<p class="bad">${esc(m.headliner.warning)}</p>`:''}</div>`:`<p class="note">${m.headlinerDetection?.auto ? m.headlinerDetection.available ? 'Headliner: czekam na nazwę i opis wydarzenia w obrazie gry.' : 'Headliner: włącz automatyczny OCR, aby wykrywać go z ekranu.' : 'Headlinera ustawisz w „Augmenty i ekwipunek”.'}</p>`}
     ${live && !b.readout ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)}</p>` : ''}
-    ${m.screen && !labActive ? `<div class="augment-screen-controls"><span title="Czytam nazwy kart i Twój wybór w oknie gry. Bez najeżdżania i kalibracji. Niepewne wybory możesz poprawić w edytorze.">${esc(b.readout ? (m.screen.config?.mode==='auto'?'Odczyt obrazu: automatyczny':'Odczyt obrazu: po najechaniu') : (screenText[m.screen.status] || screenText.waiting))}</span>${m.screen.config?.mode!=='auto'?'<button data-augment-auto>Tryb automatyczny</button>':''}<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button></div>` : ''}
-    ${selected.length||!m.comparison?`<div class="augment-chips">${selected.length ? selected.map(a => `<span class="tag ${a.supported ? 'good' : ''}" title="${esc(a.summary)}">${esc(a.name)}${a.completed ? ' ✓' : ''}</span>`).join('') : '<span class="muted">Wybierz augment w grze — rozpoznany wybór pojawi się tutaj.</span>'}</div>`:''}
+    ${m.screen && !labActive ? `<div class="augment-screen-controls"><span>${esc(screenText[m.screen.status] || screenText.waiting)}${m.screen.diagnostics?.readMs?` · OCR ${Math.round(m.screen.diagnostics.readMs)} ms`:''}</span>${m.screen.config?.mode!=='auto'?'<button data-augment-auto>Tryb automatyczny</button>':''}<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button></div>` : ''}
+    ${selected.length||!m.comparison?`<div class="augment-chips">${selected.length ? selected.map(a => `<article class="selected-augment-card" data-selected-augment="${a.id}"><b title="${esc(a.summary)}">${esc(a.name)}${a.completed?' ✓':''}</b><small>${esc(a.english)}</small>${augmentGrade(a.rating)}<p>${esc(a.rating?.reason||a.summary)}</p>${(a.requiredItems||[]).map(i=>`<p class="augment-required-item">${esc(i.status==='owned'?'Już kupiony':i.status==='planned'?'W buildzie':'Poza planem')}: <b>${esc(i.name)}</b>${i.status==='outside'?' · sprawdź wolne sloty i przypięcia':''}</p>`).join('')}</article>`).join('') : '<span class="muted">Czekam na nowe karty wyboru w oknie gry. Wcześniej pominięte augmenty dodasz przez „Augmenty i ekwipunek”. Odczyt augmentów nie wymaga rozpoznania Headlinera.</span>'}</div>${selected.length?'<p class="offer-note">Dopasowanie w tym buildzie: S → A → B → C → D → E → F. „—” = brak oceny, nie słaby augment.</p>':''}`:''}
     ${m.undo&&!labActive?`<button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Poprawia zapis w asystencie, nie zmienia wyboru w LoL-u. Ekwipunek i pozostałe augmenty zostają. Ten odczyt nie zostanie ponownie dodany w tym meczu.">Cofnij odczyt: ${m.undo.names.map(esc).join(', ')}</button>`:''}
     ${m.comparison&&!labActive?augmentComparison(m.comparison):''}
     ${m.nextItem && !b.shop ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b>${m.nextItem.components ? ` · masz komponenty za ${m.nextItem.components.credit} złota, do ukończenia ${m.nextItem.components.remaining}` : ''}</p>` : ''}
@@ -30,6 +36,7 @@ function augmentComparison(comparison){
     <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer ${c.recommended?'recommended':''}" data-offer-id="${c.id}">
       <div class="offer-position">${['Lewa','Środkowa','Prawa'][i]} · ${esc(c.recommended?'Najwięcej synergii':status[c.status]||status.unknown)}</div>
       <b title="${esc(c.english)}">${esc(c.name)}</b>
+      ${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}
       <p class="${c.warnings.length?'offer-warning':''}">${esc(c.warnings[0]||c.reasons[0]||'Sprawdź opis efektu.')}</p>
       ${disclosure('offer-'+c.id,'Dlaczego?',`<p>${esc(c.summary)}</p>${c.fit?`<dl class="augment-fit"><dt>Postać</dt><dd>${esc(c.fit.champion)}</dd><dt>Już kupione</dt><dd>${esc(c.fit.owned.join(', ')||'Brak bezpośredniego dopasowania')}</dd><dt>Planowane</dt><dd>${esc(c.fit.planned.join(', ')||'Brak bezpośredniego dopasowania')}</dd><dt>Inne augmenty</dt><dd>${(c.synergies||[]).map(p=>esc(p.names.join(' + ')+': '+p.text)).join('<br>')||'Brak potwierdzonej interakcji efektów'}</dd></dl>`:''}${c.reasons.map(r=>`<p>${esc(r)}</p>`).join('')}${c.warnings.map(w=>`<p class="offer-warning">${esc(w)}</p>`).join('')}`)}
     </article>`).join('')}</div><p class="offer-note">${esc(comparison.note)}</p></section>`;

@@ -100,13 +100,16 @@ function detectOffer(result,grid,catalog,pool){
 function oldCardsVisible(grid,cards){
   return cards.some(({rect:r})=>{
     const top=(r.y+r.h*.1)*grid.height,bottom=(r.y+r.h*.9)*grid.height;
-    return [r.x,r.x+r.w].some(x=>lineScore(grid,x*grid.width,top,bottom,true)>.35);
+    const sides=[r.x,r.x+r.w].map(x=>lineScore(grid,x*grid.width,top,bottom,true));
+    const rim=[r.y,r.y+r.h].some(y=>lineScore(grid,y*grid.height,(r.x+r.w*.1)*grid.width,(r.x+r.w*.9)*grid.width,false)>.55);
+    // Pojedyncza krawędź mapy lub HUD nie oznacza, że karta nadal jest otwarta.
+    return sides.every(score=>score>.55)&&rim;
   });
 }
 
 class OfferTracker {
   constructor(){this.reset();}
-  reset(){this.offer=null;this.streak=0;this.at=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;}
+  reset(){this.offer=null;this.streak=0;this.at=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;}
   input(event){
     if(event.type==='cancel'||event.type==='focus'&&!event.focused){
       this.offer=null;this.streak=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=event.at;return;
@@ -125,22 +128,25 @@ class OfferTracker {
         this.pending={id:down.id,at:e.at,absent:0,cards:down.cards};
       return;
     }
-    if(!this.offer||this.streak<2||e.at-this.at>1800||e.at<this.at||!Number.isFinite(e.width)||!Number.isFinite(e.height)
+    if(!this.offer||this.streak<2||e.at-this.at>this.freshness||e.at<this.at||!Number.isFinite(e.width)||!Number.isFinite(e.height)
       ||Math.abs(e.width/e.height-aspect)>.025||!Number.isFinite(e.x)||!Number.isFinite(e.y)){this.down=null;this.pending=null;return;}
     const p={x:e.x/e.width,y:e.y/e.height},card=this.offer.find(c=>inside(p,c.rect));
     if(e.type==='down'){this.pending=null;this.down=card?{id:card.id,rect:card.rect,cards:this.offer,at:e.at}:null;if(!card){this.offer=null;this.streak=0;}return;}
     this.down=null;
   }
-  observe({at,aspect,cards,candidates=[],grid,active}){
+  observe({at,aspect,cards,candidates=[],grid,active,readMs=0}){
+    // Dwie pełne klatki nadal są wymagane. Wolniejszy OCR nie może jednak
+    // zerować serii tylko dlatego, że przetworzenie klatki trwało >1,8 s.
+    this.freshness=Math.min(5000,Math.max(1800,Number.isFinite(readMs)?readMs+1000:1800));
     if(!active||!grid?.valid||at<=this.cancelledAt||at<=this.at){this.pending=null;this.offer=null;this.streak=0;return null;}
     const events=this.events.filter(e=>e.at<=at);this.events=this.events.filter(e=>e.at>at);
     for(const e of events)this.click(e,aspect);
-    if(this.pending&&at-this.pending.at>4000)this.pending=null;
+    if(this.pending&&at-this.pending.at>Math.max(4000,this.freshness*2+1000))this.pending=null;
     if(cards){
       if(this.pending&&signature(cards)!==signature(this.pending.cards))this.pending=null;
       if(this.pending)this.pending.absent=0;
       if(this.down&&signature(cards)!==signature(this.down.cards))this.down=null;
-      this.streak=this.offer&&signature(cards)===signature(this.offer)&&at-this.at<1800?this.streak+1:1;
+      this.streak=this.offer&&signature(cards)===signature(this.offer)&&at-this.at<this.freshness?this.streak+1:1;
       this.offer=cards;this.at=at;return null;
     }
     if(this.pending){

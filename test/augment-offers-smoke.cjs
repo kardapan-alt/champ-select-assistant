@@ -46,6 +46,7 @@ server.once('listening',async()=>{
     gameWindowAvailable=true;
     await waitFor(()=>evaluate('lastState?.final?.build?.mayhem?.screen.status==="offers"'),'Nie odczytano kart po powrocie okna gry');
     assert.equal(await evaluate('lastState.final.build.mayhem.screen.error'),null);
+    await waitFor(()=>evaluate('document.querySelectorAll(".augment-offer .augment-rating").length===3'),'Brak ocen pod kartami');
     assert.ok(await evaluate('lastState.final.build.mayhem.screen.config.mode==="auto"'));
     assert.ok(await evaluate('!document.querySelector("#augment-calibration[open]")'));
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);
@@ -125,6 +126,20 @@ server.once('listening',async()=>{
     watcher.focused=false;onInput({type:'focus',focused:false,at:Date.now()});
     await evaluate('drawOffer(null)');await new Promise(r=>setTimeout(r,1800));
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),1);
+    // Ulepszenie Stormsurge: prawdziwy OCR → zapis → wymagany item i ocena.
+    watcher.focused=true;onInput({type:'focus',focused:true,at:Date.now()});
+    await evaluate('drawOffer(["Upgrade Stormsurge","Back To Basics","Ice Cold"])');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards[0].id===3150'),'Brak karty Stormsurge');
+    for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
+    await evaluate('drawOffer(null)');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(3150)'),'Stormsurge nie zapisany');
+    assert.ok(await evaluate('lastState.final.build.items.some(i=>i.id===4646)'));
+    assert.ok(await evaluate('document.querySelector(`[data-selected-augment="3150"] .augment-required-item`).textContent.includes("Stormsurge")'));
+    assert.ok(await evaluate('!!document.querySelector(`[data-selected-augment="3150"] .augment-rating`)'));
+    fs.writeFileSync(path.resolve(profile,'../rated-state.json'),await evaluate('JSON.stringify(lastState)'));
+    const diagnostics=JSON.parse(fs.readFileSync(path.join(profile,'augment-diagnostics.json'),'utf8'));
+    assert.ok(Number.isFinite(diagnostics.readMs));assert.equal(diagnostics.status,'detected');
+    assert.ok(!Object.hasOwn(diagnostics,'readings')&&!Object.hasOwn(diagnostics,'png'));
     await evaluate('document.querySelector("[data-augment-screen-toggle]").click()');
     await waitFor(()=>evaluate('!augmentStream'),'Wyłączenie nie zatrzymało strumienia');
     win.setSize(820,640);await new Promise(r=>setTimeout(r,250));

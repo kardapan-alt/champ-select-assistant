@@ -461,6 +461,16 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 .mayhem-summary { padding:12px; margin:8px 0 14px; border:1px solid #75633d; background:#1b202c; border-radius:9px; }
 .mayhem-summary .panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .augment-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.selected-augment-card { flex:1 1 190px; min-width:0; max-width:340px; padding:10px; border:1px solid #384253; border-radius:7px; background:#111923; font-size:12px; }
+.selected-augment-card > small { display:block; color:var(--muted); margin-top:3px; }
+.selected-augment-card p { margin:6px 0; line-height:1.4; }
+.augment-rating { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:7px; color:var(--muted); font-size:11px; }
+.augment-rating strong { font-size:20px; padding:2px 10px; border:1px solid currentColor; border-radius:5px; color:#b4becd; }
+.augment-rating .grade-S { color:#d9b967; }
+.augment-rating .grade-A,.augment-rating .grade-B { color:#3ccf8e; }
+.augment-rating .grade-C { color:#6cb8ff; }
+.augment-rating .grade-E,.augment-rating .grade-F { color:#ff657b; }
+.augment-required-item { color:#d9b967; }
 .next-purchase { margin:10px 0 0; color:#d8c185; }
 .aram-roster { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:15px 0 25px; }
 .aram-roster > div { display:flex; flex-direction:column; gap:8px; padding:14px; background:#171e29; border-radius:9px; }

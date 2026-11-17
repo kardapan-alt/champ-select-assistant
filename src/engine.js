@@ -437,8 +437,16 @@ function suggestBans(state, game, data, options = {}) {
 
 // ---------- runy ----------
 
+function defaultTemplate(champ, data) {
+  const tpl = data.classTemplates[itemPoolKey(champ)] || data.classTemplates.fighter;
+  // AP fighter/assassin describes combat style, not an AD shopping list.
+  if (champ.dmg === 'ap' && ['fighter', 'assassin'].includes(champ.class))
+    return { ...tpl, runes: champ.class === 'fighter' ? 'conqueror_mage' : 'electrocute_mage' };
+  return tpl;
+}
+
 function resolveRunes(champ, data) {
-  const tpl = data.classTemplates[champ.class] || data.classTemplates.fighter;
+  const tpl = defaultTemplate(champ, data);
   const ref = champ.runes || tpl.runes;
   return typeof ref === 'string' ? data.runePresets[ref] : ref;
 }
@@ -506,7 +514,9 @@ function roleAdjusted(champ, role, data) {
   const ownBuild = !champ.unknown && !champ.fromStats;
   if (champ.statsBuild || !role || role === 'aram' || ((champ.roles || [])[0] === role && ownBuild)) return champ;
   const main = Object.entries(data.champions).filter(([, c]) => (c.roles || [])[0] === role);
-  const donor = main.find(([, c]) => c.class === champ.class) || main.find(([, c]) => c.dmg === champ.dmg) || main[0];
+  const donor = main.find(([, c]) => c.class === champ.class && c.dmg === champ.dmg)
+    || main.find(([, c]) => c.dmg === champ.dmg && !['tank','support'].includes(c.class))
+    || (['tank','support'].includes(champ.class) ? main.find(([, c]) => c.class === champ.class) : null);
   if (!donor) return champ;
   const [from, d] = donor;
   const pick = (k) => (d[k] !== undefined ? d[k] : undefined);
@@ -729,7 +739,7 @@ function buildFor(alias, state, game, data) {
     const kind = augmentation.conversion === 'ap' ? 'mage' : 'fighter';
     champ = { ...champ, ...data.classTemplates[kind], class:kind, dmg:augmentation.conversion, statsBuild:false, lateItems:[] };
   }
-  const tpl = data.classTemplates[champ.class] || data.classTemplates.fighter;
+  const tpl = defaultTemplate(champ, data);
   const threats = threatWeights(enemy);
   const exists = (id) => itemAvailable(id, game, state.mode, alias);
   const quest = roleQuestFor(state);
@@ -884,7 +894,7 @@ function buildFor(alias, state, game, data) {
   const priorityItems = chosen.filter((c) => c.priority);
   if (priorityItems.length) notes.push(`Wcześniejszy zakup: ${priorityItems.map((c) => `${item(c.id).name} (${c.why})`).join('; ')}.`);
 
-  return {
+  const build = {
     alias,
     mode: state.mode || 'classic',
     mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats],
@@ -910,6 +920,17 @@ function buildFor(alias, state, game, data) {
     skills: champ.skills || 'Q > W > E',
     notes,
   };
+  if(build.mayhem){
+    const ratings=require('./mayhem-compare').selectedAugmentGrades({champion:champ,selection:state.mayhem||{},build,game,pool:state.mayhemPool||'KIWI',enemy});
+    build.mayhem.hints=build.mayhem.hints.map(h=>{
+      const required=[...augmentation.bonuses].filter(([,b])=>b.contributions.some(c=>c.direct&&(c.group===`augment ${h.name}`||c.group.startsWith(`augment ${h.name}:`)))).map(([id])=>id);
+      let targets=[...new Set([...(h.itemTargets||[]),...required])];
+      if(h.oneItem){const present=targets.filter(id=>purchased.includes(id)||finalItems.some(i=>i.id===id));targets=present.length?present:targets.slice(0,1);}
+      const items=targets.map(id=>({...item(id),status:purchased.includes(id)?'owned':finalItems.some(i=>i.id===id)?'planned':'outside'}));
+      return {...h,rating:ratings.find(r=>r.id===h.id)||null,requiredItems:items};
+    });
+  }
+  return build;
 }
 
 const SET_TITLE = 24;

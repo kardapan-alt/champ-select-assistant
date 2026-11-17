@@ -8,8 +8,7 @@ const ruleFor=a=>rules[a?.api?.replace(/^ARAM_/,'')];
 
 // This compares evidenced build fit, not win rate or overall augment power.
 // Keep the game's left/middle/right order; a tie has no invented winner.
-function compareAugments(ids,{champion={},selection={},build={},game,pool='KIWI',enemy={}}){
-  if(!Array.isArray(ids)||ids.length!==3||new Set(ids).size!==3||ids.some(id=>!byId.get(id)?.pools.includes(pool)))return null;
+function evaluateAugments(ids,{champion={},selection={},build={},game,pool='KIWI',enemy={}}){
   const picked=(selection.augments||[]).map(id=>byId.get(id)).filter(Boolean),active=picked.map(ruleFor).filter(Boolean);
   const owned=new Set(selection.owned||[]),planned=new Set((build.items||[]).filter(i=>!i.owned).map(i=>i.id));
   const itemName=id=>game.items.get(id)?.name||String(id);
@@ -46,10 +45,12 @@ function compareAugments(ids,{champion={},selection={},build={},game,pool='KIWI'
       const contributions=b.contributions.filter(c=>c.group.startsWith(`augment ${a.name}:`)||c.group===`augment ${a.name}`);
       if(contributions.length&&!combined.excluded.has(item))bonus.set(item,Math.max(...contributions.map(c=>c.score)));
     }
-    const ownedFits=[...owned].filter(item=>bonus.has(item)).sort((a,b)=>bonus.get(b)-bonus.get(a));
+    const upgradeTargets=mayhem.upgradeTargets(r,currentChampion,selection,enemy);
+    const ownedFits=[...owned].filter(item=>bonus.has(item)||upgradeTargets.includes(item)).sort((a,b)=>(bonus.get(b)||0)-(bonus.get(a)||0));
     const plannedFits=[...planned].filter(item=>bonus.has(item)).sort((a,b)=>bonus.get(b)-bonus.get(a));
     if(ownedFits.length){card.score+=8+Math.min(2,ownedFits.length-1);reasons.push(`Wykorzystasz już posiadane: ${ownedFits.slice(0,2).map(itemName).join(', ')}.`);}
     else if(plannedFits.length){card.score+=3;reasons.push(`Pasuje do planowanych zakupów: ${plannedFits.slice(0,2).map(itemName).join(', ')}.`);}
+    if(upgradeTargets.some(id=>owned.has(id))){card.score+=4;reasons.push('Bezpośrednio ulepsza przedmiot, który już posiadasz.');}
     const shared=[...bonus.keys()].filter(item=>current.bonuses.has(item)&&(owned.has(item)||planned.has(item)));
     if(shared.length){
       const previous=picked.find(p=>current.bonuses.get(shared[0]).reasons.some(why=>why.startsWith(`augment ${p.name}:`)));
@@ -69,9 +70,35 @@ function compareAugments(ids,{champion={},selection={},build={},game,pool='KIWI'
     card.fit={champion:affinity||'Brak wyraźnego dopasowania do klasy postaci.',owned:ownedFits.map(itemName),planned:plannedFits.map(itemName)};
     card.reasons=reasons;return card;
   });
+  cards.forEach(c=>{c.grade=gradeFor(c);});
   const ranked=cards.filter(c=>['strong','fit','conditional'].includes(c.status)).sort((a,b)=>b.score-a.score);
   if(ranked[0]?.score>=4&&!ranked[0].warnings.length&&(!ranked[1]||ranked[0].score-ranked[1].score>=3))ranked[0].recommended=true;
-  return {cards,note:'Ocena dopasowania do postaci i buildu, nie ogólnej siły ani winrate’u augmentów.'};
+  return {cards,note:'S → A → B → C → D → E → F: od najlepszego do najsłabszego dopasowania w obecnym buildzie. „—” oznacza brak oceny. To ocena regułowa dla Ciebie, nie globalna tierlista ani winrate.'};
+}
+function gradeFor(card){
+  if(['unknown','independent','selected'].includes(card.status))return null;
+  if(card.status==='conflict')return 'F';
+  const score=card.score;
+  // Zastrzeżenia nie mogą ukryć się za najwyższą oceną.
+  if(score>=14&&!card.warnings.length)return 'S';
+  if(score>=10&&!card.warnings.length)return 'A';
+  return score>=6?'B':score>=3?'C':score>=0?'D':score>=-4?'E':'F';
+}
+function compareAugments(ids,context){
+  const pool=context?.pool||'KIWI';
+  if(!Array.isArray(ids)||ids.length!==3||new Set(ids).size!==3||ids.some(id=>!byId.get(id)?.pools.includes(pool)))return null;
+  return evaluateAugments(ids,context);
+}
+function selectedAugmentGrades(context){
+  const selection=context.selection||{},pool=context.pool||'KIWI';
+  return (selection.augments||[]).filter(id=>byId.get(id)?.pools.includes(pool)).map(id=>{
+    // Nie liczymy augmentu jako synergii z samym sobą.
+    const other={...selection,augments:selection.augments.filter(a=>a!==id)};
+    const card=evaluateAugments([id],{...context,selection:other}).cards[0];
+    if(Object.hasOwn(selection.effects||{},id)){card.grade=null;card.warnings=[];card.reasons=['Ręczna korekta efektów — automatyczna ocena nie obejmuje tej zmiany.'];}
+    if(selection.completed?.includes(id)){card.grade=null;card.warnings=[];card.reasons=['Zadanie oznaczone jako ukończone.'];}
+    return {id,grade:card.grade,reason:card.warnings[0]||card.reasons[0],warnings:card.warnings};
+  });
 }
 function nativeFit(effects,c,{noHp,noRegen,noUltimate}){
   const has=(...e)=>e.some(x=>effects.includes(x)),t=c.traits||[],durable=['tank','fighter'].includes(c.class);
@@ -86,4 +113,4 @@ function nativeFit(effects,c,{noHp,noRegen,noUltimate}){
   if(!noUltimate&&has('ultimate'))return null; // No evidence about this champion's dependence on R.
   return null;
 }
-module.exports={compareAugments};
+module.exports={compareAugments,selectedAugmentGrades,gradeFor};

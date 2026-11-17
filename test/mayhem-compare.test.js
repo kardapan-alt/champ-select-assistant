@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {compareAugments}=require('../src/mayhem-compare');
+const {compareAugments,selectedAugmentGrades}=require('../src/mayhem-compare');
 const game=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
 const data=require('../data/champions.json'),catalog=require('../data/mayhem-augments.json').augments;
 const id=name=>{const a=catalog.find(a=>a.english===name||a.api.replace(/^ARAM_/,'')===name);assert.ok(a,name);return a.id;};
@@ -52,4 +52,20 @@ test('każdy augment w obu pulach daje skończoną ocenę albo jawny brak oceny'
     const r=compareAugments(ids,{champion:data.champions.Ahri,selection:{augments:[],owned:[]},build:{items:[]},game,pool});
     assert.equal(r.cards.length,3);assert.ok(r.cards.every(c=>Number.isFinite(c.score)));
   }
+});
+
+test('oceny F–S zależą od synergii i konfliktów; neutralne efekty nie dostają fałszywego F',()=>{
+  const strong=compare(['Goliath','Upgrade_Stormsurge','FirstAidKit'],'Leona',{owned:[3084,2502],augments:[id('HeavyHitter')]});
+  assert.equal(strong.cards[0].grade,'S');
+  const blocked=compare(['GoH_PentakillAug_R','Apex Inventor','Donation'],'Ahri',{augments:[id('Back To Basics')]});
+  assert.equal(blocked.cards[0].grade,'F');assert.equal(blocked.cards[2].grade,null);
+  assert.ok(blocked.cards[0].warnings.length);assert.match(strong.note,/dopasowania/);
+});
+
+test('ocena wybranego ulepszenia rośnie po zakupie itemu, bez liczenia synergii z samym sobą',()=>{
+  const context={champion:data.champions.Ahri,selection:{augments:[3150],owned:[],effects:{}},build:{items:[{id:4646}]},game};
+  const original=JSON.stringify(context.selection),before=selectedAugmentGrades(context)[0];
+  const after=selectedAugmentGrades({...context,selection:{...context.selection,owned:[4646]}})[0];
+  assert.equal(before.grade,'C');assert.equal(after.grade,'A');assert.equal(JSON.stringify(context.selection),original);
+  assert.equal(selectedAugmentGrades({...context,selection:{...context.selection,effects:{3150:['haste']}}})[0].grade,null);
 });

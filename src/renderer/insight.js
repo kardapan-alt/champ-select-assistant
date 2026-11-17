@@ -18,13 +18,15 @@ function readoutRows(b){
     const s=r.screen,stopped={off:'OCR wyłączony',paused:'OCR wstrzymany',language:'Brak języka OCR',conflict:'Sprawdź wybór ręcznie',layout:'Zmieniona rozdzielczość',ambiguous:'Niepewny odczyt',waiting:'Czekam na obraz'};
     stopped['capture-error']=s.error||'Nie udało się przechwycić obrazu gry';
     stopped['ocr-error']='OCR nie odpowiada · ponawiam odczyt';
+    stopped['unreadable-frame']='Nieczytelny obraz · użyj okna bez ramek';
     const recent=s.at&&Date.now()-s.at<6000;
-    const status=!s.enabled?'OCR wyłączony':stopped[s.status]||(!recent?'Brak świeżego obrazu':s.mode==='auto'?'OCR działa':'OCR po najechaniu');
+    const reading={scanning:'OCR działa · czekam na 3 karty',partial:'Nazwy odczytane · brak pewnego układu kart','reading-offers':'Potwierdzam 3 karty',offers:'3 karty rozpoznane',confirming:'Potwierdzam wybór',detected:'Wybór zapisany'};
+    const status=!s.enabled?'OCR wyłączony':stopped[s.status]||(!recent?'Brak świeżego obrazu':reading[s.status]||(s.mode==='auto'?'OCR działa':'OCR po najechaniu'));
     rows.push({key:'augments',label:'Augmenty',text:`Zapisane: ${s.count} · ${status}${s.unknown?` · ${s.unknown} bez reguł`:''}`,
       tone:s.enabled&&recent&&!stopped[s.status]&&!s.unknown?'good':'readout-warning'});
     const h=r.headliner;
     rows.push({key:'headliner',label:'Headliner',text:h.name?`${h.name} · ${h.source==='screen'?'OCR':'ręcznie'}`
-      :h.auto?h.available?'Czekam na nazwę i opis':'Wymaga automatycznego OCR':'Nie ustawiono',tone:h.name?'good':'muted'});
+      :h.auto?h.available?'Czekam na baner wydarzenia':'Wymaga automatycznego OCR':'Nie ustawiono',tone:h.name?'good':'muted'});
   }
   return rows.map(r=>`<div class="readout-item" data-readout="${r.key}"><b>${r.label}</b><span class="${r.tone}">${esc(r.text)}</span></div>`).join('');
 }
