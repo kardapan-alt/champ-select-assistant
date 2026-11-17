@@ -2,6 +2,14 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.37
+
+- **Historia trzech kart w Mayhem.** W „Po meczu” rozwiń ofertę, aby zobaczyć karty w kolejności z ekranu i potwierdzony wybór. Kliknij inną kartę, żeby porównać oba plany zakupów z momentu wyboru. Gdy OCR odczytał ofertę, ale przeoczył wybór, możesz go uzupełnić lub cofnąć swoją korektę. Przy brakującym odczycie ekwipunku oferta pozostaje w historii z informacją o braku porównania.
+- **Dwa picki z Twojej puli.** W „Testerze draftów” otwórz „Moja pula SoloQ” i dodaj postacie dla swojej roli. Pulę można też edytować w drafcie. Przed zablokowaniem championa w rankingowym Solo/Duo wybierz dwie postacie do porównania. Przy każdej zobaczysz dostępność, co wnosi do ujawnionego składu i co zyskujesz, sięgając po drugą.
+- **Cel treningowy na jeden mecz Solo/Duo.** W drafcie ustaw próg CS lub wyniku wizji na 10. minutę. W „Po meczu” zobaczysz własny wynik, dokładny czas próbki i medianę z liczbą wcześniejszych pomiarów na tej samej roli i koncie. Aplikacja uwzględnia do 20 poprzednich zmierzonych gier. Jeśli brakuje odczytu między 10:00 a 10:05, podsumowanie pokaże brak pomiaru.
+
+Wersja instalowana pobiera aktualizację w tle. Po meczu możesz wybrać „Uruchom ponownie”. Wersja portable udostępnia odsyłacz do pobrania.
+
 ## Wersja 0.6.36
 
 - **Interakcje augmentów z przedmiotami.** Przy 34 kartach Mayhem, w tym wszystkich 13 ulepszeniach przedmiotów z katalogu 16.22, możesz sprawdzić mechanikę i patch opisu. Rozwiń „Dlaczego?” przy oferowanej karcie albo „Jak augmenty działają z przedmiotami?” po wyborze. Crimson Cobalt wykorzystuje na Zedzie Q oraz atak w oznaczony cel. Sam wybór tej karty zachowuje bazowy kierunek zakupów.

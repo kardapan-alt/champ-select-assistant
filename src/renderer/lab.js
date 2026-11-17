@@ -80,8 +80,8 @@ async function openItemEditor() {
 function labControls() {
   const champions = (value, blank) => `${blank ? '<option value="">Nieznany / pusty</option>' : ''}${labCatalog.champions.map(c => `<option value="${esc(c.alias)}" ${c.alias === value ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
   return `<section class="panel lab-controls"><div class="panel-head"><h2>Tester draftów</h2><span class="tag">Symulacja</span></div>
-    <p class="muted">Sprawdź build i runy przed grą. Wybory w testerze są niezależne od Twoich zapisanych ustawień.</p>
-    <div class="actions"><button data-inspect-item>Dlaczego nie ten przedmiot?</button><button data-open-build-report>Otwórz zgłoszenie buildu</button><button data-compare-versions>Porównaj wersje</button><button data-test-offer-screenshot>Test kart ze zrzutu</button></div>
+    <p class="muted">Sprawdź build i runy przed grą. Przypięcia z symulacji obowiązują w tym podglądzie.</p>
+    <div class="actions"><button data-inspect-item>Dlaczego nie ten przedmiot?</button><button data-open-build-report>Otwórz zgłoszenie buildu</button><button data-compare-versions>Porównaj wersje</button><button data-test-offer-screenshot>Test kart ze zrzutu</button><button data-pool-edit>Moja pula SoloQ</button></div>
     ${reportLabSummary()}
     <div class="lab-main"><label>Twój champion<select data-lab-field="alias">${champions(labInput.alias)}</select></label><label>Rola<select data-lab-field="role">${labInput.role === '' ? '<option value="" selected>Rola nieznana</option>' : ''}${Object.entries(roleNames).map(([v,n]) => `<option value="${v}" ${labInput.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <label>Tryb<select data-lab-field="mode"><option value="classic" ${labInput.mode === 'classic' ? 'selected' : ''}>Summoner's Rift · questy</option><option value="aram" ${labInput.mode === 'aram' ? 'selected' : ''}>ARAM</option><option value="mayhem" ${labInput.mode === 'mayhem' ? 'selected' : ''}>ARAM: Mayhem · augmenty</option></select></label></div>

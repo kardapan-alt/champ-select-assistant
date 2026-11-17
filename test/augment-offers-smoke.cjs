@@ -2,7 +2,7 @@ const {app,desktopCapturer}=require('electron');
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const profile=path.resolve(__dirname,'../../offers-preview/profile');fs.mkdirSync(profile,{recursive:true});
 app.setPath('userData',profile);app.disableHardwareAcceleration();
-for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:''},'mayhem-session.json':null,'augment-screen.json':null}))
+for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:''},'mayhem-session.json':null,'augment-screen.json':null,'match-review.json':{matches:[],active:null}}))
   fs.writeFileSync(path.join(profile,name),JSON.stringify(value));
 process.argv.push('--background');process.env.PORT='0';process.env.STEP='8';
 const server=require('../mock/mock-lcu');
@@ -10,7 +10,11 @@ const {LcuClient}=require('../src/lcu'),originalGet=LcuClient.prototype.get;
 let gameId=777;
 LcuClient.prototype.get=async function(url){if(url.endsWith('/items.json'))return require('../data/catalog.json').items;const result=await originalGet.call(this,url);
   if(url==='/lol-gameflow/v1/session'&&result){Object.assign(result.gameData.queue,{gameMode:'KIWI',id:2400});result.gameData.gameId=gameId;}return result;};
-require('../src/liveclient').LiveClient.prototype.inventory=async()=>({status:'waiting'});
+const startedAt=Date.now();
+let inventoryReady=false;
+require('../src/liveclient').LiveClient.prototype.inventory=async()=>inventoryReady
+  ? {status:'live',gameTime:120+(Date.now()-startedAt)/1000,gold:350,inventory:{items:[],owned:[],ownedBoots:null},enemies:null}
+  : {status:'waiting'};
 let gameWindowAvailable=false;
 require('../src/augment-screen').gameWindowHandle=async()=>gameWindowAvailable?'1234':null;
 const {AugmentClicks}=require('../src/augment-clicks');let onInput=null,watcher=null;
@@ -151,6 +155,8 @@ server.once('listening',async()=>{
     assert.ok(await evaluate('lastState.final.build.mayhem.screen.missed'),'Brak informacji o niepotwierdzonym kliknięciu po utracie fokusu');
     // Ulepszenie Stormsurge: prawdziwy OCR → zapis → wymagany item i ocena.
     watcher.focused=true;onInput({type:'focus',focused:true,at:Date.now()});
+    inventoryReady=true;
+    await waitFor(()=>evaluate("lastState.final?.build?.shop?.gold===350"),'Brak próbki zakupów przed wyborem');
     await evaluate('drawOffer(["Upgrade Stormsurge","Back To Basics","Ice Cold"])');
     await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards[0].id===3150'),'Brak karty Stormsurge');
     for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
@@ -169,6 +175,22 @@ server.once('listening',async()=>{
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
     fs.writeFileSync(path.resolve(profile,'../automatic-build.png'),(await win.webContents.capturePage()).toPNG());
     await fetch(`${process.env.LCU_MOCK}/__step?n=-1`);await waitFor(()=>evaluate('lastState.status==="idle"'),'Lobby');
+    await evaluate('document.getElementById("match-history").click()');
+    const history='[data-history-offer][data-picked="3150"]';
+    await waitFor(()=>evaluate(`!!document.querySelector('${history}')`),'Brak wybranego Stormsurge w historii ofert');
+    const recorded=await evaluate(`Array.from(document.querySelector('${history}').querySelectorAll('[data-history-card]'), b=>Number(b.dataset.historyCard))`);
+    const catalog=require('../data/mayhem-augments.json').augments;
+    assert.deepEqual(recorded,['Upgrade Stormsurge','Back To Basics','Ice Cold'].map(name=>catalog.find(a=>a.english.toLowerCase()===name.toLowerCase()).id));
+    await evaluate(`document.querySelector('${history}').open=true;document.querySelector('${history} [data-history-card="${recorded[1]}"]').click()`);
+    await waitFor(()=>evaluate(`document.querySelector('${history} [data-history-plan]')?.innerText.includes('Stormsurge')`),'Brak historycznego buildu Stormsurge przy porównaniu');
+    const unknown=await evaluate("Array.from(document.querySelectorAll('[data-history-offer]')).find(row=>!row.dataset.picked && row.querySelector('[data-history-correct]'))?.dataset.historyOffer");
+    assert.ok(unknown,'Brak możliwości uzupełnienia niepotwierdzonego wyboru');
+    const uncertain=`[data-history-offer="${unknown}"]`;
+    await evaluate(`document.querySelector('${uncertain}').open=true;document.querySelector('${uncertain} [data-history-card="${recorded[2]}"]').click();document.querySelector('${uncertain} [data-history-correct="${recorded[2]}"]').click()`);
+    await waitFor(()=>evaluate(`document.querySelector('${uncertain}')?.dataset.picked==='${recorded[2]}'`),'Nie zapisano ręcznego uzupełnienia');
+    await evaluate(`document.querySelector('${uncertain} [data-history-correct=""]').click()`);
+    await waitFor(()=>evaluate(`document.querySelector('${uncertain}')?.dataset.picked===''`),'Nie cofnięto ręcznego uzupełnienia');
+    await evaluate("document.querySelector('[data-close-review]').click()");
     gameId=778;await fetch(`${process.env.LCU_MOCK}/__step?n=8`);
     await waitFor(()=>evaluate('lastState.final?.build?.mayhem?.matchKey.startsWith("778:")'),'Nowy mecz');
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);

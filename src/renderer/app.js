@@ -529,12 +529,14 @@ function render(s) {
   const meLocked = s.myChampion && s.myChampion.locked;
   const center = [
     bansPanel(s),
+    pickPoolPanel(s.pickPool),
     isAramView(s.mode) ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
     botPlanPanel(s.botPlan),
     s.build ? buildPanel({ ...s.build, mode: s.mode }, false, s.autoItemSet) : '',
     s.build ? priorityAdvicePanel(s) : '',
     s.myChampion ? disclosure('runes', s.mode==='mayhem'?'Czary przywoływacza':'Runy, czary i dopasowanie do matchupu', myChampionPanel(s.myChampion, false, s.autoRunes)) : '',
     s.build ? adviceDetails(s.build.situations) : '',
+    trainingDraftPanel(s.training),
     disclosure('compositions', 'Style obu drużyn', compPanel(s.compositions)),
   ].join('');
 
@@ -552,6 +554,7 @@ function render(s) {
     </section>
     <section class="team enemy"><h3>Przeciwnicy</h3>${isAramView(s.mode) && !s.enemies.length ? '<div class="muted">Na ARAM-ie przeciwników widać dopiero na ekranie ładowania.</div>' : ''}${s.enemies.map((p) => slot(p, true)).join('')}${enemyBar(s.enemyProfile)}</section>
   </div>`);
+  for (const select of $app.querySelectorAll('[data-pool-side]')) select.value = s.pickPool.cards[Number(select.dataset.poolSide)].alias;
 }
 
 $app.addEventListener('toggle', (e) => {

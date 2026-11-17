@@ -8,6 +8,8 @@ const { OpggProvider, mergeStats } = require('./opgg');
 const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
 const { lanePlan } = require('./laneplan');
 const { botLanePlan, rememberAllyRoles } = require('./bot-plan');
+const { PickPools, comparison: comparePoolPicks } = require('./pick-pool');
+let pickPools;
 const { gamePlan } = require('./gameplan');
 const crypto = require('crypto');
 const { initUpdates } = require('./updater');
@@ -42,12 +44,14 @@ const {purchaseKey,canBuy,withPurchaseGoal,PurchaseGoal}=require('./next-purchas
 const {dataFreshness,patchOf}=require('./data-freshness');
 let purchaseGoal;
 const {ownerKey,ResultResolver}=require('./match-result');
+const training = require('./training');
 const resultResolver=new ResultResolver();
 const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
 const headlinerConsensus=new HeadlinerConsensus();
 let matchReview;
 let mayhemFavorites;
 const offerTracker=new augmentOffers.OfferTracker();
+const offerHistory=require('./offer-history');
 const visionCatalog=require('../data/mayhem-augments.json').augments;
 const visionConsensus = new augmentVision.Consensus();
 let visionConfig = null, visionRevision = 0, visionToken = '', visionLastFrame = 0;
@@ -108,6 +112,7 @@ let settings = { stats: true, autoRunes: true, autoItemSet: true, autoPopup: tru
 // Włączamy funkcje dopiero po potwierdzeniu obsługiwanej kolejki przez klienta.
 let currentMode = 'unsupported';
 let currentQueueId = null;
+let trainingAccount = null;
 let currentMayhemPool = 'KIWI';
 let currentRoleQuests = false;
 function detectMode(flow) {
@@ -151,6 +156,11 @@ function scheduleRefresh() {
 }
 
 function initStats() {
+  const poolFile = userFile('pick-pools.json');
+  pickPools = new PickPools(readJson(poolFile, {}), value => {
+    fs.writeFileSync(poolFile + '.tmp', JSON.stringify(value), 'utf8');
+    fs.renameSync(poolFile + '.tmp', poolFile);
+  });
   replayLibrary = new ReplayLibrary(readJson(userFile('saved-build-reports.json'),[]),entries=>{
     const file=userFile('saved-build-reports.json');
     fs.writeFileSync(file+'.tmp',JSON.stringify(entries)); fs.renameSync(file+'.tmp',file);
@@ -295,6 +305,7 @@ async function tick() {
   polling = true;
   try {
     if (!lcu) {
+      trainingAccount = null;
       const creds = await findCredentials();
       if (!creds) return send({ status: 'no-client' });
       lcu = new LcuClient(creds);
@@ -349,6 +360,7 @@ async function tick() {
     else matchReview?.gap();
     loading = null;
     if (phase !== 'ChampSelect') {
+      trainingAccount = null;
       currentMode = 'unsupported';
       lastSelectState = null;
       lastFinal = null;
@@ -370,7 +382,13 @@ async function tick() {
       lcu.get('/lol-champ-select/v1/disabled-champion-ids').catch(() => null),
     ]);
     session.extra = { pickable: Array.isArray(pickable) ? pickable : [], disabled: Array.isArray(disabled) ? disabled : [] };
-    const json = JSON.stringify([session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase, session.benchChampions, session.extra]);
+    const draftGameId = training.draftId(flow, session);
+    if (Number(currentQueueId) === 420 && draftGameId &&
+      (trainingAccount?.id !== draftGameId || (!trainingAccount.owner && Date.now() >= trainingAccount.retryAt))) {
+      const own = await lcu.get('/lol-summoner/v1/current-summoner').catch(()=>null);
+      trainingAccount = {id:draftGameId, owner:ownerKey(own?.puuid), retryAt:Date.now()+5000};
+    }
+    const json = JSON.stringify([draftGameId, trainingAccount?.owner, session.myTeam, session.theirTeam, session.actions, session.bans, session.timer && session.timer.phase, session.benchChampions, session.extra]);
     if (json === lastSessionJson) return;
     if (!lastSessionJson) {
       // Nowy champ select: odśwież listę posiadanych championów.
@@ -380,7 +398,7 @@ async function tick() {
       if (mastery.map.size) game.mastery = mastery.map;
     }
     lastSessionJson = json;
-    send(buildView(session, flow?.gameData?.gameId));
+    send(buildView(session, draftGameId));
     autoImportRunes();
     autoExportItemSet();
   } catch (err) {
@@ -405,7 +423,7 @@ async function syncLiveInventory() {
   const alias = game.championsById.get(me.championId)?.alias;
   let result;
   const pool = currentMode === 'mayhem' ? state.mayhemPool : currentMode === 'aram' ? 'ARAM' : 'CLASSIC';
-  try { result = await liveClient.inventory(me,alias,pool,game,{ mode:currentMode, enemies:target.enemies,
+  try { result = await liveClient.inventory(me,alias,pool,game,{ mode:currentMode, enemies:target.enemies, training:Number(currentQueueId)===420,
     sideBoots:currentRoleQuests && ['bottom','adc'].includes(me.position) }); }
   catch { result = { status:'waiting' }; }
   // Żądanie może skończyć się już po zamknięciu meczu. Nigdy nie przenosimy
@@ -482,6 +500,14 @@ function buildLoadingView() {
   if (currentMode !== 'mayhem') try { teamPlan = gamePlan(loading.allies, loading.enemies, aram ? null : cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(card);
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
+  if (Number(currentQueueId) === 420 && me?.championId && loading.gameId) {
+    const own = game.championsById.get(me.championId);
+    const sameDraft = String(loading.gameId) === botDraft?.gameId && me.championId === botDraft.meId;
+    const role = training.knownRole(me.position) || (sameDraft ? botDraft.positions.get(me.championId) : null);
+    if (own) training.recordTraining(matchReview, {key:`${loading.gameId}:${own.alias}:${currentMode}`,
+      gameId:loading.gameId, owner:ownerKey(me.puuid), alias:own.alias, name:own.name, mode:currentMode, championId:me.championId},
+      currentQueueId, role, loading.liveStatus==='live' ? loading.liveSnapshot : null);
+  }
   return {
     status: 'loading-screen',
     region: loading.region,
@@ -596,10 +622,12 @@ function buildView(session, gameId) {
     status: 'champselect',
     mode: state.mode,
     botPlan: botLanePlan(state, currentQueueId, game, data),
+    pickPool: comparePoolPicks(state, currentQueueId, game, data, pickPools),
     aramChoices: aram ? engine.aramChoices(state, game, data).map((c) => ({ ...c, icon: champView(c.championId).icon })) : [],
     phase: state.phase,
     allLocked: state.allLocked,
     myPosition: me ? me.position : '',
+    training: training.draftTraining(currentQueueId, gameId, trainingAccount?.owner, me?.position, matchReview.value.trainingChoice),
     positionLabel: engine.POSITION_LABELS[me ? me.position : ''] || '',
     allies: state.allies.map((a) => ({
       champion: champView(a.championId, a.skinId), locked: a.locked, isMe: a.isMe,
@@ -806,6 +834,22 @@ const wrap = (fn) => async (_e, ...args) => {
   try { return await fn(...args); } catch (err) { return { ok: false, error: String(err.message || err), ...(err.extra || {}) }; }
 };
 
+ipcMain.handle('set-training-goal',wrap(async input => {
+  if (!lcu || lastState?.status !== 'champselect') throw Error('Cel można ustawić podczas draftu solo/duo.');
+  const [phase,flow,session,own] = await Promise.all([
+    lcu.get('/lol-gameflow/v1/gameflow-phase'), lcu.get('/lol-gameflow/v1/session'),
+    lcu.get('/lol-champ-select/v1/session'), lcu.get('/lol-summoner/v1/current-summoner'),
+  ]);
+  const role = session?.myTeam?.find(p => p.cellId === session.localPlayerCellId)?.assignedPosition;
+  const owner = ownerKey(own?.puuid), id = training.draftId(flow,session);
+  if (phase !== 'ChampSelect' || lastState?.status !== 'champselect' || modeFromFlow(flow) !== 'classic' ||
+    trainingAccount?.owner !== owner || lastState.training?.gameId !== id)
+    throw Error('Draft uległ zmianie. Otwórz bieżący wybór postaci.');
+  const view = training.setTrainingGoal(matchReview,{queueId:flow.gameData.queue.id,id,owner,position:role},input);
+  send({...lastState,training:view});
+  return {ok:true};
+}));
+
 async function verifyActionMode(requiredPhase) {
   const [phase, flow] = await Promise.all([lcu.get('/lol-gameflow/v1/gameflow-phase'), lcu.get('/lol-gameflow/v1/session')]);
   const validPhase = requiredPhase ? phase === requiredPhase : phase === 'ChampSelect' || LOADING_PHASES.includes(phase);
@@ -897,6 +941,18 @@ ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
   return { ok: true, choices: own };
 })));
 ipcMain.handle('draft-catalog', wrap(() => ({ ok: true, ...draftlab.catalog(game || offlineGame, baseData) })));
+ipcMain.handle('get-pick-pools', wrap(() => {
+  const champions = [...(game || offlineGame).championsByAlias.values()]
+    .filter(c => !c.alias.startsWith('Jade_')).map(c => ({ alias: c.alias, name: c.name }))
+    .sort((a,b) => a.name.localeCompare(b.name, 'pl'));
+  return { ok: true, roles: pickPools.roles, champions };
+}));
+ipcMain.handle('edit-pick-pool', wrap(input => {
+  pickPools.edit(input, game || offlineGame);
+  if (lastState?.status === 'champselect' && lastSelectState && game)
+    send({ ...lastState, pickPool: comparePoolPicks(lastSelectState, currentQueueId, game, data, pickPools) });
+  return { ok: true, roles: pickPools.roles };
+}));
 let buildReportDraft = null;
 ipcMain.handle('capture-build-report', wrap(token => {
   const report = shownBuildReports.get(token);
@@ -957,6 +1013,12 @@ ipcMain.handle('manage-replay',wrap(input=>{
 }));
 ipcMain.handle('open-riot-policy',wrap(async()=>{await require('electron').shell.openExternal('https://support-developer.riotgames.com/hc/en-us/articles/22698591841939-General-Policies');return {ok:true};}));
 ipcMain.handle('review-feedback',wrap(input=>({ok:true,match:matchReview.feedback(input?.key,input)})));
+ipcMain.handle('correct-offer-choice',wrap(input=>{
+  const match=matchReview.value.matches.find(m=>m.mode==='mayhem' && m.key===input?.key);
+  offerHistory.correctOffer(match,input?.offerId,input?.cardId);
+  matchReview.persist();
+  return {ok:true,match};
+}));
 ipcMain.handle('mayhem-favorites',wrap(() => ({ok:true,entries:mayhemFavorites.list()})));
 ipcMain.handle('add-mayhem-favorite',wrap(key => {
   const match = matchReview.value.matches.find(m => m.key === key);
@@ -996,7 +1058,9 @@ ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
   if(input.headlinerEdited===true&&typeof input.autoHeadliner!=='boolean')throw Error('Nieprawidłowy tryb wykrywania Headlinera.');
   if(input.headlinerEdited===true&&input.autoHeadliner)delete merged.selection.headliner;
   const selection = mayhem.validateSelection(automatic ? { ...merged.selection, owned:[], ownedBoots:null } : merged.selection,game,alias,state.mayhemPool);
+  const removed=mayhemSession.value.selection.augments.filter(id=>!selection.augments.includes(id));
   mayhemSession.set(state.mayhemKey,selection);
+  forgetOfferPicks(state,removed);
   mayhemSession.patch(state.mayhemKey,{screenIgnored:merged.screenIgnored,screenHistory:merged.screenHistory});
   mayhemSession.setAutoInventory(state.mayhemKey,automatic);
   if(input.headlinerEdited===true){mayhemSession.patch(state.mayhemKey,{autoHeadliner:input.autoHeadliner,headlinerSource:'manual'});headlinerConsensus.reset();}
@@ -1010,6 +1074,7 @@ ipcMain.handle('undo-augment-recognition',wrap(input=>choiceWrites(async()=>{
   const state=mayhemContext(input.matchKey),next=augmentScreen.undoRecognition(mayhemSession.value,input.token);
   mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenHistory:next.screenHistory,
     screenIgnored:next.screenIgnored,screenUndoRevision:next.screenUndoRevision});
+  forgetOfferPicks(state,state.mayhem.augments.filter(id=>!next.selection.augments.includes(id)),input.token);
   loading.visionMissed=false;offerTracker.reset();visionConsensus.reset();loadingDirty=true;visionStatus('undone');
   return {ok:true};
 })));
@@ -1019,6 +1084,41 @@ function updateVisionOffer(value,invalidatedAt){
   if(value&&value.at<=(loading.visionOfferAfter||0))return;
   if(JSON.stringify(loading.visionOffer?.ids||null)!==JSON.stringify(value?.ids||null))loadingDirty=true;
   loading.visionOffer=value;
+}
+function historyMatch(state) {
+  const me=state.me, champ=game.championsById.get(me.championId);
+  return {key:`${loading.gameId||loading.sessionId}:${champ.alias}:mayhem`,alias:champ.alias,
+    name:champ.name,mode:'mayhem',gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid)};
+}
+function forgetOfferPicks(state,ids,receipt) {
+  const match=matchReview.value.active;
+  if (ids.length && match?.key===historyMatch(state).key && offerHistory.withdrawPicks(match,ids,receipt)) matchReview.persist();
+}
+function rememberOfferFrame(ids,at,state) {
+  const pool=state.mayhemPool;
+  if (!offerHistory.validOffer(ids,pool)) return null;
+  loading.historyFrame=offerHistory.newFrame(loading.historyFrame,ids,at,()=>{
+    const meta=historyMatch(state);
+    const fresh=loading.liveStatus==='live' && Date.now()-(loading.liveAt||0)<6000;
+    const time=fresh && Number.isFinite(loading.liveSnapshot?.gameTime) ? Math.floor(loading.liveSnapshot.gameTime) : null;
+    const inventory=mayhemSession.value.autoInventory===false ? 'manual' : fresh && state.liveInventory ? 'live' : 'unknown';
+    const goalKey=purchaseKey(loading.gameId||loading.sessionId,meta.alias,'mayhem',meta.owner);
+    const goal=purchaseGoal.value?.key===goalKey ? purchaseGoal.value.id : null;
+    const scenario=withChoices(meta.alias,state);
+    let snapshot;
+    try { snapshot=offerHistory.snapshotOffer(ids,scenario,meta.alias,goal,game,data,inventory); }
+    catch (error) {
+      log(`historia ofert Mayhem: ${error.message}`);
+      snapshot=offerHistory.snapshotOffer(ids,scenario,meta.alias,goal,game,data,'unknown');
+    }
+    return {pool,meta,time,snapshot};
+  });
+  return loading.historyFrame;
+}
+function saveOfferFrame(frame,pickId,receipt) {
+  if (!frame) return;
+  const match=matchReview.ensureActive(frame.meta,frame.time);
+  if (match && offerHistory.recordOffer(match,frame,pickId,receipt)) matchReview.persist();
 }
 function visionStatus(status,error=null) {
   if(loading&&(Date.now()-(loading.visionSavedAt||0)>=5000||loading.visionStatus!==status)){
@@ -1048,6 +1148,7 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();headlinerConsensus.reset();
   offerTracker.reset();
   if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>{
+    offerHistory.rerollInput(loading?.historyFrame,event);
     if(loading&&event.type==='focus'&&!event.focused&&offerTracker.hasChoiceInput())loading.visionMissed=true;
     offerTracker.input(event);
     if(event.type==='down'||event.type==='cancel')updateVisionOffer(null,event.at);
@@ -1058,6 +1159,7 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   return {ok:true,sourceId:source.id,token:visionToken,pool:state.mayhemPool};
 }));
 function stopVisionWorkers(){
+  offerHistory.rerollInput(loading?.historyFrame,{type:'cancel'});
   updateVisionOffer(null);
   visionToken='';visionConsensus.reset();headlinerConsensus.reset();
   windowsOcr.stop();augmentClicks.stop();offerTracker.reset();
@@ -1166,7 +1268,18 @@ async function readAutomaticAugment(input,state){
       titles:detected.candidates.length,cards:detected.cards?.length||0,
       recognizedIds:detected.candidates.map(c=>c.id)};
     const previousOffer=offerTracker.offer;
+    const gesture=offerTracker.pending?.cards;
     const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:true,readMs});
+    if(detected.cards){
+      const current=mayhemContext(input.matchKey);
+      const frame=rememberOfferFrame(detected.cards.map(c=>c.id),input.at,current);
+      if (frame) {
+        frame.rects=detected.cards.map(c=>c.rect);
+        frame.visible=input.at>(loading.visionOfferAfter||0);
+        frame.aspect=input.width/input.height;
+      }
+      if(offerTracker.streak>=2)saveOfferFrame(frame);
+    } else if (loading.historyFrame) loading.historyFrame.visible=false;
     if(detected.cards||id)loading.visionMissed=false;
     else if(previousOffer&&!offerTracker.pending&&!offerTracker.down&&!augmentOffers.oldCardsVisible(grid,previousOffer))loading.visionMissed=true;
     updateVisionOffer(detected.cards&&offerTracker.streak>=2?{ids:detected.cards.map(c=>c.id),at:input.at}:null);
@@ -1174,10 +1287,14 @@ async function readAutomaticAugment(input,state){
     if(id){
       try{
         const known=mayhemSession.value.screenSlots||[];
-        const next=augmentScreen.reconcile(mayhemSession.value,[...new Set([...known,id])],game,state.mayhemPool,{token:crypto.randomUUID(),at:Date.now()});
+        const receipt=crypto.randomUUID();
+        const next=augmentScreen.reconcile(mayhemSession.value,[...new Set([...known,id])],game,state.mayhemPool,{token:receipt,at:Date.now()});
         saved=next.selection.augments.includes(id)&&!mayhemSession.value.selection.augments.includes(id);
         if(JSON.stringify(next)!==JSON.stringify(mayhemSession.value)){
           mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots,screenHistory:next.screenHistory});loadingDirty=true;
+        }
+        if(next.selection.augments.includes(id) && offerHistory.sameCards(gesture?.map(c=>c.id),loading.historyFrame?.ids)) {
+          saveOfferFrame(loading.historyFrame,id,receipt);
         }
       }catch{visionStatus('conflict');return {ok:true};}
     }

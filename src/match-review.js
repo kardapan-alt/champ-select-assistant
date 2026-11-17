@@ -5,14 +5,20 @@ const {rememberReplay}=require('./replay-checks');
 class MatchReview {
   constructor(value={},save=()=>{}){this.value=value&&Array.isArray(value.matches)?value:{matches:[],active:null};this.save=save;}
   persist(){this.save(clone(this.value));}
-  observe({key,alias,name,mode,snapshot,build,gameId,championId,owner,compareAugment,replayReport}){
-    if(!key||snapshot?.status!=='live'||!snapshot.inventory||!Number.isFinite(snapshot.gameTime))return;
-    if(this.value.matches.some(m=>m.key===key))return;
+  ensureActive({key,alias,name,mode,gameId,championId,owner}, time=null){
+    if(!key||this.value.matches.some(m=>m.key===key))return null;
     if(this.value.active?.key!==key){
       this.finish('interrupted');
-      this.value.active={key,alias,name,mode,gameId,championId,owner,startedAt:Date.now(),duration:0,events:[],items:[],augments:[],headliner:null,firstRead:snapshot.gameTime};
+      this.value.active={key,alias,name,mode,gameId,championId,owner,startedAt:Date.now(),duration:0,events:[],items:[],augments:[],headliner:null,firstRead:time};
     }
-    const a=this.value.active,time=Math.floor(snapshot.gameTime);
+    return this.value.active;
+  }
+  observe({key,alias,name,mode,snapshot,build,gameId,championId,owner,compareAugment,replayReport}){
+    if(!key||snapshot?.status!=='live'||!snapshot.inventory||!Number.isFinite(snapshot.gameTime))return;
+    const a=this.ensureActive({key,alias,name,mode,gameId,championId,owner},snapshot.gameTime);
+    if(!a)return;
+    if(a.firstRead==null)a.firstRead=snapshot.gameTime;
+    const time=Math.floor(snapshot.gameTime);
     if(time<a.duration)return; // Delayed snapshots cannot rewrite the timeline.
     const events=[],before=counts(a.items),after=counts(snapshot.inventory.items);
     const added=snapshot.inventory.items.filter((i,n,list)=>list.findIndex(x=>x.id===i.id)===n&&after[i.id]>(before[i.id]||0)).map(i=>({...item(i),count:after[i.id]-(before[i.id]||0)}));
@@ -51,6 +57,11 @@ class MatchReview {
   gap(){if(this.value.active&&!this.value.active.gap){this.value.active.gap=true;this.persist();}}
   finish(reason='ended'){
     const a=this.value.active;if(!a)return;
+    require('./training').rememberTraining(this.value,a);
+    for (const offer of a.offers || []) {
+      const picked=offer.cards.find(c=>c.id===offer.picked);
+      if (picked && !a.augments.some(c=>c.id===picked.id)) a.augments.push({id:picked.id,name:picked.name});
+    }
     this.value.matches=[{...a,endedAt:Date.now(),reason},...this.value.matches.filter(m=>m.key!==a.key)].slice(0,10);
     this.value.active=null;this.persist();
   }
