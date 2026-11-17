@@ -96,7 +96,8 @@ function adaptation(selection, champion, context = {}) {
   const defensiveItems = support ? [3190,3222] : ap && !durable ? (enemy.apShare>=0.55 ? [3102,3157] : [3157,3102])
     : durable ? (enemy.apShare>=0.55 ? [3065,4401,2504] : enemy.adShare>=0.55 ? [3143,3110,3075] : [3065,3143,2502])
       : enemy.apShare>=0.55 ? [3156,3091] : [6673,3072];
-  const nativeItems = support ? [6617,3107] : ap ? [3089,4645,3135] : adc ? [3031,3036,3072] : durable ? [3071,6692,3161] : [6692,3142,6695];
+  const nativeItems = !conversion && !attackConversion && !activeRules.some(r=>r.attackAP) && champion.items?.length
+    ? champion.items : support ? [6617,3107] : ap ? [3089,4645,3135] : adc ? [3031,3036,3072] : durable ? [3071,6692,3161] : [6692,3142,3814];
   const spellItems = support ? [6617,3107,6620] : ap ? [6655,8010,4628] : adc ? [6675,3078,3004] : [3071,3161,6692];
   const add = (ids, amount, why, direct = amount >= 26) => ids.forEach((id, index) => {
     const prev = bonuses.get(id) || { score: 0, reasons: [], contributions:[] };
@@ -130,7 +131,7 @@ function adaptation(selection, champion, context = {}) {
       if (effect === 'spell' || effect === 'cc') add(spellItems,7,why + ': cykl umiejętności');
       if (effect === 'resists') add(defensiveItems,7,why + ': efektywna wytrzymałość');
       if (effect === 'healthhit' && !healthConversion) add(durable ? [3748,3084] : [3748,3153],8,why + ': ataki od HP');
-      if (effect === 'healresists') add(support ? [3190,3222,3107] : durable ? [3065,3190,2502] : [3102,3157],10,why + ': odporności wzmacniające leczenie');
+      if (effect === 'healresists') add(support ? [3190,3222] : durable ? [3065,3190,2502] : [3102,3157],10,why + ': odporności wzmacniające leczenie');
       if (effect === 'sustain') add(support ? [6617,3107] : ap ? [4633] : durable ? [6610,6333,3065] : [3072,3153],7,why + ': podtrzymanie życia');
       if (effect === 'defensivecrit') { add(defensiveItems,6,why + ': obrona');add(durable ? [6673,3046] : [3031,6673],7,why + ': krytyczna obrona'); }
       if (effect === 'bigcrit') add([3031,6676,3072],12,why + ': pojedyncze kryty');
@@ -156,7 +157,9 @@ function adaptation(selection, champion, context = {}) {
       add(ids, 26, why + (r.quest ? ': przedmiot do zadania' : ': ulepszony przedmiot'), !r.anyItem && !r.repeat);
     }
   }
-  return { bonuses, hints, unknown, excluded, conversion, repeat, upgrades, freeBoots:activeRules.some(r=>r.freeBoots), active: bonuses.size > 0, owned:s.owned || [], ownedBoots:s.ownedBoots || null };
+  return { bonuses, hints, unknown, excluded, conversion, repeat, upgrades,
+    transformsBuild:!!(conversion || attackConversion || healthConversion || activeRules.some(r=>r.attackAP || r.manaConversion)),
+    freeBoots:activeRules.some(r=>r.freeBoots), active: bonuses.size > 0, owned:s.owned || [], ownedBoots:s.ownedBoots || null };
 }
 class MayhemSession {
   constructor(value = null, save = () => {}) { this.value = value; this.save = save; }

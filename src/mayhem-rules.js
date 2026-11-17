@@ -29,7 +29,8 @@ rule('PinCushion', ['health','resists'], 'Otrzymywanie obrażeń ładuje kolce. 
 rule('Deft|Firebrand|DualWield|Typhoon|LightemUp|ShrinkRay|FanTheHammer|GetExcited|ThirdTimesTheHarm|LittleExtraHelp|FlowOfSpirit|HandsOffTheTalent', ['onhit'], 'Efekt wykorzystuje autoataki lub ich tempo. Dobieram on-hit i szybkość ataku do skalowania postaci.');
 rule('ScopedWeapons|ScopierWeapons|ScopiestWeapons', ['onhit'], 'Większy zasięg ułatwia regularne autoataki. Premiuję pasujące do postaci efekty on-hit.');
 rule('EtherealWeapon|BEES|DoubleStrike', ['onhit'], 'Umiejętność lub pociski nakładają on-hit. Uwzględniam te przedmioty także na postaci AP.');
-rule('MysticPunch|KeepGoing|CrimsonCobalt', ['onhit','spellblade'], 'Ataki skracają cooldown umiejętności. Wspieram przeplatanie czarów i autoataków.');
+rule('MysticPunch|KeepGoing', ['onhit','spellblade'], 'Ataki skracają cooldown umiejętności. Wspieram przeplatanie czarów i autoataków.');
+rule('CrimsonCobalt', ['adaptive'], 'Traf wroga Q, a następnie zaatakuj oznaczony cel, aby uruchomić dodatkowe obrażenia i skrócić cooldown Q. Zachowuję skalowanie championa; ten efekt sam nie wymaga buildu on-hit ani Spellblade.');
 rule('TapDancer', ['onhit','move'], 'Ataki zwiększają ruch, a ruch wzmacnia szybkość ataku. Uwzględniam obie części tej synergii.');
 rule('Marksmage', ['ap','onhit'], 'Autoataki zyskują obrażenia od AP: preferuję Nashor i moc umiejętności.', { attackAP:true });
 rule('MasterofDuality', ['onhit','spell'], 'Ataki gromadzą AP, a trafienia umiejętnościami AD. Łączę oba rodzaje trafień bez porzucania klasy postaci.');
@@ -74,7 +75,7 @@ rule('ForgedByTheMaster', ['itemdamage'], 'Wzmacniane są obrażenia przedmiotó
 rule('ApexInventor', ['itemhaste'], 'Haste przedmiotów skraca ich cooldowny. Premiuję użyteczne aktywy i efekty z czasem odnowienia.');
 rule('MindtoMatter', ['mana','health'], 'Mana zwiększa maksymalne zdrowie. Zakupy z maną realizują oba cele.');
 rule('Overflow', ['mana'], 'Podwójny koszt many i skalowanie efektów z jej pulą zwiększają priorytet zakupów many.');
-rule('NoManaNoProblem', ['mana','ap'], 'Mana z przedmiotów zamienia się w AP. Premiuję pasujące zakupy many i moc umiejętności.');
+rule('NoManaNoProblem', ['mana','ap'], 'Mana z przedmiotów zamienia się w AP. Premiuję pasujące zakupy many i moc umiejętności.', { manaConversion:true });
 rule('DoubleTime', ['spell','mana'], 'Szybkie trafienie dwoma czarami daje maksymalną manę. Wspieram cykl umiejętności i przedmioty wykorzystujące manę.');
 rule('BlueBarrier', ['mana','spell'], 'Wydawana mana daje tarczę. Premiuję manę i zakupy wspierające regularne czary.');
 rule('StabbyStabby', ['lethality'], 'Lethality zwiększa cooldown reduction. U postaci fizycznych przyspieszam odpowiednie przedmioty z lethality.');

@@ -3,7 +3,7 @@
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
 const { liveSituations, mergeSituations } = require('./live-build');
-const { itemAvailable, itemsCompatible } = require('./itemrules');
+const { itemAvailable, itemsCompatible, redundantSpellblade } = require('./itemrules');
 const { roleQuestFor, BOOT_UPGRADES, SUPPORT_ITEMS, baseBoots, isBootItem } = require('./rolequests');
 const { normalizePins, validateRunes } = require('./choices');
 const { isAram } = require('./modes');
@@ -734,7 +734,7 @@ function buildFor(alias, state, game, data) {
   const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
   const enemy = teamProfile(enemyInfos);
   const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ, { enemy }) : null;
-  const compatible = (id,ids) => itemsCompatible(id,ids,augmentation?.repeat);
+  const compatible = (id,ids) => itemsCompatible(id,ids,augmentation?.repeat) && !redundantSpellblade(id,ids);
   if (augmentation?.conversion) {
     const kind = augmentation.conversion === 'ap' ? 'mage' : 'fighter';
     champ = { ...champ, ...data.classTemplates[kind], class:kind, dmg:augmentation.conversion, statsBuild:false, lateItems:[] };
@@ -772,7 +772,7 @@ function buildFor(alias, state, game, data) {
   const bootsPinned = !!state.choices?.boots && exists(state.choices.boots) && isBootItem(state.choices.boots, game);
   if (bootsPinned) { boots = baseBoots(state.choices.boots); bootsWhy = 'Twój przypięty wybór'; }
   if (ownedBoots && mayhem.ownedAvailable(ownedBoots,game,alias,state.mode)) { boots = ownedBoots; bootsWhy = 'Już posiadane buty'; }
-  const core = (champ.items || tpl.items).filter(isBuildItem).filter((id, i, all) => itemsCompatible(id, all.slice(0, i)));
+  const core = (champ.items || tpl.items).filter(isBuildItem).filter((id, i, all) => compatible(id, all.slice(0, i)));
   const pooledTags = (id) => (Object.values(data.itemPools || {}).flat().find((it) => it.id === id) || {}).tags || {};
   const lateStats = (champ.lateItems || []).filter((it) => isBuildItem(it.id));
   const topLate = Math.max(1, ...lateStats.map((it) => it.score));
@@ -833,8 +833,12 @@ function buildFor(alias, state, game, data) {
   const usedAugmentGroups = new Map();
   const satisfyAugment = id => (augmentation?.bonuses.get(id)?.contributions || []).forEach(c => { if (!c.direct) usedAugmentGroups.set(c.group,(usedAugmentGroups.get(c.group)||0)+1); });
   purchased.forEach(satisfyAugment);
-  const augmentScore = id => Math.min(30,(augmentation?.bonuses.get(id)?.contributions || []).reduce((sum,c)=>sum+c.score*(c.direct?1:Math.pow(0.4,usedAugmentGroups.get(c.group)||0)),0));
-  const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0) + augmentScore(it.id);
+  const augmentScore = id => Math.min(30,(augmentation?.bonuses.get(id)?.contributions || []).reduce((sum,c)=>sum+c.score*(c.direct?1:Math.pow(0.25,usedAugmentGroups.get(c.group)||0)),0));
+  // Zwykła synergia może przyspieszyć zakup, ale jej słabsze kolejne warianty
+  // nie powinny wypierać całego rdzenia. Jawna konwersja nadal go przebudowuje.
+  const foundations = new Set(core);
+  const coreScore = it => augmentation?.active && !augmentation.transformsBuild && foundations.has(it.id) ? 4 : 0;
+  const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0) + augmentScore(it.id) + coreScore(it);
   const chosen = [];
   const pool = candidates.flatMap(it=>augmentation?.repeat.has(it.id) ? [it,{...it}] : [it]);
   while (chosen.length < fullBuild - fixed.length - pins.length && pool.length) {
@@ -847,8 +851,9 @@ function buildFor(alias, state, game, data) {
     // Konkretna sytuacja (np. "zabójcy AD: Zed") jest czytelniejsza niż ogólny powód, więc ma pierwszeństwo.
     const specific = contributions.find(([tag, v]) => tag.startsWith('s:') && v > 0);
     const mainTag = specific ? specific[0] : contributions[0] && contributions[0][1] > 0 ? contributions[0][0] : 'late';
-    const bonus = augmentation?.bonuses.get(best.id);
-    const priority = !!bonus || urgent.some((s) => s.myItem === best.id);
+    const appliedBonus = augmentScore(best.id);
+    const bonus = appliedBonus >= 1 ? augmentation?.bonuses.get(best.id) : null;
+    const priority = appliedBonus >= 3 || urgent.some((s) => s.myItem === best.id);
     chosen.push({ ...best, priority, augmented:!!bonus, situational: mainTag.startsWith('s:'), why: bonus ? [...new Set(bonus.reasons)].slice(0,2).join('; ') : best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : reasonOf(mainTag) });
     satisfyAugment(best.id);
     // Każdy item częściowo zaspokaja zagrożenie: przy skrajnym składzie zostaje miejsce na kolejny item tego typu.
@@ -858,7 +863,8 @@ function buildFor(alias, state, game, data) {
   }
   pool.sort((a, b) => scoreOf(b) - scoreOf(a));
   const selectedIds = [...pinIds, ...fixed, ...chosen.map(c => c.id)];
-  const alternatives = pool.filter((it) => !selectedIds.includes(it.id) && scoreOf(it) > 0.5 && Object.keys(it.tags).some((t) => t !== 'late' && threats[t] > 0.6)).slice(0, 3);
+  const alternatives = pool.filter((it) => !selectedIds.includes(it.id) && !redundantSpellblade(it.id,purchased)
+    && scoreOf(it) > 0.5 && Object.keys(it.tags).some((t) => t !== 'late' && threats[t] > 0.6)).slice(0, 3);
 
   const item = (id) => {
     const it = game.items.get(id);

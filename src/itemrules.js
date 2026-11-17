@@ -25,4 +25,11 @@ function itemsCompatible(id, selected, repeat = new Set()) {
   return (!selected.includes(id) || repeat.has(id)) && !EXCLUSIVE.some((group) => group.includes(id) && selected.some((x) => group.includes(x)));
 }
 
-module.exports = { itemAvailable, itemsCompatible };
+// To filtr rekomendacji, nie zakaz odczytu lub zapisu kupionego ekwipunku.
+// Kilka różnych przedmiotów Spellblade nie daje kilku niezależnych proców.
+const SPELLBLADE = new Set([3100,3078,6662]);
+function redundantSpellblade(id, selected) {
+  return SPELLBLADE.has(id) && selected.some(other => other !== id && SPELLBLADE.has(other));
+}
+
+module.exports = { itemAvailable, itemsCompatible, redundantSpellblade };

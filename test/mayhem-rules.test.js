@@ -38,6 +38,7 @@ test('283 augmenty × 6 klas: pełny legalny build, bez nieznanych efektów i ni
     assert.equal(b.items.length,5,alias+' '+a.api);
     assert.deepEqual(b.mayhem.unknown,[],a.api);assert.equal(b.mayhem.hints[0].supported,true);
     b.items.forEach((i,n)=>{assert.ok(itemAvailable(i.id,game,'mayhem',alias),i.name);assert.ok(itemsCompatible(i.id,b.items.slice(0,n).map(x=>x.id),repeat),a.api);});
+    assert.ok(b.items.filter(i=>[3100,3078,6662].includes(i.id)).length<=1,`${alias} ${a.api}: kilka Spellblade`);
     assert.ok(b.boots.id || a.api==='Quest_Sneakerhead');
     assert.ok(!b.situations.some(s=>s.vision));
   }

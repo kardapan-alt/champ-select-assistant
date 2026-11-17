@@ -1,11 +1,13 @@
-## Champ Select Assistant 0.6.29
+## Champ Select Assistant 0.6.30
 
-- Infinity Edge pozostaje w planie strzelca AD po zakupie co najmniej dwóch gotowych przedmiotów pod kryty. Odpowiedzi na zakupy przeciwników nie wypychają go już z całego zestawu. Kupione i przypięte przedmioty zachowują pierwszeństwo; reguła respektuje konwersję AP/AD i wykluczenia augmentów.
-- Poprawka odtworzona na danych meczu Xayah: Yun Tal + Navori + Mortal Reminder → Infinity Edge jako następny zakup, zamiast zestawu kończącego się wyłącznie BotRK i Maw.
-- Zawiera poprawki 0.6.28: build AP Gragasa, oceny dopasowania augmentów S–F i obsługę 13 ulepszeń przedmiotów.
+- Poprawiony wpływ augmentów na build: podstawowe przedmioty championa zachowują większą wagę, a kolejne zakupy pod ten sam ogólny efekt dostają znacznie mniejszą premię. Drobna synergia nie oznacza już automatycznie „WCZEŚNIEJ”.
+- Szkarłatny Kobalt (Crimson Cobalt) ma osobną regułę. Wzmacnia cykl Q → atak bez wymuszania całego buildu on-hit lub Spellblade. Zed zachowuje AD/przebicie i kupione przedmioty.
+- Ogólne skalowanie korzysta z własnego rdzenia championa. Bezpośrednie ulepszenia przedmiotów i zadania nadal dostają priorytet; jawne konwersje AP/AD, ataków, HP lub many mogą przebudować zestaw.
+- Automatyczne rekomendacje nie łączą kilku różnych przedmiotów Spellblade. Filtr nie usuwa już kupionych ani ręcznie przypiętych przedmiotów.
+- Shake Proteinowy priorytetyzuje przedmioty dające odporności; Redemption nie otrzymuje premii za statystyki odporności, których nie dostarcza.
 
-Automatyczny zapis augmentów nadal nie działa poprawnie w zgłoszonym meczu użytkownika. Odbiór obrazu i praca OCR zostały potwierdzone, ale przyczyna braku rozpoznania wyboru pozostaje do ustalenia. Ta wersja nie deklaruje naprawy tego problemu. Augmenty można uzupełnić w „Augmenty i ekwipunek”; zapisane augmenty otrzymują oceny dopasowania i wpływają na build.
+Walidacja: 223 testy, w tym 283 augmenty × 6 klas, zachowanie rdzenia, Spellblade, ulepszenia przedmiotów, konwersje oraz wcześniejsze regresje Gragasa i Xayah. Przeszły testy całego przepływu zakupów i OCR. Poprawiony build sprawdzono też na bieżącym meczu Zeda z kupionym Hubris.
 
-Walidacja: 220 testów logiki, w tym Xayah w ARAM, Mayhem i klasycznym trybie, zachowanie zakupów/przypięć i konwersji AP. Build sprawdzono również na faktycznych zakupach bieżącego meczu.
+Dostarczony zrzut z Upgrade Sundered Sky / Crimson Cobalt / Nightstalking jest prawidłowo rozpoznawany w 1440p, 1080p, 720p i ultrawide. W zapisie rzeczywistego meczu potwierdzono automatyczny wybór Crimson Cobalt. To potwierdzenie konkretnego przypadku, nie gwarancja odczytu każdego ekranu. Zrzut użytkownika nie jest dołączony do repozytorium ani instalatora.
 
 Po pobraniu aktualizacji wybierz „Uruchom ponownie”. Krzyżyk tylko ukrywa okno. Sprawdzanie wydań odbywa się przy starcie i co 6 godzin.
