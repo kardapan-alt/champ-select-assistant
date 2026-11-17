@@ -34,7 +34,10 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
   const pinned=build.nextPurchase?.id&&order.find(i=>i.id===build.nextPurchase.id&&!i.owned);
   if(pinned)order.unshift(pinned);
   const next = order.find(i=>!i.owned && exists(i.id));
-  if (!next) return { status:order.some(i=>!i.owned)?'unavailable':'complete', gold };
+  if (!next) {
+    if (build.mayhem?.skipped?.length && (build.items.length < build.inventory.itemSlots || !build.boots?.id && !build.boots?.owned && build.inventory.bootsSlot==='inventory')) return {status:'skipped',gold};
+    return { status:order.some(i=>!i.owned)?'unavailable':'complete', gold };
+  }
   const tree = recipeFor(next.id,inventory,game);
   if (!tree) return { status:'unknown-price',gold };
   const itemView = id => { const item=game.items.get(id); return {id,name:item.name,icon:item.iconPath}; };

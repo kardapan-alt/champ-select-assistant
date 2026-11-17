@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {detectOffer,readGrid,OfferTracker,oldCardsVisible}=require('../src/augment-offers');
+const {detectOffer,readGrid,OfferTracker,oldCardsVisible,observePartial,filledCards}=require('../src/augment-offers');
 const {migrateConfig}=require('../src/augment-vision');
 const catalog=require('../data/mayhem-augments.json').augments;
 const names=['Apex Inventor','Back To Basics','Ice Cold'];
@@ -33,6 +33,26 @@ test('nieznany lub błędny tytuł nie jest zgadywany',()=>{
   for(const bad of ['Apex Invent0r','New Unseen Augment']){
     const {result,grid}=fixture([bad,names[1],names[2]]);assert.equal(detectOffer(result,grid,catalog,'KIWI').cards,null);
   }
+});
+test('dwa tytuły są przypisane do właściwych pozycji dopiero przy trzech ramkach i dwóch zgodnych odczytach',()=>{
+  for(let slot=0;slot<3;slot++){
+    const titles=names.with(slot,'Unknown OCR'),{result,grid}=fixture(titles);
+    const detected=detectOffer(result,grid,catalog,'KIWI');
+    assert.deepEqual(detected.partial?.map(c=>c.id),ids.with(slot,null));
+    assert.ok(!detectOffer(result,cleanGrid(),catalog,'KIWI').partial);
+    const first=observePartial(null,detected.partial,1000,1800);
+    assert.equal(first.stable,false);
+    const confirmed=observePartial(first,detected.partial,1800,1800);
+    assert.equal(confirmed.stable,true);assert.equal(confirmed.token,1000);
+    assert.equal(filledCards(confirmed),null);
+    const manual={...confirmed,filled:ids[slot]};
+    assert.deepEqual(filledCards(manual).map(c=>c.id),ids);
+    assert.equal(observePartial(manual,detected.partial,4000,1800).filled,null);
+    const changed=[...detected.partial];changed[(slot+1)%3]={...changed[(slot+1)%3],id:3150};
+    assert.equal(observePartial(manual,changed,2100,1800).stable,false);
+  }
+  const duplicate=fixture([names[1],names[1],names[2]]);
+  assert.ok(!detectOffer(duplicate.result,duplicate.grid,catalog,'KIWI').partial);
 });
 function trackerFixture(){
   const {result,grid}=fixture(),cards=detectOffer(result,grid,catalog,'KIWI').cards,t=new OfferTracker();

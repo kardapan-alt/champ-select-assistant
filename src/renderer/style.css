@@ -592,6 +592,10 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 header { gap:8px; flex-wrap:wrap; }
 @media(max-width:850px) { .purchase-options { grid-template-columns:1fr; } header { padding:10px 14px; } header .brand { margin-right:auto; } }
 .build-report-json {white-space:pre-wrap;overflow-wrap:anywhere;max-height:32vh;overflow:auto}
+.match-skips { display:grid; gap:5px; margin:6px 0; }
+.match-skips > button { justify-self:start; }
+.match-skips small { display:block; color:var(--muted); overflow-wrap:anywhere; }
+.build-primary [data-match-skip] { padding:2px 6px; margin-top:4px; font-size:11px; }
 #build-report-dialog fieldset { min-width:0; border:1px solid var(--line); border-radius:6px; }
 #build-report-dialog fieldset label:not([hidden]) { display:grid; gap:4px; margin:6px 0; }
 #build-report-dialog fieldset select { width:100%; max-width:100%; }
@@ -618,6 +622,9 @@ header { gap:8px; flex-wrap:wrap; }
 #matchup-notes-dialog form:not([hidden]), #matchup-notes-dialog label { display:grid; gap:8px; }
 #matchup-notes-dialog textarea { resize:vertical; }
 .matchup-note-body { white-space:pre-wrap; overflow-wrap:anywhere; }
+[data-bookmark-time] { margin:8px 0; }
+[data-bookmark-time] textarea { display:block; box-sizing:border-box; width:100%; padding:7px; margin:4px 0; resize:vertical; background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:5px; font:inherit; }
+[data-bookmark-time] time { color:var(--gold); font-weight:700; }
 .activation-cost, .mayhem-quests article { display:grid; gap:2px; margin-top:6px; overflow-wrap:anywhere; }
 .activation-cost strong { color:var(--gold); font-size:.87em; }
 .activation-cost small, .mayhem-quests small { font-size:.8em; line-height:1.25; }

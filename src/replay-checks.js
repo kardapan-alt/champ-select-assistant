@@ -78,7 +78,7 @@ function checkReplay(entry,game,data) {
     // Keep the old and new reasons beside the slot that changed. In particular
     // an absent item has no new rule of its own; show the item that replaced it.
     return {...details,status:changes.length||quest?'changed':'same',before,after,changes,quest,
-      expectation:checkExpectation(r.expectation,after,newQuest,game)};
+      expectation:checkExpectation(r.expectation,after,newQuest,game,build.mayhem?.nextItem?.upgrade ? build.mayhem.nextItem : null)};
   } catch (e) { return {...details,status:'unavailable',error:e.message}; }
 }
 module.exports = {rememberReplay,ReplayLibrary,replayEntries,checkReplay};

@@ -76,11 +76,19 @@ function newFrame(previous, ids, at, capture) {
   return {ids:[...ids],at,seenAt:at,replaces:reroll ? previous.recordId : null,...capture()};
 }
 
-function recordOffer(match, frame, pickId, receipt) {
+function recordOffer(match, frame, pickId, receipt, source='screen') {
   if (!validOffer(frame.ids,frame.pool) || (pickId!=null && !frame.ids.includes(pickId))) return false;
   const history = match.offers ||= [];
   let last = history.at(-1);
   let dirty = false;
+  // When the same screen finally reveals a manually supplied title, correct
+  // this offer in place. Rerolls and later rounds have separate identities.
+  if(frame.corrects && last?.id===frame.corrects && !last.picked && !last.replacedBy
+    && !sameCards(last.cards.map(c=>c.id),frame.ids)){
+    Object.assign(last,frame.snapshot);
+    frame.recordId=last.id;
+    dirty=true;
+  }
   // On restart the game can still be showing the last recorded trio.
   const existing = last && sameCards(last.cards.map(c=>c.id),frame.ids)
     && (last.id===frame.recordId || (!last.picked && !last.replacedBy));
@@ -98,7 +106,7 @@ function recordOffer(match, frame, pickId, receipt) {
   frame.recordId = last.id;
   if (pickId && !last.picked) {
     last.picked = pickId;
-    last.source = 'screen';
+    last.source = source;
     last.receipt = receipt;
     dirty = true;
   }
@@ -108,7 +116,7 @@ function recordOffer(match, frame, pickId, receipt) {
 function withdrawPicks(match, ids, receipt) {
   let dirty = false;
   for (const offer of match?.offers || []) {
-    if (offer.source === 'screen' && ids.includes(offer.picked) && (!receipt || offer.receipt===receipt)) {
+    if (['screen','confirmed'].includes(offer.source) && ids.includes(offer.picked) && (!receipt || offer.receipt===receipt)) {
       delete offer.picked; delete offer.source; delete offer.receipt;
       dirty = true;
     }
@@ -118,7 +126,7 @@ function withdrawPicks(match, ids, receipt) {
 
 function correctOffer(match, offerId, cardId) {
   const offer = match?.offers?.find(o => o.id===offerId);
-  if (!offer || offer.replacedBy || offer.source==='screen') throw Error('Możesz uzupełnić tylko niepotwierdzony wybór z zapisanej oferty.');
+  if (!offer || offer.replacedBy || ['screen','confirmed'].includes(offer.source)) throw Error('Możesz uzupełnić tylko niepotwierdzony wybór z zapisanej oferty.');
   if (cardId!==null && !offer.cards.some(c=>c.id===cardId)) throw Error('Wybierz kartę z tej trójki.');
   if (cardId && match.offers.some(o=>o!==offer && o.picked===cardId)) throw Error('Ta karta jest już przypisana do innej oferty.');
   // Keep observed inventory, comparisons and their timeline intact. Only

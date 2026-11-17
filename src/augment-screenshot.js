@@ -21,7 +21,7 @@ function wordsInRegion(result,crop,region){
 
 function screenshotSlots(detected,result,crop,catalog){
   return [.308,.5,.692].map((x,index)=>{
-    const card=detected.cards?.[index];
+    const card=(detected.cards || detected.partial)?.[index];
     const cx=card ? card.rect.x+card.rect.w/2 : crop.x+x*crop.w;
     const cy=card ? card.rect.y+card.rect.h*.48 : .414;
     const candidates=detected.candidates.filter(title=>{
@@ -58,7 +58,7 @@ async function testOfferScreenshot(input,ocr,catalog){
   const pools=pool==='auto'?['KIWI','KIWI_JADE']:[pool];
   const variants=pools.map(p=>{
     const detected=detectOffer({...result,crop},grid,catalog,p);
-    return {offer:!!detected.cards,slots:screenshotSlots(detected,result,crop,catalog)};
+    return {offer:!!detected.cards,pair:detected.partial,slots:screenshotSlots(detected,result,crop,catalog)};
   }).sort((a,b)=>Number(b.offer)-Number(a.offer));
   const slots=variants[0].slots.map((first,i)=>{
     const choices=variants.map(v=>v.slots[i]);
@@ -67,6 +67,7 @@ async function testOfferScreenshot(input,ocr,catalog){
     return choices.find(s=>s.id)||first;
   });
   const confirmed=variants[0].offer && slots.every(s=>s.id);
-  return {status:confirmed?'offer':'incomplete',slots};
+  const confirmedPair=slots.filter(s=>s.id).length===2 && variants.some(v=>v.pair?.every((s,i)=>s.id===slots[i].id));
+  return {status:confirmed?'offer':'incomplete',confirmedPair,slots};
 }
 module.exports={testOfferScreenshot};

@@ -176,13 +176,13 @@ function enemyBar(e) {
   </div>`;
 }
 
-const whyTile = (i) => itemTile(i, `${i.pinControl ? `<button class="item-pin ${i.pinned ? 'on' : ''}" data-pin-item="${i.id}" data-slot="${i.slot}" aria-label="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}" title="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}">${i.pinned ? '●' : '○'}</button>` : ''}${i.priority ? '<span class="priority-label">Wcześniej</span>' : ''}<div class="why">${esc(i.why)}</div>`, i.situational ? 'situ' : '');
+const whyTile = (i) => itemTile(i, `${i.pinControl ? `<button class="item-pin ${i.pinned ? 'on' : ''}" data-pin-item="${i.id}" data-slot="${i.slot}" aria-label="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}" title="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}">${i.pinned ? '●' : '○'}</button>` : ''}${i.priority ? '<span class="priority-label">Wcześniej</span>' : ''}<div class="why">${esc(i.why)}</div>${i.skip || ''}`, i.situational ? 'situ' : '');
 // Kolejność buildu: numer na rogu ikony (buty jako drugi item, jak w zestawie do sklepu).
 const buildTiles = (b) => {
   const [first, ...rest] = b.items;
   const outside = b.inventory?.bootsSlot === 'quest';
   const ordered = outside || b.inventory?.bootsSlot === 'none' ? b.items : [first, b.boots, ...rest].filter(Boolean);
-  const main = ordered.map((it, i) => whyTile({ ...it, pinControl: !it.owned, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1 })).join('');
+  const main = ordered.map((it, i) => whyTile({ ...it, pinControl: !!it.id && !it.owned, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1, skip: b.matchSkips?.options.some(choice=>choice.id===it.id) ? skipButton(b.matchSkips,it,false,true) : '' })).join('');
   const reserved = b.reservedSlot ? `<div class="item reserved-item"><div class="reserved-icon">◈</div><div class="item-name">${esc(b.reservedSlot)}</div><div class="why">Zostaje w ekwipunku</div></div>` : '';
   const side = b.quest?.slotItem;
   return `<div class="build-inventory ${side ? 'with-quest-slot' : ''}"><div class="items path inventory-items">${main}${reserved}</div>
@@ -234,7 +234,7 @@ function liveShopPanel(b,compact=false) {
   let s=b.shop;
   if (!s || labActive) return '';
   if(b.readout?.inventory.status==='live'&&!freshRead(b.readout.inventory))s={status:'stale',gold:null};
-  const messages={waiting:'Czekam na aktualne złoto i ekwipunek.',stale:'Odczyt z gry przerwany — czekam na aktualne złoto.',manual:'Włącz automatyczny odczyt ekwipunku, aby zobaczyć zakup za aktualne złoto.',complete:'Docelowy build jest już kupiony.',unavailable:'Następny przedmiot wymaga odblokowania w grze.', 'unknown-price':'Brak pewnej ceny w katalogu gry — sprawdź sklep.'};
+  const messages={waiting:'Czekam na aktualne złoto i ekwipunek.',stale:'Odczyt z gry przerwany — czekam na aktualne złoto.',manual:'Włącz automatyczny odczyt ekwipunku, aby zobaczyć zakup za aktualne złoto.',skipped:'Po pominięciach nie ma kolejnego pasującego zakupu. Możesz cofnąć pominięcie.',complete:'Docelowy build jest już kupiony.',unavailable:'Następny przedmiot wymaga odblokowania w grze.', 'unknown-price':'Brak pewnej ceny w katalogu gry — sprawdź sklep.'};
   const purchase=s.purchase;
   const content=purchase ? `${img(purchase.icon,'shop-icon',purchase.name)}<div><b>${esc(purchase.name)} · ${purchase.cost} złota</b><span>${purchase.component?`Komponent do ${esc(s.target.name)}`:'Ukończ ten przedmiot'}${purchase.credit?` · uwzględniono komponenty za ${purchase.credit}`:''} · zostanie ${s.remaining}</span></div>`
     : `<div><b>${esc(s.status==='save'?`Odłóż jeszcze ${s.missing} złota`:s.status==='full'?'Brakuje miejsca w ekwipunku':messages[s.status]||messages.waiting)}</b>${s.target?`<span>${s.status==='save'?`Na ${esc(s.savingFor.name)} · `:''}Cel: ${esc(s.target.name)} (${s.target.cost} złota do ukończenia)</span>`:''}</div>`;
@@ -258,6 +258,7 @@ function buildPanel(b, readonly = false, auto = null) {
     <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : b.baseSource ? esc(`Baza: ${b.baseSource.mode==='aram'?'ARAM':'Summoner’s Rift'} · OP.GG ${b.baseSource.patch}, zapis ${b.baseSource.fetched}.${b.mode==='mayhem'?' Punkt wyjścia przed augmentami.':''}`) : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
     <div class="build-row build-primary"><h4>${b.purchaseGoal?.id?'Plan przedmiotów · przypięty cel w Kup teraz':'Kolejność zakupów'}${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
     ${purchaseControls(b)}
+    ${matchSkipsPanel(b)}
     ${buildChangePanel(b)}
     ${mayhemPanel(b)}
     <div class="build-essentials"><div><span class="muted">Umiejętności</span><div class="skills">${skillKeys(b.skills)}</div></div><div><span class="muted">Czary</span><div class="spells-line">${b.spells.map((s) => img(s.icon, 'spell', s.name)).join('')}<span>${b.spells.map((s) => esc(s.name)).join(' + ')}</span></div></div></div>
@@ -452,6 +453,7 @@ function loadingScreen(s) {
       ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane postaci.</p>'}${priorityAdvicePanel(s)}${planDetails}${adviceDetails(list)}`
     : `${matchupRemindersPanel(s.noteReminders)}${botPlanPanel(s.botPlan)}${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
       ${priorityAdvicePanel(s)}
+      ${s.bookmarkShortcut?.error?`<p class="note">${esc(s.bookmarkShortcut.error)}</p>`:s.bookmarkShortcut?.active?`<p class="note" data-bookmark-shortcut>Zakładka do powtórki · ${esc(s.bookmarkShortcut.label)}</p>`:''}
       ${runeSummary(s.final?.myChampion)}
       ${planDetails}
       ${adviceDetails(list)}`;

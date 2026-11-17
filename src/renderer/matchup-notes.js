@@ -10,8 +10,10 @@ function matchupRemindersPanel(notes) {
     ${notes.map(n=>`<p><b>${esc(matchupNoteLabel(n.context))}</b><br><span class="matchup-note-body">${esc(n.text)}</span></p>`).join('')}</section>`;
 }
 
-async function openMatchupNotes(matchKey) {
-  if (document.getElementById('matchup-notes-dialog')) return;
+async function openMatchupNotes(matchKey, bookmark=null) {
+  const previous=document.getElementById('matchup-notes-dialog');
+  if (previous?.open) return;
+  previous?.remove();
   const dialog = document.createElement('dialog');
   dialog.id = 'matchup-notes-dialog';
   dialog.setAttribute('aria-labelledby','matchup-notes-title');
@@ -30,8 +32,9 @@ async function openMatchupNotes(matchKey) {
   let view;
   function showOption() {
     const item = view.options.find(o => o.context.id===selector.value);
-    field.value = item?.text || '';
-    remove.hidden = !item?.text;
+    const original=item?.text || '';
+    field.value = bookmark ? [original,bookmark.time+' · '+bookmark.text].filter(Boolean).join('\n') : original;
+    remove.hidden = !!bookmark || !item?.text;
     feedback.textContent = item?.updatedAt ? 'Ostatni zapis · '+new Date(item.updatedAt).toLocaleDateString('pl-PL') : '';
   }
   function render(id) {
@@ -56,7 +59,13 @@ async function openMatchupNotes(matchKey) {
       const result = await window.assist.editMatchupNote({owner:view.owner, match:matchKey, id, action, text:field.value});
       if (!result.ok) throw Error(result.error);
       if (!dialog.open) return;
-      view=result;render(id);
+      view=result;
+      if (bookmark) {
+        dialog.close();
+        toast('Dodano zakładkę do notesu matchupu.');
+        return;
+      }
+      render(id);
       feedback.textContent = action==='save'?'Zapisano notatkę.':'Usunięto notatkę.';
     } catch (e) { feedback.textContent=e.message; }
     finally { form.inert=false; }
@@ -67,6 +76,7 @@ async function openMatchupNotes(matchKey) {
   try {
     view=await window.assist.matchupNotes(matchKey);
     if (!view.ok) throw Error(view.error);
+    if (bookmark) view.options=view.options.filter(o=>o.fromMatch);
     if (dialog.open) render();
   } catch (e) { feedback.textContent=e.message; }
 }

@@ -1,4 +1,35 @@
 let compactMode=false;
+function skipButton(model,item,restore=false,short=false) {
+  const action=restore?'restore':'skip';
+  const label=restore?'Cofnij pominięcie':short?'Pomiń':'Pomiń '+item.name;
+  return `<button type="button" data-match-skip="${action}" data-skip-id="${item.id}" data-skip-key="${esc(model.key)}" data-skip-revision="${model.revision}" aria-label="${restore?'Przywróć':'Pomiń'} ${esc(item.name)} w tym meczu">${esc(label)}</button>`;
+}
+function matchSkipsPanel(b,compact=false) {
+  const model=b.matchSkips;
+  if (!model || labActive) return '';
+  const skipped=model.entries.map(it=>`<div><b>${esc(it.name)}</b> ${skipButton(model,it,true)}
+    <small>${esc(it.active ? it.replacement || 'Brak pasującego zamiennika w puli.' : 'Teraz uwzględniony przez ekwipunek, przypięcie lub quest.')}</small></div>`).join('');
+  const targetId=compact ? b.shop?.target?.id : b.mayhem?.nextItem?.upgrade && b.mayhem.nextItem.id;
+  const target=model.options.find(i=>i.id===targetId);
+  if (!skipped && !target) return '';
+  return `<div class="match-skips">${skipped?`<b>Pominięte w tym meczu</b>${skipped}`:''}
+    ${target?skipButton(model,target):''}</div>`;
+}
+function otherSkipChoices(b) {
+  const model=b.matchSkips, other=model?.options.filter(it=>it.id!==b.shop?.target?.id);
+  return other?.length ? disclosure('skip-planned','Pomiń inny przedmiot w tym meczu',other.map(it=>skipButton(model,it)).join(' ')) : '';
+}
+document.addEventListener('click',async e=>{
+  const button=e.target.closest('[data-match-skip]');
+  if (!button || button.disabled) return;
+  button.disabled=true;
+  try {
+    const result=await window.assist.editMatchSkip({key:button.dataset.skipKey,revision:Number(button.dataset.skipRevision),
+      id:Number(button.dataset.skipId),action:button.dataset.matchSkip});
+    if (!result.ok) throw Error(result.error);
+    toast(button.dataset.matchSkip==='skip'?'Pominięto przedmiot w tym meczu.':'Cofnięto pominięcie.');
+  } catch(error){toast(error.message,true);} finally {button.disabled=false;}
+});
 function purchaseControls(b,compact=false){
   const g=b.purchaseGoal;if(!g||labActive)return '';
   const canEdit=g.canEdit&&freshRead(b.readout?.inventory);
@@ -49,8 +80,10 @@ function compactScreen(s){
   return `<section class="compact-content"><h2>${esc(b.name)} <small>${esc(b.mode==='mayhem'?'ARAM: Mayhem':b.mode==='aram'?'ARAM':'Summoner’s Rift')}</small></h2>
     ${mayhemChoiceView(b.mayhem,true)}
     ${readoutPanel(b)}${b.shop?liveShopPanel(b,true):'<p>Plan przygotowany. Złoto odczytam po rozpoczęciu meczu.</p>'}
+    ${matchSkipsPanel(b,true)}
     ${alt?`<article class="compact-alternative"><b>Alternatywa: ${esc(alt.target.name)}</b><p>${esc(alt.benefit)}</p><p>Do ukończenia: ${alt.target.cost} złota${alt.purchase?' · teraz '+esc(alt.purchase.name)+' za '+alt.purchase.cost:''}</p><button data-pin-next="${alt.target.id}">Zbieram na ten przedmiot</button></article>`:''}
     ${tip?`<aside class="compact-tip"><b>Najważniejsze teraz</b><p>${esc(tip)}</p></aside>`:''}
+    ${otherSkipChoices(b)}
     ${dataFreshnessBadge()} <button data-build-report>Zgłoś dziwny build</button><p class="compact-help">Ctrl+X chowa to okno. „Pełny widok” otwiera szczegóły.</p></section>`;
 }
 function setCompactView(value){

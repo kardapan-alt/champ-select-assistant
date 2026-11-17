@@ -23,6 +23,7 @@ function purchaseRestriction(id,build,game) {
   if (item.to?.some(next=>itemAvailable(next,game,build.mode,build.alias)) && !isBootItem(id,game) && item.priceTotal < 1800)
     return 'To składnik receptury. Kolejność buildu pokazuje zakupy docelowe.';
   if (isBootItem(id,game) && [1001,2422].includes(id)) return 'To podstawowe buty. W docelowej kolejności planowane jest ich ulepszenie.';
+  if (build.mayhem?.skipped?.includes(id)) return 'Ten przedmiot został pominięty na ten mecz.';
   if (build.inspection.excluded) return 'Reguły bieżącej kombinacji Mayhem wykluczają ten zakup z planu.';
   return '';
 }

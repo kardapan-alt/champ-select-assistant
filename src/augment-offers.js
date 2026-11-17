@@ -95,7 +95,48 @@ function detectOffer(result,grid,catalog,pool){
       ||Math.max(...cards.map(c=>c.rect.h))-Math.min(...cards.map(c=>c.rect.h))>.06)continue;
     if(!matches.some(m=>signature(m)===signature(cards)))matches.push(cards);
   }
-  return {cards:matches.length===1?matches[0]:null,candidates};
+  return {cards:matches.length===1?matches[0]:null,candidates,
+    partial:matches.length===0 ? detectPair(candidates,grid) : null};
+}
+
+// Project the missing title onto a real third card. Two adjacent titles can
+// belong to slots 0/1 or 1/2, so require one unambiguous three-rim layout.
+function detectPair(candidates,grid){
+  const matches=new Map();
+  for(let i=0;i<candidates.length;i++)for(const right of candidates.slice(i+1)){
+    const left=candidates[i],a=left.x+left.w/2,b=right.x+right.w/2;
+    if(left.id===right.id || Math.abs(left.y-right.y)>.035)continue;
+    for(const [first,second] of [[0,1],[1,2],[0,2]]){
+      const gap=(b-a)/(second-first),mid=a+(1-first)*gap;
+      if(gap<.10||gap>.34||Math.abs(mid-.5)>.08)continue;
+      const slots=[0,1,2].map(slot=>{
+        const title=slot===first?left:slot===second?right:{x:mid+(slot-1)*gap-.001,y:left.y,w:.002,h:left.h};
+        return {id:title.id||null,rect:cardBounds(grid,title,gap)};
+      });
+      if(slots.some(s=>!s.rect))continue;
+      const aligned=slots.every(({rect:r})=>Math.abs(r.y-slots[0].rect.y)<.035&&Math.abs(r.h-slots[0].rect.h)<.06
+        &&Math.abs(r.w-slots[0].rect.w)<gap*.12);
+      if(!aligned)continue;
+      // Reject conflicting names in the same title band, including a duplicate
+      // in the unknown slot. It is unsafe to assign that slot by interpolation.
+      if(candidates.some(t=>Math.abs(t.y-left.y)<.035&&slots.some(s=>s.id!==t.id&&inside({x:t.x+t.w/2,y:t.y+t.h/2},s.rect))))continue;
+      matches.set(signature(slots),slots);
+      if(matches.size>1)return null;
+    }
+  }
+  return matches.size===1?matches.values().next().value:null;
+}
+
+// This state only lives for the current game and visual offer. A correction
+// supplies a name for comparison, never an augment for the player's build.
+function observePartial(previous,cards,at,freshness){
+  if(!cards)return null;
+  const same=previous && at>previous.at && at-previous.at<=freshness && signature(cards)===signature(previous.cards)
+    && cards.every((c,i)=>Math.abs(c.rect.x-previous.cards[i].rect.x)<.018&&Math.abs(c.rect.y-previous.cards[i].rect.y)<.025);
+  return same ? {...previous,cards,at,stable:true,full:null,absent:0} : {cards,at,token:at,stable:false,filled:null};
+}
+function filledCards(partial){
+  return partial?.stable && partial.filled ? partial.cards.map(c=>c.id?c:{...c,id:partial.filled}) : null;
 }
 function oldCardsVisible(grid,cards){
   return cards.some(({rect:r})=>{
@@ -181,4 +222,4 @@ class OfferTracker {
     this.at=at;this.offer=null;this.streak=0;return null;
   }
 }
-module.exports={titleCandidates,readGrid,detectOffer,cardBounds,oldCardsVisible,OfferTracker};
+module.exports={titleCandidates,readGrid,detectOffer,cardBounds,oldCardsVisible,observePartial,filledCards,OfferTracker};

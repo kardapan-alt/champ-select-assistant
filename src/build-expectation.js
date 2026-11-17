@@ -10,7 +10,7 @@ function normalizeExpectation(value) {
   return {kind:'after',itemId:value.itemId,prerequisiteId:value.prerequisiteId};
 }
 
-function checkExpectation(input, plan, sideSlot, game) {
+function checkExpectation(input, plan, sideSlot, game, upgrade = null) {
   const condition = normalizeExpectation(input);
   if (!condition) return null;
   const {kind,itemId,prerequisiteId} = condition;
@@ -18,7 +18,7 @@ function checkExpectation(input, plan, sideSlot, game) {
   if (!item || (kind === 'after' && !prerequisite))
     return {passed:false, message:'Katalog nie zawiera przedmiotu z warunku. Sprawdź jego identyfikator.'};
   const index = plan.findIndex(i=>i.id === itemId);
-  const present = index >= 0 || sideSlot?.id === itemId;
+  const present = index >= 0 || sideSlot?.id === itemId || upgrade?.id === itemId;
   if (kind === 'include') return {passed:present, message:'W planie powinien być '+item.name+'.'};
   if (kind === 'exclude') return {passed:!present, message:'Poza planem powinien pozostać '+item.name+'.'};
   // A side slot has no purchase position in the regular sequence.

@@ -1,4 +1,37 @@
 const reviewTime=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+async function loadReplayBookmarks(panel,match) {
+  const result=await window.assist.replayBookmarks(match.key);
+  if (!panel.isConnected) return;
+  if (!result.ok) {
+    panel.textContent='Połącz klienta LoL na koncie z tego meczu, aby odczytać zakładki do powtórki.';
+    return;
+  }
+  if (!result.marks.length) return;
+  const stamp=t=>reviewTime(t).padStart(5,'0');
+  panel.innerHTML='<h4>Zakładki do powtórki</h4>'+result.marks.map(mark=>`<form data-bookmark-time="${mark.time}">
+    <label><time>${stamp(mark.time)}</time> · Opis akcji
+      <textarea name="description" rows="2" maxlength="500">${esc(mark.text)}</textarea></label>
+    <div class="actions"><button>Zapisz opis</button>${result.canCopy?'<button type="button" data-bookmark-copy>Dodaj do notesu matchupów</button>':''}</div>
+    <p role="status" aria-live="polite"></p></form>`).join('');
+  for (const form of panel.querySelectorAll('form')) {
+    const time=Number(form.dataset.bookmarkTime), field=form.elements.description, status=form.querySelector('[role=status]');
+    const copy=form.querySelector('[data-bookmark-copy]');
+    if (copy) {
+      const toggle=()=>{copy.disabled=!field.value.trim();};
+      toggle();field.oninput=toggle;
+      copy.onclick=()=>openMatchupNotes(match.key,{time:stamp(time),text:field.value.trim()});
+    }
+    form.onsubmit=async e=>{
+      e.preventDefault();form.inert=true;
+      try {
+        const updated=await window.assist.editReplayBookmark({key:match.key,time,text:field.value});
+        if (!updated.ok) throw Error(updated.error);
+        field.value=updated.mark.text;status.textContent='Zapisano opis.';
+      } catch(err) { status.textContent=err.message; }
+      finally {form.inert=false;}
+    };
+  }
+}
 function recentMatchCard(m){return `<section class="panel recent-match"><h3>Podsumowanie ostatniego meczu</h3><b>${esc(m.name)} · ${esc(m.mode==='mayhem'?'ARAM: Mayhem':m.mode==='aram'?'ARAM':'Summoner’s Rift')}</b><p class="review-result">${esc(reviewOutcome(m))}</p><p>${m.firstRead==null?'Brak odczytu ekwipunku':'Zapis do '+reviewTime(m.duration)}${m.mode==='mayhem'?' · '+m.augments.length+' augmentów':''} · ${m.events.length} zmian w historii</p><button data-open-review>Otwórz podsumowanie</button></section>`;}
 function reviewOutcome(m){
   const manual=['win','loss'].includes(m.feedback?.result),result=manual?m.feedback.result:m.outcome?.result;
@@ -49,6 +82,7 @@ async function openMatchReviews(){
       ${m.mode==='mayhem' && (m.augments?.length || m.items?.length) ? `<button data-save-favorite="${esc(m.key)}">Dodaj do ulubionych</button>` : ''}
       <p id="review-outcome" class="review-result" aria-live="polite">${esc(reviewOutcome(m))}</p>
       ${trainingResultPanel(m)}
+      ${m.mode==='classic'?'<section data-replay-bookmarks></section>':''}
       <p class="note">${m.firstRead==null?'Brak odczytu ekwipunku.':`Zapis od ${reviewTime(m.firstRead)} do ${reviewTime(m.duration)}.`} ${m.reason==='ended'?'Klient potwierdził koniec gry.':'Zakończono zapis; nie potwierdzono momentu końca gry.'} Zmiany ekwipunku mogą oznaczać zakupy, sprzedaż, łączenie części lub nagrody. ${m.trimmed?'Pokazuję ostatnie 200 zdarzeń.':''} ${m.gap?'Końcowy odczyt był niedostępny.':''}</p>
       ${m.headliner?`<p><b>Headliner:</b> ${esc(m.headliner.name)} ${esc(m.headliner.ability)}</p>`:''}
       <h4>Ostatnio zapisane augmenty</h4><p>${names(m.augments)||'Brak zapisanych augmentów'}</p>
@@ -66,6 +100,8 @@ async function openMatchReviews(){
     notesButton.onclick = () => openMatchupNotes(m?.key);
     dialog.querySelector('[data-close-review]').before(notesButton);
     if(!m){refreshOpenReview=null;return;}
+    const bookmarks=dialog.querySelector('[data-replay-bookmarks]');
+    if(bookmarks)loadReplayBookmarks(bookmarks,m).catch(err=>toast(err.message,true));
     bindOfferHistory(dialog,m,renderReview);
     refreshOpenReview=fresh=>{if(fresh.key!==m.key)return;Object.assign(m,fresh);const badge=dialog.querySelector('#review-outcome');if(badge)badge.textContent=reviewOutcome(m);};
     dialog.querySelector('#review-match').onchange=e=>renderReview(e.target.value);

@@ -8,6 +8,12 @@ const SHORTCUTS = [
   { value: 'Control+Alt+X', label: 'Ctrl+Alt+X' },
   { value: '', label: 'Wyłączony' },
 ];
+const BOOKMARK_SHORTCUTS = [
+  {value:'Control+Alt+B', label:'Ctrl+Alt+B'},
+  {value:'Control+Shift+B', label:'Ctrl+Shift+B'},
+  {value:'Alt+Shift+B', label:'Alt+Shift+B'},
+  {value:'', label:'Wyłączony'},
+];
 
 function createDraftWatcher(show, enabled) {
   let previous = null;
@@ -20,7 +26,7 @@ function createDraftWatcher(show, enabled) {
   };
 }
 
-function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen, settings, saveSettings, log = () => {}, notify = () => {}, onViewMode=()=>{},
+function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen, settings, saveSettings, log = () => {}, notify = () => {}, onViewMode=()=>{}, onBookmark=()=>{},
   argv = process.argv, platform = process.platform, executable = process.execPath,
   portable = !!process.env.PORTABLE_EXECUTABLE_DIR }) {
   let tray = null;
@@ -29,6 +35,8 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
   let wantsWindow = !argv.includes('--background');
   let activeShortcut = '';
   let shortcutError = '';
+  let bookmarkGame = null, activeBookmark = '', bookmarkError = '', lastBookmarkPress = -Infinity;
+  if (!BOOKMARK_SHORTCUTS.some(s=>s.value===settings.bookmarkShortcut)) settings.bookmarkShortcut=BOOKMARK_SHORTCUTS[0].value;
   let compact=false,fullBounds=null,compactBounds=null,wasMaximized=false;
   if (!SHORTCUTS.some(s => s.value === settings.keyboardShortcut)) settings.keyboardShortcut = DEFAULT_SHORTCUT;
   const canAutoStart = platform === 'win32' && app.isPackaged && !portable;
@@ -121,6 +129,50 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
     }
   }
 
+  function setBookmarkShortcut(value, persist=true) {
+    if (!BOOKMARK_SHORTCUTS.some(s=>s.value===value)) return false;
+    const previous = activeBookmark, previousSetting = settings.bookmarkShortcut;
+    const desired = bookmarkGame ? value : '';
+    let registered = false;
+    try {
+      if (desired && desired!==previous) {
+        const session = bookmarkGame;
+        registered = globalShortcut.register(desired, () => {
+          if (quitting || bookmarkGame!==session || activeBookmark!==desired) return;
+          const now=Date.now(), elapsed=now-lastBookmarkPress;
+          lastBookmarkPress=now;
+          if (elapsed>=1500) Promise.resolve(onBookmark(session)).catch(err=>log('zakładka: '+err.message));
+        });
+        if (!registered) throw Error('Skrót zakładek jest zajęty. Wybierz inny w menu zasobnika.');
+      }
+      settings.bookmarkShortcut=value;
+      if (persist) saveSettings();
+      if (previous && desired!==previous) globalShortcut.unregister(previous);
+      activeBookmark=desired;
+      bookmarkError='';
+    } catch (err) {
+      if (registered) globalShortcut.unregister(desired);
+      settings.bookmarkShortcut=previousSetting;
+      bookmarkError=err.message;
+      if (persist) notify(err.message);
+      log('skrót zakładek: '+err.message);
+    }
+    menu();
+    return !bookmarkError;
+  }
+  function setBookmarkGame(id) {
+    if (bookmarkGame===id) return;
+    if (activeBookmark) globalShortcut.unregister(activeBookmark);
+    activeBookmark='';
+    bookmarkGame=id;
+    lastBookmarkPress=-Infinity;
+    setBookmarkShortcut(settings.bookmarkShortcut,false);
+  }
+  function bookmarkStatus() {
+    return {label:BOOKMARK_SHORTCUTS.find(s=>s.value===settings.bookmarkShortcut).label,
+      active:!!activeBookmark, error:bookmarkError};
+  }
+
   function menu() {
     if (!tray) return;
     tray.setContextMenu(Menu.buildFromTemplate([
@@ -134,6 +186,10 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
           ...(shortcutError ? [{ label: 'Skrót niedostępny — wybierz inny lub spróbuj ponownie', enabled: false }] : []),
         ] },
       { type: 'separator' },
+      { label: 'Zakładka powtórki SoloQ · '+bookmarkStatus().label, submenu:[
+        ...BOOKMARK_SHORTCUTS.map(s=>({label:s.label,type:'radio',checked:settings.bookmarkShortcut===s.value,click:()=>setBookmarkShortcut(s.value)})),
+        {type:'separator'},{label:bookmarkError || 'Działa podczas meczu Solo/Duo',enabled:false},
+      ]},
       { label: 'Pokazuj przy wyborze postaci', type: 'checkbox', checked: !!settings.autoPopup,
         click: (item) => { settings.autoPopup = item.checked; saveSettings(); menu(); } },
       { label: 'Uruchamiaj z Windowsem w tle', type: 'checkbox', enabled: canAutoStart,
@@ -173,6 +229,8 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
   win.on('session-end', () => { quitting = true; });
   app.on('before-quit', () => { quitting = true; });
   app.on('will-quit', () => {
+    if (activeBookmark) globalShortcut.unregister(activeBookmark);
+    activeBookmark='';bookmarkGame=null;
     if (activeShortcut) globalShortcut.unregister(activeShortcut);
     activeShortcut = '';
     if (tray) { tray.destroy(); tray = null; }
@@ -181,7 +239,8 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
   app.on('activate', show);
 
   const observePhase = createDraftWatcher(show, () => settings.autoPopup);
-  return { show, observePhase, toggleWindow, setShortcut,setCompact,isCompact:()=>compact };
+  return { show, observePhase, toggleWindow, setShortcut,setCompact,isCompact:()=>compact,
+    setBookmarkGame,bookmarkStatus,canBookmark:id=>!quitting && !!activeBookmark && bookmarkGame===id };
 }
 
 module.exports = { createDesktop, createDraftWatcher, DEFAULT_SHORTCUT };

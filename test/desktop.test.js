@@ -4,7 +4,7 @@ const { EventEmitter } = require('node:events');
 const { createDesktop, createDraftWatcher } = require('../src/desktop');
 
 function fixture({ background = true, packaged = true, portable = false, trayFails = false, launchAtLogin = false,
-  keyboardShortcut, occupied = [] } = {}) {
+  keyboardShortcut, bookmarkShortcut, onBookmark=()=>{}, occupied = [] } = {}) {
   const app = new EventEmitter();
   const win = new EventEmitter();
   const calls = { shown: 0, saved: 0, restored: 0, quit: 0, login: [] };
@@ -48,9 +48,9 @@ function fixture({ background = true, packaged = true, portable = false, trayFai
     setContextMenu(value) { this.menu = value; }
     destroy() { this.destroyed = true; }
   }
-  const settings = { autoPopup: true, launchAtLogin, keyboardShortcut };
+  const settings = { autoPopup: true, launchAtLogin, keyboardShortcut, bookmarkShortcut };
   const desktop = createDesktop({ app, win, Tray, globalShortcut, notify: message => notices.push(message), Menu: { buildFromTemplate: (items) => items },
-    nativeImage: { createFromPath: () => ({ isEmpty: () => false }) }, settings,
+    nativeImage: { createFromPath: () => ({ isEmpty: () => false }) }, settings, onBookmark,
     saveSettings: () => calls.saved++, argv: background ? ['app.exe', '--background'] : ['app.exe'],
     platform: 'win32', executable: 'C:\\App\\Champ Select Assistant.exe', portable });
   return { desktop, app, win, settings, calls, tray, shortcuts, notices, visible: () => visible,
@@ -241,4 +241,37 @@ test('zakończenie zwalnia skrót i nie pozwala ponownie pokazać okna', () => {
   assert.equal(f.shortcuts.size, 0);
   press();
   assert.equal(f.visible(), false);
+});
+
+test('skrót zakładek jest aktywny wyłącznie dla wskazanej gry i nie otwiera okna',()=>{
+  const marks=[], f=fixture({onBookmark:id=>marks.push(id)});
+  f.win.emit('ready-to-show');
+  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  f.desktop.setBookmarkGame('77');
+  const old=f.shortcuts.get('Control+Alt+B');
+  old();old();
+  assert.deepEqual(marks,['77']);
+  assert.equal(f.visible(),false);
+  f.desktop.setBookmarkGame('78');
+  old();f.shortcuts.get('Control+Alt+B')();
+  assert.deepEqual(marks,['77','78']);
+  f.desktop.setBookmarkGame(null);
+  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+});
+
+test('zajęty skrót zakładki, jego zmiana i wyłączenie zachowują Ctrl+X',()=>{
+  const f=fixture({occupied:['Control+Alt+B']});
+  const menu=()=>f.tray.menu.find(row=>row.label?.startsWith('Zakładka powtórki')).submenu;
+  f.desktop.setBookmarkGame('55');assert.match(f.desktop.bookmarkStatus().error,/zajęty/);
+  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  menu().find(row=>row.label==='Ctrl+Shift+B').click();
+  assert.equal(f.desktop.bookmarkStatus().active,true);
+  menu().find(row=>row.label==='Ctrl+Alt+B').click();
+  assert.equal(f.settings.bookmarkShortcut,'Control+Shift+B');
+  assert.equal(f.notices.length,1);
+  menu().find(row=>row.label==='Wyłączony').click();
+  assert.equal(f.settings.bookmarkShortcut,'');
+  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  f.desktop.setBookmarkGame(null);f.desktop.setBookmarkGame('56');
+  assert.equal(f.desktop.bookmarkStatus().active,false);
 });

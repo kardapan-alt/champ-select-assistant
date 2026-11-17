@@ -57,21 +57,29 @@ function inventoryOf(items, game, alias, mode = 'mayhem', sideBoots = false) {
     ownedBoots:inventory.find(i=>i.kind==='boots')?.id || null };
 }
 
+function ownSnapshot(snapshot, me, alias, pool) {
+  // Mirror matches can contain the same champion twice. Check the local Riot ID as well.
+  const {activePlayer:active,allPlayers:players,gameData:stats}=snapshot || {};
+  if (!active || !Array.isArray(players) || !stats) return {status:'waiting'};
+  if (stats.gameMode!==pool || !Number.isFinite(stats.gameTime) || stats.gameTime<0) return {status:'mismatch'};
+  const expected=me?.gameName && me?.tagLine ? `${me.gameName}#${me.tagLine}` : '';
+  if (!sameId(riotId(active),expected)) return {status:'mismatch'};
+  const matches=players.filter(p=>sameId(riotId(p),expected));
+  const own=matches.length===1 ? matches[0] : null;
+  if (!own || !matchesChampion(own,alias)) return {status:'mismatch'};
+  return {status:'live',active,players,stats,own};
+}
 class LiveClient {
   constructor(read = getJson) { this.read = read; }
+  async gameClock(me,alias,pool) {
+    const result=ownSnapshot(await this.read('/liveclientdata/allgamedata'),me,alias,pool);
+    return result.status==='live' ? result.stats.gameTime : null;
+  }
   async inventory(me, alias, pool, game, options = {}) {
-    // Porównujemy aktywnego gracza z listą graczy. Nie wybieramy pierwszej
-    // postaci o pasującej nazwie (lustra są możliwe, np. w grach niestandardowych).
-    // Jeden spójny odczyt: po zakupie nie łączymy starego złota z nowymi itemami.
-    const snapshot = await this.read('/liveclientdata/allgamedata');
-    const { activePlayer:active, allPlayers:players, gameData:stats } = snapshot || {};
-    if (!active || !Array.isArray(players) || !stats) return { status:'waiting' };
-    if (stats.gameMode !== pool || !Number.isFinite(stats.gameTime) || stats.gameTime < 0) return { status:'mismatch' };
-    const expected = me?.gameName && me?.tagLine ? `${me.gameName}#${me.tagLine}` : '';
-    if (!sameId(riotId(active),expected)) return { status:'mismatch' };
-    const matches = players.filter(p => sameId(riotId(p),expected));
-    const own = matches.length === 1 ? matches[0] : null;
-    if (!own || !matchesChampion(own,alias)) return { status:'mismatch' };
+    const snapshot=await this.read('/liveclientdata/allgamedata');
+    const result=ownSnapshot(snapshot,me,alias,pool);
+    if (result.status!=='live') return result;
+    const {active,players,stats,own}=result;
     const mode = options.mode || (pool === 'CLASSIC' ? 'classic' : pool === 'ARAM' ? 'aram' : 'mayhem');
     const inventory = inventoryOf(own.items,game,alias,mode,options.sideBoots);
     if (!inventory) return { status:'invalid' };

@@ -1,4 +1,9 @@
 const clone=value=>JSON.parse(JSON.stringify(value));
+// Bookmark notes have a separate account-checked IPC entry point.
+function publicReview(match) {
+  const {bookmarks,...summary}=match;
+  return clone(summary);
+}
 const counts=items=>{const out={};for(const i of items||[])out[i.id]=(out[i.id]||0)+(i.count||1);return out;};
 const item=i=>({id:i.id,name:i.name,icon:i.icon||'',count:i.count||1});
 const {rememberReplay}=require('./replay-checks');
@@ -68,10 +73,35 @@ class MatchReview {
   feedback(key,input){
     const m=this.value.matches.find(m=>m.key===key);if(!m)throw Error('Nie znaleziono tego podsumowania.');
     if(!['auto','unknown','win','loss'].includes(input?.result)||!['none','helpful','mixed','unhelpful'].includes(input?.rating))throw Error('Nieprawidłowa ocena meczu.');
-    m.feedback={result:input.result,rating:input.rating};this.persist();return clone(m);
+    m.feedback={result:input.result,rating:input.rating};this.persist();return publicReview(m);
   }
-  list(){return clone(this.value.matches);}
-  latest(){return this.value.matches[0] ? clone(this.value.matches[0]) : null;}
+  list(){return this.value.matches.map(publicReview);}
+  latest(){return this.value.matches[0] ? publicReview(this.value.matches[0]) : null;}
+  bookmark(meta,time){
+    if (!meta.owner || !Number.isFinite(time) || time<0 || meta.mode!=='classic') return false;
+    const match=this.ensureActive(meta);
+    if (!match || match.owner!==meta.owner) return false;
+    const second=Math.floor(time), previous=match.bookmarks || [];
+    if (previous.length && second<=previous.at(-1).time) return false;
+    match.bookmarks=[...previous,{time:second,text:''}];
+    try { this.persist(); } catch(err) { match.bookmarks=previous; throw err; }
+    return true;
+  }
+  bookmarks(key,owner){
+    const match=this.value.matches.find(m=>m.key===key && m.owner===owner && m.mode==='classic');
+    if (!match || !owner) return {marks:[],canCopy:false};
+    return {marks:clone(match.bookmarks || []),canCopy:!!match.noteContexts?.length};
+  }
+  editBookmark(key,owner,time,text){
+    const m=this.value.matches.find(m=>m.key===key && m.owner===owner && m.mode==='classic');
+    const mark=m?.bookmarks?.find(b=>b.time===time);
+    if (!owner || !mark) throw Error('Brak zakładki dla tego meczu i konta.');
+    if (typeof text!=='string' || text.trim().length>500) throw Error('Opis zakładki może mieć do 500 znaków.');
+    const previous=mark.text;
+    mark.text=text.trim();
+    try { this.persist(); } catch(err) { mark.text=previous; throw err; }
+    return {...mark};
+  }
   setOutcome(key,outcome){
     const m=this.value.matches.find(m=>m.key===key);
     if(!m||m.outcome||String(m.gameId)!==outcome?.gameId||!['win','loss'].includes(outcome.result)||!['client','history'].includes(outcome.source))return false;

@@ -21,7 +21,7 @@ function readoutRows(b){
     stopped['unreadable-frame']='Nieczytelny obraz · użyj okna bez ramek';
     stopped.missed='Brak potwierdzenia wyboru';
     const recent=s.at&&Date.now()-s.at<6000;
-    const reading={scanning:'OCR działa · czekam na 3 karty',partial:'Nazwy odczytane · brak pewnego układu kart','reading-offers':'Potwierdzam 3 karty',offers:'3 karty rozpoznane',confirming:'Potwierdzam wybór',detected:'Wybór zapisany'};
+    const reading={scanning:'OCR działa · czekam na karty',partial:'Nazwy odczytane · sprawdzam układ kart','partial-offer':'Rozpoznano 2 z 3 kart','reading-offers':'Potwierdzam 3 karty',offers:'3 karty rozpoznane',confirming:'Potwierdzam wybór',detected:'Wybór zapisany'};
     const status=!s.enabled?'OCR wyłączony':stopped[s.status]||(!recent?'Brak świeżego obrazu':reading[s.status]||(s.mode==='auto'?'OCR działa':'OCR po najechaniu'));
     rows.push({key:'augments',label:'Augmenty',text:`Zapisane: ${s.count} · ${status}${s.unknown?` · ${s.unknown} bez reguł`:''}`,
       tone:s.enabled&&recent&&!stopped[s.status]&&!s.unknown?'good':'readout-warning'});

@@ -2,6 +2,20 @@
 const {app}=require('electron');
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
 const catalog=require('../data/mayhem-augments.json').augments;
+const {WindowsOcr}=require('../src/windows-ocr');
+const read=WindowsOcr.prototype.read;
+let missingSlot=null;
+// Simulate a missed title while retaining the real OCR response for the
+// other columns, the live detector's frame geometry and the original image.
+WindowsOcr.prototype.read=async function(png) {
+  const result=await read.call(this,png);
+  if(missingSlot===null || !result?.layouts) return result;
+  const center=[.308,.5,.692][missingSlot];
+  return {...result,layouts:result.layouts.map(layout=>layout.map(line=>({...line,words:line.words.filter(word=>{
+    const x=(word.x+word.w/2)/result.width, y=(word.y+word.h/2)/result.height;
+    return Math.abs(x-center)>.095 || y<.33 || y>.49;
+  })})))};
+};
 const profile=path.resolve(__dirname,'../../screenshot-test-preview/profile');
 fs.mkdirSync(profile,{recursive:true});
 app.setPath('userData',profile);app.disableHardwareAcceleration();
@@ -41,16 +55,30 @@ app.whenReady().then(async()=>{
   let source=process.env.OFFER_REFERENCE,expected=testNames;
   if(source)expected=JSON.parse(process.env.OFFER_EXPECTED_IDS).map(id=>catalog.find(a=>a.id===id).english);
   else{source=path.join(profile,'fixture.png');fs.writeFileSync(source,Buffer.from(fixturePng,'base64'));}
-  const dbg=win.webContents.debugger;dbg.attach();
-  const {root}=await dbg.sendCommand('DOM.getDocument');
-  const {nodeId}=await dbg.sendCommand('DOM.querySelector',{nodeId:root.nodeId,selector:'#offer-screenshot-test input[type=file]'});
-  await dbg.sendCommand('DOM.setFileInputFiles',{nodeId,files:[path.resolve(source)]});dbg.detach();
+  const chooseFile=async()=>{
+    const dbg=win.webContents.debugger;dbg.attach();
+    try {
+      const {root}=await dbg.sendCommand('DOM.getDocument');
+      const {nodeId}=await dbg.sendCommand('DOM.querySelector',{nodeId:root.nodeId,selector:'#offer-screenshot-test input[type=file]'});
+      await dbg.sendCommand('DOM.setFileInputFiles',{nodeId,files:[path.resolve(source)]});
+    } finally { dbg.detach(); }
+  };
+  await chooseFile();
   const outcome=()=>evaluate("document.querySelector('#offer-screenshot-test [role=status]').dataset.result || ''");
   const cardNames=()=>evaluate("[...document.querySelectorAll('.screenshot-slots article')].map(a=>(a.querySelector('small')||a.querySelector('b')).textContent)");
   await wait(outcome,'Brak wyniku po wczytaniu pliku');
   assert.equal(await outcome(),'offer');
   assert.deepEqual(await cardNames(),expected);
   console.log('Plik PNG, trzy wycinki i wynik OCR:',expected.join(' / '));
+  for (let i=0;i<3;i++){
+    missingSlot=i;
+    await chooseFile();
+    await wait(async()=>await outcome()==='incomplete','Brak odczytu 2/3 dla slotu '+i);
+    assert.match(await evaluate("document.querySelector('#offer-screenshot-test [role=status]').textContent"),/Rozpoznano dwie karty/);
+    assert.deepEqual(await cardNames(),expected.map((name,j)=>i===j?'Brak dopasowania':name));
+  }
+  missingSlot=null;
+  console.log('PASS: nieczytelny lewy, środkowy i prawy tytuł, pozycje pozostałych kart zachowane.');
   await evaluate(`(async()=>{
     const blob=await new Promise(resolve=>screenshotFixture.toBlob(resolve,'image/jpeg'));
     const data=new DataTransfer();data.items.add(new File([blob],'cards.jpg',{type:'image/jpeg'}));

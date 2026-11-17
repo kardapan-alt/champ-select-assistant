@@ -20,7 +20,7 @@ function questProgressView(quests){
 function mayhemChoiceView(m,compact=false){
   if(!m||labActive||!m.matchKey)return '';
   const comparison=m.comparison;
-  let cards='';
+  let cards=m.partialOffer?partialOfferView(m.partialOffer):'';
   if(comparison){
     if(compact){
       cards=`<section class="augment-comparison" aria-label="Trzy karty augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${comparison.paused?'Ostatnia oferta z gry':'Kolejność jak w grze'}</span></div>
@@ -28,7 +28,7 @@ function mayhemChoiceView(m,compact=false){
     }else cards=augmentComparison(comparison);
   }
   const saved=m.undo?`<div class="augment-receipt"><span>Ostatnio zapisano <b>${m.undo.names.map(esc).join(', ')}</b></span><button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Cofa ostatni zapis w asystencie">Cofnij odczyt</button></div>`:'';
-  const missed=m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
+  const missed=m.missedOffer?missedOfferView(m.missedOffer):m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
   return cards+missed+saved+questProgressView(m.quests);
 }
 function mayhemPanel(b) {
@@ -43,6 +43,7 @@ function mayhemPanel(b) {
   screenText['ocr-error']='OCR nie odpowiada · ponawiam odczyt';
   screenText['unreadable-frame']='Otrzymuję pusty lub nieczytelny obraz. Ustaw w grze okno bez ramek.';
   screenText['partial']='Czytam nazwy, ale jeszcze nie potwierdziłem trzech kart';
+  screenText['partial-offer']='Rozpoznano 2 z 3 kart. Możesz uzupełnić brakującą nazwę.';
   screenText['reading-offers']='Trzy karty odczytane · potwierdzam obraz';
   screenText.missed='Ostatni wybór wymaga potwierdzenia';
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>

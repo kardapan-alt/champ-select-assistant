@@ -1,5 +1,5 @@
 // Drive two mock SoloQ games through the actual renderer, main process and LiveClient parser.
-const { app } = require('electron');
+const { app,globalShortcut } = require('electron');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -19,8 +19,19 @@ process.env.STEP = '0';
 const server = require('../mock/mock-lcu');
 let gameId = 777;
 let gameTime = 597;
+let missingItems=false;
 let creepScore = 55;
 let win;
+let bookmarkHandler=null, afterMatchHandler=null, windowRequests=0;
+// Capture the global registration without claiming a key on the tester's desktop.
+globalShortcut.register=(accelerator,handler)=>{
+  assert.equal(accelerator,'Control+Alt+B');
+  bookmarkHandler=handler;return true;
+};
+globalShortcut.unregister=accelerator=>{
+  assert.equal(accelerator,'Control+Alt+B');
+  bookmarkHandler=null;
+};
 const get = LcuClient.prototype.get;
 LcuClient.prototype.get = async function(url) {
   const result = await get.call(this, url);
@@ -35,7 +46,7 @@ LiveClient.prototype.inventory = function(...args) {
     return {
       activePlayer: {riotId:'Daniel#EUNE',currentGold:100},
       allPlayers: [{riotId:'Daniel#EUNE',rawChampionName:'game_character_displayname_Ahri',
-        position:'MIDDLE',team:'ORDER',items:[],scores:{creepScore,wardScore:3.25}}],
+        position:'MIDDLE',team:'ORDER',items:missingItems?undefined:[],scores:{creepScore,wardScore:3.25}}],
       gameData: {gameMode:'CLASSIC',gameTime:time},
     };
   };
@@ -44,8 +55,8 @@ LiveClient.prototype.inventory = function(...args) {
 app.on('browser-window-created', (_event, window) => {
   win = window;
   win.setPosition(-30000,-30000);
-  win.show = () => {};
-  win.focus = () => {};
+  win.show = () => {windowRequests++;};
+  win.focus = () => {windowRequests++;};
   win.webContents.setBackgroundThrottling(false);
 });
 const evaluate = code => win.webContents.executeJavaScript(code);
@@ -81,6 +92,7 @@ async function configurePool() {
 
 async function playGame(cs, target) {
   await waitFor("typeof lastState !== 'undefined' && lastState?.status==='champselect' && !!document.querySelector('[data-training-form]')");
+  assert.equal(bookmarkHandler,null);
   if (gameId===777) await configurePool();
   await select('[data-training-metric]', 'cs10');
   await evaluate(`(() => {const el=document.querySelector('[data-training-target]');el.value='${target}';
@@ -92,6 +104,20 @@ async function playGame(cs, target) {
   creepScore=cs-1;
   await step(6);
   await waitFor("lastState?.status==='loading-screen' && lastState.final?.build?.shop?.gold===100");
+  assert.equal(typeof bookmarkHandler,'function');
+  if (gameId===777) {
+    // The last poll held 597, but this keypress happens at 598.
+    gameTime=598;missingItems=true;
+    const before=windowRequests;
+    afterMatchHandler=bookmarkHandler;
+    bookmarkHandler();bookmarkHandler();
+    const until=Date.now()+4000;
+    while(Date.now()<until && !JSON.parse(fs.readFileSync(path.join(profile,'match-review.json'))).active.bookmarks?.length)
+      await new Promise(r=>setTimeout(r,40));
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(profile,'match-review.json'))).active.bookmarks,[{time:598,text:''}]);
+    missingItems=false;
+    assert.equal(before,windowRequests);
+  } else afterMatchHandler();
   if (gameId===778) await waitFor("document.querySelector('[data-matchup-reminders]')?.innerText.includes('Zachowaj E')");
   gameTime=601;
   creepScore=cs;
@@ -109,6 +135,7 @@ async function playGame(cs, target) {
   assert.ok(sampled, 'Missing measurement tick');
   await step(-1);
   await waitFor("lastState?.status==='idle'");
+  assert.equal(bookmarkHandler,null);
   await click('#match-history');
   await waitFor(`document.querySelector('[data-training-result]')?.innerText.includes('${cs}')`);
   return evaluate("document.querySelector('[data-training-result]').innerText");
@@ -119,23 +146,35 @@ server.once('listening',async()=>{
   require('../src/main');
   try {
     await playGame(68,70);
+    await waitFor("document.querySelector('[data-bookmark-time] time')?.textContent==='09:58'");
+    await evaluate("const mark=document.querySelector('[data-bookmark-time]');mark.elements.description.value='Czy wrócić po tej fali?';mark.elements.description.dispatchEvent(new Event('input'));mark.requestSubmit();void 0");
+    await waitFor("document.querySelector('[data-bookmark-time] [role=status]')?.textContent==='Zapisano opis.'");
     await click('[data-open-matchup-notes]');
     await waitFor("!!document.querySelector('[data-note-context] option')");
     await evaluate("document.querySelector('[data-note-text]').value='Zachowaj E przy wejściu Zeda';document.querySelector('[data-note-save]').click()");
     await waitFor("document.querySelector('#matchup-notes-dialog [role=status]')?.innerText.includes('Zapisano')");
     await click('[data-close-notes]');
+    await waitFor("!document.querySelector('#matchup-notes-dialog')");
+    await click('[data-bookmark-copy]');
+    await waitFor("document.querySelector('[data-note-text]')?.value.includes('Zachowaj E przy wejściu Zeda\\n09:58 · Czy wrócić po tej fali?')");
+    await click('[data-note-save]');
+    await waitFor("!document.querySelector('#matchup-notes-dialog')");
     await click('[data-close-review]');
     gameId++;
     await step(0);
     const second = await playGame(74,72);
     assert.ok(second.includes('68'), 'Missing personal median from the first match');
+    assert.ok(!JSON.parse(fs.readFileSync(path.join(profile,'match-review.json'))).matches[0].bookmarks?.length);
     await click('[data-open-matchup-notes]');
-    await waitFor("document.querySelector('[data-note-text]')?.value.includes('Zachowaj E')");
+    await waitFor("document.querySelector('[data-note-text]')?.value.includes('09:58 · Czy wrócić po tej fali?')");
     await click('[data-note-remove]');
     await waitFor("document.querySelector('#matchup-notes-dialog [role=status]')?.innerText.includes('Usunięto')");
     await click('[data-close-notes]');
     await click('[data-close-review]');
-    console.log('PASS: two picks, SoloQ goals with CS and median, post-game matchup note saved, recalled in the next match and removed.');
+    await step(8);
+    await waitFor("lastState?.mode==='aram'");
+    assert.equal(bookmarkHandler,null);
+    console.log('PASS: SoloQ pool, goals and matchup note; replay shortcut is scoped to the match, records a fresh time without showing the app, and copies an annotation to the confirmed matchup.');
     server.close();win.destroy();app.quit();
   } catch (err) {
     console.error(err);

@@ -21,6 +21,12 @@ const headliners = require('./headliners');
 const { itemInteraction, onHitExamples } = require('./mayhem-interactions');
 
 const ruleFor = augment => RULES[augment.api.replace(/^ARAM_/, '')];
+function activeQuestItems(selection = {}) {
+  return new Set((selection?.augments || []).filter(id=>!(selection.completed || []).includes(id)).flatMap(id=>{
+    const card=byId.get(id), rule=card && ruleFor(card);
+    return rule?.quest ? rule.items || [] : [];
+  }));
+}
 function upgradeTargets(rule,champion,selection={},enemy={}){
   if(!rule?.upgrade)return [];
   if(!rule.spellbladeUpgrade){
@@ -241,4 +247,4 @@ function effectiveSelection(session) {
   if (session.autoInventory === false || !session.inventory) return selection;
   return { ...selection, owned:session.inventory.owned, ownedBoots:session.inventory.ownedBoots };
 }
-module.exports = { choicesCatalog, validateSelection, adaptation, upgradeTargets, MayhemSession, effectiveSelection, EFFECTS, ownedAvailable, repeatItems };
+module.exports = { choicesCatalog, validateSelection, adaptation, upgradeTargets, MayhemSession, effectiveSelection, EFFECTS, ownedAvailable, repeatItems, activeQuestItems };

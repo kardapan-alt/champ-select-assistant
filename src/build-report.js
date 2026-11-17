@@ -36,7 +36,8 @@ function scenarioFrom(state, build, game) {
       roleQuests:!!state.roleQuestsEnabled, pool:state.mayhemPool === 'KIWI_JADE' ? 'KIWI_JADE' : 'KIWI',
       inventory:state.liveInventory ? inventory(state.liveInventory.items) : null,
       enemies:Array.isArray(state.liveEnemies) ? state.liveEnemies.map(p => ({ alias:aliasOf(p), items:inventory(p.items) })) : null,
-      goal:id(build.nextPurchase?.id)
+      goal:id(build.nextPurchase?.id),
+      ...(state.mode==='mayhem' && state.skippedItems?.length ? {skippedItems:[...state.skippedItems]} : {})
     }
   };
 }
@@ -70,6 +71,11 @@ function replayContext(context, state, alias, game) {
   if (!context) return;
   state.roleQuestsEnabled = state.mode === 'classic' && context.roleQuests === true;
   state.mayhemPool = context.pool === 'KIWI_JADE' ? 'KIWI_JADE' : 'KIWI';
+  if (state.mode==='mayhem' && context.skippedItems!==undefined) {
+    if (!Array.isArray(context.skippedItems) || !context.skippedItems.every(id))
+      throw Error('Zgłoszenie zawiera nieprawidłowe pominięte przedmioty.');
+    state.skippedItems=[...new Set(context.skippedItems)];
+  }
   state.allies.slice(1).forEach((p,i) => { p.position = position(context.allyRoles?.[i]); });
   state.enemies.forEach((p,i) => { p.position = position(context.enemyRoles?.[i]); });
   const parse = (value, champion) => {

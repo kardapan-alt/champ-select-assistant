@@ -67,6 +67,20 @@ test('two visible variants, repeated frames and a restart preserve order without
   assert.equal(validOffer([choices[0],choices[1],choices[1]],'KIWI'),false);
 });
 
+test('full OCR corrects a filled slot in place; live confirmation records one reversible choice', () => {
+  const review=new MatchReview(),match=review.ensureActive(meta);
+  const filled=newFrame(null,choices,1000,()=>capture(choices));recordOffer(match,filled);
+  const verified=choices.with(1,id('CrimsonCobalt'));
+  const full=newFrame(filled,verified,2100,()=>({...capture(verified),corrects:filled.recordId}));
+  recordOffer(match,full);
+  assert.equal(match.offers.length,1);assert.equal(full.recordId,filled.recordId);
+  assert.deepEqual(match.offers[0].cards.map(c=>c.id),verified);
+  assert.equal(recordOffer(match,full,verified[1],'token','confirmed'),true);
+  assert.equal(recordOffer(match,full,verified[2],'stale','confirmed'),false);
+  assert.equal(match.offers[0].source,'confirmed');assert.throws(()=>correctOffer(match,filled.recordId,null));
+  assert.equal(withdrawPicks(match,[verified[1]],'token'),true);assert.equal(match.offers[0].picked,undefined);
+});
+
 test('a finished OCR-only game supports missing picks, manual corrections and undo', () => {
   const history=new MatchReview();
   const m=history.ensureActive(meta);

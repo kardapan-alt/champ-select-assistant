@@ -785,12 +785,15 @@ function buildFor(alias, state, game, data) {
   }
   const tpl = defaultTemplate(champ, data);
   const threats = threatWeights(enemy);
-  const exists = (id) => itemAvailable(id, game, state.mode, alias);
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
   const reservedSlots = !isAram(state.mode) && ctx.position === 'support' ? 1 : 0;
   const owned = state.liveInventory?.owned || augmentation?.owned || [];
   const ownedBoots = state.liveInventory?.ownedBoots || augmentation?.ownedBoots;
+  const skipped = new Set(augmentation ? state.skippedItems || [] : []);
+  const questItems = augmentation ? mayhem.activeQuestItems(state.mayhem) : new Set();
+  for (const id of [...owned,ownedBoots,...questItems,state.choices?.boots,...(state.choices?.items || []).map(p=>p.id)]) skipped.delete(id);
+  const exists = id => !skipped.has(id) && itemAvailable(id,game,state.mode,alias);
   const soldBoots = !!state.liveInventory && owned.length === 6 && !ownedBoots;
   const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
   const explicit = id => owned.includes(id) || (state.choices?.items || []).some(p=>p.id===id);
@@ -815,7 +818,12 @@ function buildFor(alias, state, game, data) {
   else if (durable && enemy.adShare >= 0.6) { boots = data.boots.vsAd; bootsWhy = 'pancerz przeciw AD'; }
   else if (champ.class === 'mage' && enemy.apShare >= 0.65 && enemy.cc >= 3) { boots = data.boots.vsAp; bootsWhy = 'MR i odporność na CC'; }
 
-  if (!exists(boots)) boots = [tpl.boots, data.boots.vsAd, data.boots.vsAp].find(exists);
+  if (!exists(boots)) {
+    const alternatives = [baseBoots(tpl.boots),data.boots.vsAd,data.boots.vsAp];
+    if (skipped.size) alternatives.push(3158,3009,1001);
+    if (skipped.has(boots)) bootsWhy = 'Alternatywa po pominięciu butów na ten mecz';
+    boots = alternatives.find(exists);
+  }
   const bootsPinned = !!state.choices?.boots && exists(state.choices.boots) && isBootItem(state.choices.boots, game);
   if (bootsPinned) { boots = baseBoots(state.choices.boots); bootsWhy = 'Twój przypięty wybór'; }
   if (ownedBoots && mayhem.ownedAvailable(ownedBoots,game,alias,state.mode)) { boots = ownedBoots; bootsWhy = 'Już posiadane buty'; }
@@ -997,7 +1005,7 @@ function buildFor(alias, state, game, data) {
   const build = {
     alias,
     mode: state.mode || 'classic',
-    mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats],
+    mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats], questItems:[...questItems], skipped:[...skipped],
       headliner:require('./headliners').headlinerView(state.mayhem?.headliner,state.mayhem),synergies:require('./augment-synergies').synergies(state.mayhem),
       nextItem:augmentation.upgrades.find(u=>exists(u.to)) ? { ...item(augmentation.upgrades.find(u=>exists(u.to)).to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
@@ -1014,6 +1022,7 @@ function buildFor(alias, state, game, data) {
     spellsWhy: spells.why,
     reservedSlot: reservedSlots ? 'Przedmiot wsparcia' : null,
     boots: augmentation?.freeBoots && !augmentation.ownedBoots ? { id:null,name:'Buty z augmentu',icon:'',why:'Darmowe — zaznacz otrzymane',owned:true,slot:'boots' }
+      : !boots && skipped.size ? {id:null,name:'Brak proponowanych butów',why:'Warianty z planu zostały pominięte',slot:'boots'}
       : { ...item(boots), why: bootsWhy, pinned: bootsPinned, owned:!!ownedBoots, slot: 'boots' },
     items: finalItems,
     alternatives: alternatives.map((a) => ({ ...item(a.id), why: reasonOf(Object.entries(a.tags).sort((x, y) => y[1] * (threats[y[0]] || 0) - x[1] * (threats[x[0]] || 0))[0][0]) })),

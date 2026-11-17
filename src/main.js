@@ -45,9 +45,10 @@ const { MayhemFavorites } = require('./mayhem-favorites');
 const {augmentImpact}=require('./augment-impact');
 const {readoutFor,BuildChanges}=require('./build-insight');
 const {purchaseKey,canBuy,withPurchaseGoal,PurchaseGoal}=require('./next-purchase');
+const {skipChoices,replacement}=require('./match-skips');
 const {dataFreshness,patchOf}=require('./data-freshness');
 let purchaseGoal;
-const {ownerKey,ResultResolver}=require('./match-result');
+const {ownerKey,gameId:validGameId,ResultResolver}=require('./match-result');
 const training = require('./training');
 const resultResolver=new ResultResolver();
 const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
@@ -277,7 +278,8 @@ function send(state) {
       version:app.getVersion(),patch:state.dataStatus.version,gold:b.shop?.gold
     });
     b.reportToken = crypto.createHash('sha256').update(session).update(JSON.stringify(report)).digest('hex');
-    shownBuildReports.set(b.reportToken,report);
+    const skipped=b.matchSkips && mayhemSession.value?.skips?.findLast(entry=>b.mayhem.skipped.includes(entry.id));
+    shownBuildReports.set(b.reportToken,{report,skipped});
     if (shownBuildReports.size > 8) shownBuildReports.delete(shownBuildReports.keys().next().value);
   }
   if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
@@ -315,6 +317,7 @@ async function tick() {
   polling = true;
   try {
     if (!lcu) {
+      desktop?.setBookmarkGame(null);
       trainingAccount = null;
       const creds = await findCredentials();
       if (!creds) return send({ status: 'no-client' });
@@ -322,6 +325,7 @@ async function tick() {
       game = null;
     }
     const phase = await lcu.get('/lol-gameflow/v1/gameflow-phase').catch(() => undefined);
+    if (phase!=='InProgress') desktop?.setBookmarkGame(null);
     if (phase === undefined) { matchReview?.gap(); lcu = null; loading = null; return send({ status: 'no-client' }); }
     if(visionToken && phase!=='InProgress')stopVisionWorkers();
     // Przejścia faz są niezależne od odświeżania statystyk i zawartości draftu.
@@ -330,6 +334,8 @@ async function tick() {
     // During an established game a transient read failure is handled by the
     // existing stale-snapshot path. A new session always needs positive proof.
     if (active && (flow || !loading || phase === 'ChampSelect')) detectMode(flow);
+    if (phase==='InProgress') desktop?.setBookmarkGame(
+      Number(flow?.gameData?.queue?.id)===420 && modeFromFlow(flow)==='classic' ? validGameId(flow.gameData.gameId) : null);
     desktop?.observePhase(active && currentMode === 'unsupported' ? 'Unsupported' : phase);
     if (active && currentMode === 'unsupported') return send({ status:'unsupported', mode:currentMode, phase });
     if (!game) {
@@ -412,6 +418,7 @@ async function tick() {
     autoImportRunes();
     autoExportItemSet();
   } catch (err) {
+    desktop?.setBookmarkGame(null);
     matchReview?.gap();
     send({ status: 'error', message: String(err && err.message || err) });
     lcu = null;
@@ -424,6 +431,22 @@ async function tick() {
 
 let loading = null;
 let loadingDirty = false;
+async function markReplayMoment(sessionId) {
+  const target=loading, client=lcu, started=Date.now();
+  const me=target?.allies.find(p=>p.isMe), own=game?.championsById.get(me?.championId);
+  if (!client || !own || !me.puuid || validGameId(target.gameId)!==sessionId || !desktop?.canBookmark(sessionId)) return;
+  // Read the game's clock on keypress. The regular inventory poll may be stale
+  // after a pause, reconnect, account switch or change of game.
+  const time=await liveClient.gameClock(me,own.alias,'CLASSIC');
+  if (time===null) return;
+  const [phase,flow,summoner]=await Promise.all([client.get('/lol-gameflow/v1/gameflow-phase'),
+    client.get('/lol-gameflow/v1/session'),client.get('/lol-summoner/v1/current-summoner')]);
+  if (Date.now()-started>2500 || target!==loading || client!==lcu || !desktop.canBookmark(sessionId) ||
+    phase!=='InProgress' || modeFromFlow(flow)!=='classic' || Number(flow.gameData.queue.id)!==420 ||
+    validGameId(flow.gameData.gameId)!==sessionId || summoner?.puuid!==me.puuid) return;
+  matchReview.bookmark({key:`${target.gameId}:${own.alias}:classic`,alias:own.alias,name:own.name,mode:'classic',
+    gameId:target.gameId,championId:me.championId,owner:ownerKey(me.puuid)},time);
+}
 const playerKey = (p) => `${p.gameName}#${p.tagLine}`;
 
 async function syncLiveInventory() {
@@ -528,6 +551,7 @@ function buildLoadingView() {
     status: 'loading-screen',
     region: loading.region,
     noteReminders,
+    bookmarkShortcut:Number(currentQueueId)===420 && currentMode==='classic' ? desktop?.bookmarkStatus() : null,
     plan,
     botPlan: botLanePlan({ me, allies: loading.allies, enemies: loading.enemies, mode: currentMode, gameId: loading.gameId },
       currentQueueId, game, data, botDraft),
@@ -557,6 +581,7 @@ function loadingSelectState(me) {
   return { ...base, me:{ ...base.me, ...me }, allies:loading.allies, mode:currentMode, roleQuestsEnabled:currentRoleQuests,
     enemies: loading.enemies.map((p) => ({ championId: p.championId })),
     mayhem:session ? mayhem.effectiveSelection(session) : undefined,
+    skippedItems:session?.skips?.map(entry=>entry.id) || [],
     liveInventory:session ? session.autoInventory !== false ? session.inventory : null : loading.liveInventory,
     liveEnemies:loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)<6000 ? loading.liveSnapshot?.enemies : null,
     mayhemKey:session?.key, mayhemPool:currentMayhemPool };
@@ -586,6 +611,11 @@ function finalWithEnemies(me) {
       suggestion:result.active&&naturalShop.target?.id!==goal.id?naturalShop.target:null};
     if (build.mayhem) {
       const auto = mayhemSession.value?.autoInventory !== false;
+      if (loading.gameId) build.matchSkips={key:s.mayhemKey,revision:mayhemSession.value.skipRevision || 0,
+        options:skipChoices(build),entries:(mayhemSession.value.skips || []).map(entry=>({
+          id:entry.id,name:game.items.get(entry.id)?.name || String(entry.id),replacement:entry.replacement,
+          active:build.mayhem.skipped.includes(entry.id)
+        }))};
       const next = build.mayhem.nextItem;
       if (next && s.liveInventory) {
         const credit = componentCredit(next.id,s.liveInventory,game);
@@ -606,6 +636,15 @@ function finalWithEnemies(me) {
         gold:liveStatus==='live'?loading.liveSnapshot?.gold:null};
       build.mayhem.quests=questProgress(costs,mayhemSession.value.questReceipts);
       const offer=loading.visionOffer;
+      const partial=loading.partialOffer;
+      if(partial?.stable&&!partial.filled&&Date.now()-partial.at<30000){
+        build.mayhem.partialOffer={token:partial.token,cards:partial.cards.map(c=>{
+          const card=visionCatalog.find(a=>a.id===c.id);
+          return card?{id:card.id,name:card.name,english:card.english}:null;
+        })};
+      }
+      const recovery=loading.visionMissed && recoverableOffer();
+      if(recovery)build.mayhem.missedOffer={token:recovery.id,cards:recovery.cards.map(({id,name,english})=>({id,name,english}))};
       if(offer&&Date.now()-offer.at<30000){
         const enemy=engine.teamProfile(s.enemies.filter(e=>e.championId).map(e=>engine.champInfo(game.championsById.get(e.championId)?.alias,game,data)));
         const champion=engine.champInfo(alias,game,data);
@@ -613,7 +652,7 @@ function finalWithEnemies(me) {
         let offerSnapshot=null;
         if(comparison&&(liveStatus==='live'||liveStatus==='manual')){
           const scenario=withChoices(alias,s);
-          const key=JSON.stringify([offer.ids,s.mayhem,s.liveInventory,s.liveEnemies,s.enemies.map(e=>e.championId),scenario.choices,goal.id,liveStatus]);
+          const key=JSON.stringify([offer.ids,s.mayhem,s.skippedItems,s.liveInventory,s.liveEnemies,s.enemies.map(e=>e.championId),scenario.choices,goal.id,liveStatus]);
           if(loading.offerPreview?.key!==key||loading.offerPreview.game!==game||loading.offerPreview.data!==data){
             try {offerSnapshot=offerHistory.snapshotOffer(offer.ids,scenario,alias,goal.id,game,data,liveStatus);}
             catch(error){log(`porównanie zakupów z kart: ${error.message}`);}
@@ -932,6 +971,32 @@ ipcMain.handle('set-next-purchase',wrap(input=>choiceWrites(async()=>{
   loadingDirty=true;send(buildLoadingView());return {ok:true};
 })));
 
+ipcMain.handle('edit-match-skip',wrap(input=>choiceWrites(async()=>{
+  if (!input?.key || !Number.isSafeInteger(input.id) || input.id<=0) throw Error('Wybierz przedmiot z bieżącego planu.');
+  const state=mayhemContext(input.key), session=mayhemSession.value;
+  if (!loading.gameId) throw Error('Czekam na identyfikator tego meczu z klienta.');
+  if ((session.skipRevision || 0)!==input.revision) throw Error('Lista pominięć uległa zmianie. Odśwież plan.');
+  const skips=[...(session.skips || [])];
+  if (input.action==='restore') {
+    const index=skips.findIndex(entry=>entry.id===input.id);
+    if (index<0) throw Error('Ten przedmiot już może wrócić do planu.');
+    skips.splice(index,1);
+  } else if (input.action==='skip') {
+    const before=finalWithEnemies(state.me)?.build;
+    if (!before?.matchSkips?.options.some(item=>item.id===input.id) || skips.some(entry=>entry.id===input.id))
+      throw Error('Wybierz nieprzypięty zakup z aktualnego planu. Ekwipunek i przedmioty wymagane przez quest mają pierwszeństwo.');
+    const scenario=withChoices(before.alias,state);
+    const report=createReport(scenario,before,game,{version:app.getVersion(),patch:lastState.dataStatus?.version,gold:before.shop?.gold});
+    const next={...scenario,skippedItems:[...state.skippedItems,input.id]};
+    const natural=engine.buildFor(before.alias,next,game,data);
+    const after=withPurchaseGoal(before.alias,next,game,data,natural,before.nextPurchase?.id).build;
+    skips.push({id:input.id,report,replacement:replacement(before,after,input.id)});
+  } else throw Error('Nieznana zmiana planu zakupów.');
+  mayhemSession.patch(input.key,{skips,skipRevision:input.revision+1});
+  loadingDirty=true;send(buildLoadingView());
+  return {ok:true};
+})));
+
 function choiceContext(alias, scope) {
   if (!game || !lastSelectState || game.championsById.get(lastSelectState.me?.championId)?.alias !== alias) throw new Error('Wybór postaci się zmienił. Odśwież własne wybory.');
   if (scope && scope !== choiceKey(alias, lastSelectState)) throw new Error('Rola lub tryb się zmieniły. Otwórz własne wybory ponownie.');
@@ -995,19 +1060,23 @@ ipcMain.handle('edit-pick-pool', wrap(input => {
 }));
 let buildReportDraft = null;
 ipcMain.handle('capture-build-report', wrap(token => {
-  const report = shownBuildReports.get(token);
-  if (!report) throw Error('Build się zmienił. Otwórz zgłoszenie jeszcze raz.');
-  buildReportDraft = {token:crypto.randomUUID(),report};
+  const shown = shownBuildReports.get(token);
+  if (!shown) throw Error('Build się zmienił. Otwórz zgłoszenie jeszcze raz.');
+  // A regression should replay the recommendation that caused the skip.
+  const report = shown.skipped?.report || shown.report;
+  buildReportDraft = {token:crypto.randomUUID(),report,currentReport:shown.skipped ? shown.report : null};
   const catalog = draftlab.catalog(game || offlineGame,baseData,report.scenario,report.scenario.alias);
-  const items = [...new Map([...catalog.items,...catalog.boots,...report.observed.plan,report.observed.questSlot]
+  const suggestedItem=shown.skipped && (game || offlineGame).items.get(shown.skipped.id);
+  const items = [...new Map([...catalog.items,...catalog.boots,...report.observed.plan,report.observed.questSlot,...shown.report.observed.plan,suggestedItem]
     .filter(Boolean).map(i=>[i.id,{id:i.id,name:i.name}])).values()].sort((a,b)=>a.name.localeCompare(b.name,'pl')||a.id-b.id);
-  return {ok:true,...buildReportDraft,items};
+  return {ok:true,...buildReportDraft,items,suggestedExclusion:shown.skipped?.id || null};
 }));
-ipcMain.handle('save-build-report', wrap(async (token, input) => {
+ipcMain.handle('save-build-report', wrap(async (token, input, source) => {
   const draft = buildReportDraft;
   if (!draft || draft.token !== token) throw Error('Otwórz ponownie podgląd zgłoszenia.');
   const expectation = normalizeExpectation(input);
-  const report = expectation ? {...draft.report,expectation} : draft.report;
+  const original = source==='current' && draft.currentReport ? draft.currentReport : draft.report;
+  const report = expectation ? {...original,expectation} : original;
   const {filePath,canceled} = await dialog.showSaveDialog(win,{
     title:'Zapisz anonimowe zgłoszenie buildu',defaultPath:`build-${draft.report.scenario.alias}.json`,
     filters:[{name:'Zgłoszenie Champ Select Assistant',extensions:['json']}]
@@ -1038,6 +1107,9 @@ async function noteAccount() {
   if (!owner) throw Error('Połącz klienta LoL, aby otworzyć notes swojego konta.');
   return owner;
 }
+ipcMain.handle('replay-bookmarks',wrap(async key=>({ok:true,...matchReview.bookmarks(key,await noteAccount())})));
+ipcMain.handle('edit-replay-bookmark',wrap(async input=>({ok:true,
+  mark:matchReview.editBookmark(input?.key,await noteAccount(),input?.time,input?.text)})));
 ipcMain.handle('matchup-notes',wrap(async key => ({ok:true,
   ...matchupNotes.view(await noteAccount(),matchReview.value.matches.find(m=>m.key===key))})));
 ipcMain.handle('edit-matchup-note',wrap(async input => {
@@ -1146,6 +1218,16 @@ function updateVisionOffer(value,invalidatedAt){
   if(JSON.stringify(loading.visionOffer?.ids||null)!==JSON.stringify(value?.ids||null))loadingDirty=true;
   loading.visionOffer=value;
 }
+function setPartialOffer(value){
+  const old=loading.partialOffer;
+  if(old?.token!==value?.token || old?.stable!==value?.stable || old?.filled!==value?.filled)loadingDirty=true;
+  loading.partialOffer=value;
+}
+function recoverableOffer(){
+  const last=matchReview.value.active?.offers?.at(-1);
+  return last && last.id===loading?.recoveryOffer && last.id===loading.historyFrame?.recordId
+    && !last.picked && !last.replacedBy ? last : null;
+}
 function historyMatch(state) {
   const me=state.me, champ=game.championsById.get(me.championId);
   return {key:`${loading.gameId||loading.sessionId}:${champ.alias}:mayhem`,alias:champ.alias,
@@ -1155,9 +1237,10 @@ function forgetOfferPicks(state,ids,receipt) {
   const match=matchReview.value.active;
   if (ids.length && match?.key===historyMatch(state).key && offerHistory.withdrawPicks(match,ids,receipt)) matchReview.persist();
 }
-function rememberOfferFrame(ids,at,state) {
+function rememberOfferFrame(ids,at,state,partial) {
   const pool=state.mayhemPool;
   if (!offerHistory.validOffer(ids,pool)) return null;
+  const previous=loading.historyFrame;
   loading.historyFrame=offerHistory.newFrame(loading.historyFrame,ids,at,()=>{
     const meta=historyMatch(state);
     const fresh=loading.liveStatus==='live' && Date.now()-(loading.liveAt||0)<6000;
@@ -1172,15 +1255,54 @@ function rememberOfferFrame(ids,at,state) {
       log(`historia ofert Mayhem: ${error.message}`);
       snapshot=offerHistory.snapshotOffer(ids,scenario,meta.alias,goal,game,data,'unknown');
     }
-    return {pool,meta,time,snapshot};
+    const slot=partial?.filled ? partial.cards.findIndex(c=>!c.id) : -1;
+    const corrects=slot>=0 && previous?.recordId && !previous.reroll && ids[slot]!==previous.ids[slot]
+      && ids.every((id,i)=>i===slot||id===previous.ids[i]) ? previous.recordId : null;
+    return {pool,meta,time,snapshot,corrects};
   });
   return loading.historyFrame;
 }
-function saveOfferFrame(frame,pickId,receipt) {
+function saveOfferFrame(frame,pickId,receipt,source) {
   if (!frame) return;
   const match=matchReview.ensureActive(frame.meta,frame.time);
-  if (match && offerHistory.recordOffer(match,frame,pickId,receipt)) matchReview.persist();
+  if (match && offerHistory.recordOffer(match,frame,pickId,receipt,source)) matchReview.persist();
+  if(frame.recordId){
+    loading.recoveryOffer=pickId?null:frame.recordId;
+    loading.offerWasOnScreen=!pickId;
+  }
 }
+ipcMain.handle('edit-live-offer',wrap(input=>choiceWrites(()=>{
+  if(!input?.matchKey||!Number.isSafeInteger(input.token))throw Error('Brakuje bieżącej oferty.');
+  const state=mayhemContext(input.matchKey);
+  if(!visionConfig?.enabled || visionConfig.mode!=='auto')throw Error('Włącz automatyczny odczyt kart.');
+  if(input.action==='fill'){
+    const p=loading.partialOffer;
+    if(!p?.stable || p.token!==input.token || p.filled || Date.now()-p.at>=30000)
+      throw Error('Oferta uległa zmianie. Otwórz aktualne karty.');
+    const ids=p.cards.map(c=>c.id||input.id);
+    if(!offerHistory.validOffer(ids,state.mayhemPool))throw Error('Wybierz inną kartę z puli tego meczu.');
+    const frame=rememberOfferFrame(ids,p.at,state);
+    frame.rects=p.cards.map(c=>c.rect);frame.visible=true;frame.aspect=p.aspect;
+    saveOfferFrame(frame);
+    setPartialOffer({...p,filled:input.id});
+    updateVisionOffer({ids,at:p.at});
+    loading.visionMissed=false;
+  }else if(input.action==='confirm'){
+    const offer=loading.visionMissed&&recoverableOffer();
+    if(!offer || offer.id!==input.token || !offer.cards.some(c=>c.id===input.id))
+      throw Error('Ten wybór jest już zapisany albo pojawiła się kolejna oferta.');
+    const session=mayhemSession.value;
+    if(session.selection.augments.includes(input.id))throw Error('Ta karta jest już zapisana.');
+    const receipt=crypto.randomUUID(),screenIgnored=(session.screenIgnored||[]).filter(id=>id!==input.id);
+    const next=augmentScreen.reconcile({...session,screenIgnored},[...new Set([...(session.screenSlots||[]),input.id])],
+      game,state.mayhemPool,{token:receipt,at:Date.now()});
+    mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots,screenHistory:next.screenHistory,screenIgnored});
+    saveOfferFrame(loading.historyFrame,input.id,receipt,'confirmed');
+    offerTracker.reset();loading.visionMissed=false;setPartialOffer(null);updateVisionOffer(null,Date.now());
+  }else throw Error('Nieznana operacja na kartach.');
+  loadingDirty=true;visionStatus(input.action==='fill'?'offers':'detected');
+  return {ok:true};
+})));
 function visionStatus(status,error=null) {
   if(loading&&(Date.now()-(loading.visionSavedAt||0)>=5000||loading.visionStatus!==status)){
     loading.visionSavedAt=Date.now();
@@ -1210,6 +1332,8 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   offerTracker.reset();
   if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>{
     offerHistory.rerollInput(loading?.historyFrame,event);
+    if(loading && (event.type==='down'||event.type==='cancel'))setPartialOffer(null);
+    if(loading && (loading.historyFrame?.reroll || event.type==='cancel')){loading.recoveryOffer=null;loading.visionMissed=false;}
     if(loading&&event.type==='focus'&&!event.focused&&offerTracker.hasChoiceInput())loading.visionMissed=true;
     offerTracker.input(event);
     if(event.type==='down'||event.type==='cancel')updateVisionOffer(null,event.at);
@@ -1222,6 +1346,7 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
 function stopVisionWorkers(){
   offerHistory.rerollInput(loading?.historyFrame,{type:'cancel'});
   updateVisionOffer(null);
+  if(loading){setPartialOffer(null);loading.recoveryOffer=null;}
   visionToken='';visionConsensus.reset();headlinerConsensus.reset();
   windowsOcr.stop();augmentClicks.stop();offerTracker.reset();
   if(win&&!win.isDestroyed())win.webContents.setBackgroundThrottling(true);
@@ -1288,18 +1413,19 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
 }));
 async function readAutomaticAugment(input,state){
   if(loading?.visionOffer&&Date.now()-loading.visionOffer.at>=30000)updateVisionOffer(null);
+  if(loading.partialOffer && Date.now()-loading.partialOffer.at>=30000)setPartialOffer(null);
   if(!augmentClicks.child)return {ok:false,error:'Ponawiam odczyt okna gry.'};
   const active=augmentClicks.active();
   if(!active&&!offerTracker.paused)offerTracker.input({type:'focus',focused:false,at:Date.now()});
   const focusedAtCapture=active&&input.at>=offerTracker.resumedAt;
-  if(!focusedAtCapture&&!loading.visionOffer){headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
+  if(!focusedAtCapture&&!loading.visionOffer&&!loading.partialOffer?.stable){headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
   const grid=augmentOffers.readGrid(input.grid);
   loading.visionDiagnostics={...(loading.visionDiagnostics||{}),width:input.width,height:input.height,
     frame:input.frame,frameValid:!!grid?.valid,receivedAt:Date.now()};
   if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
     ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){
     if(!focusedAtCapture){offerTracker.preview(null,null,input.at);visionStatus('paused');return {ok:true};}
-    offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus('unreadable-frame');return {ok:true};}
+    offerTracker.reset();headlinerConsensus.reset();setPartialOffer(null);updateVisionOffer(null);visionStatus('unreadable-frame');return {ok:true};}
   const started=Date.now(),result=await windowsOcr.read(input.png),readMs=Date.now()-started;
   return choiceWrites(async()=>{
     mayhemContext(input.matchKey);
@@ -1313,12 +1439,41 @@ async function readAutomaticAugment(input,state){
     const detected=result?.layouts&&augmentOffers.detectOffer({...result,crop:augmentVision.offerCrop(input.width,input.height)},grid,visionCatalog,state.mayhemPool);
     if(!focusedNow){
       const ids=loading.visionOffer?.ids;
-      if(offerTracker.preview(detected?.cards,ids,input.at))loading.visionOffer.at=input.at;
-      else if(detected?.cards&&ids&&detected.cards.some((card,i)=>card.id!==ids[i]))updateVisionOffer(null);
+      const previous=loading.partialOffer;
+      if(previous && detected){
+        const refreshed=augmentOffers.observePartial(previous,detected.partial,input.at,30000);
+        if(refreshed?.stable){
+          setPartialOffer(refreshed);
+          if(refreshed.filled&&ids)loading.visionOffer.at=input.at;
+        }else if(detected.cards && detected.cards.every((c,i)=>!previous.cards[i].id || c.id===previous.cards[i].id)){
+          // Finish the already confirmed partial offer while Ctrl+X has focus.
+          const full=detected.cards.map(c=>c.id);
+          const frame=rememberOfferFrame(full,input.at,state,previous);
+          frame.rects=detected.cards.map(c=>c.rect);frame.aspect=input.width/input.height;frame.visible=true;
+          if(!previous.full || !offerHistory.sameCards(previous.full,full))setPartialOffer({...previous,full});
+          else {saveOfferFrame(frame);setPartialOffer(null);updateVisionOffer({ids:full,at:input.at});}
+        }else if(detected.partial||detected.cards){setPartialOffer(null);updateVisionOffer(null);loading.recoveryOffer=null;}
+        else if(augmentOffers.oldCardsVisible(grid,previous.cards)){previous.absent=0;previous.full=null;}
+        else{
+          previous.full=null;
+          previous.absent=(previous.absent||0)+1;
+          if(previous.absent>=2){
+            setPartialOffer(null);updateVisionOffer(null);
+            if(ids&&recoverableOffer()){loading.visionMissed=true;loading.offerWasOnScreen=false;}
+          }
+        }
+      }
+      const visible=detected?.cards && detected.cards.map(c=>c.id);
+      if(offerTracker.preview(detected?.cards,loading.visionOffer?.ids,input.at))loading.visionOffer.at=input.at;
+      else if(visible&&ids&&!offerHistory.sameCards(visible,ids)&&!previous){updateVisionOffer(null);loading.recoveryOffer=null;}
+      else if(!previous && detected && !detected.partial && !visible && ids && recoverableOffer()
+        && !augmentOffers.oldCardsVisible(grid,loading.historyFrame.rects.map(rect=>({rect})))){
+        loading.visionMissed=true;loadingDirty=true;loading.historyFrame.visible=false;setPartialOffer(null);updateVisionOffer(null);
+      }
       visionStatus('paused');
       return {ok:true};
     }
-    if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'ocr-error');return {ok:true};}
+    if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();setPartialOffer(null);updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'ocr-error');return {ok:true};}
     noteVisionRead();
     if(automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
       const headliner=headlinerConsensus.observe(`${state.mayhemKey}:${visionToken}:${visionRevision}`,result,input.at);
@@ -1331,19 +1486,32 @@ async function readAutomaticAugment(input,state){
     const previousOffer=offerTracker.offer;
     const gesture=offerTracker.pending?.cards;
     const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:true,readMs});
+    const previousPartial=loading.partialOffer;
+    if(input.at>(loading.visionOfferAfter||0)){
+      const partial=augmentOffers.observePartial(loading.partialOffer,detected.partial,input.at,offerTracker.freshness);
+      if(partial)partial.aspect=input.width/input.height;
+      setPartialOffer(partial);
+      if((detected.partial||detected.cards)?.some((c,i)=>c.id&&c.id!==loading.historyFrame?.ids?.[i])){
+        loading.recoveryOffer=null;loading.visionMissed=false;
+      }
+    }
     if(detected.cards){
       const current=mayhemContext(input.matchKey);
-      const frame=rememberOfferFrame(detected.cards.map(c=>c.id),input.at,current);
+      const frame=rememberOfferFrame(detected.cards.map(c=>c.id),input.at,current,previousPartial);
       if (frame) {
         frame.rects=detected.cards.map(c=>c.rect);
         frame.visible=input.at>(loading.visionOfferAfter||0);
         frame.aspect=input.width/input.height;
       }
       if(offerTracker.streak>=2)saveOfferFrame(frame);
-    } else if (loading.historyFrame) loading.historyFrame.visible=false;
-    if(detected.cards||id)loading.visionMissed=false;
-    else if(previousOffer&&!offerTracker.pending&&!offerTracker.down&&!augmentOffers.oldCardsVisible(grid,previousOffer))loading.visionMissed=true;
-    updateVisionOffer(detected.cards&&offerTracker.streak>=2?{ids:detected.cards.map(c=>c.id),at:input.at}:null);
+    } else if (loading.historyFrame) loading.historyFrame.visible=!!loading.partialOffer?.filled;
+    if(detected.cards||detected.partial||id)loading.visionMissed=false;
+    else if(!offerTracker.pending&&!offerTracker.down && (previousOffer&&!augmentOffers.oldCardsVisible(grid,previousOffer)
+      ||loading.offerWasOnScreen&&recoverableOffer()&&!augmentOffers.oldCardsVisible(grid,loading.historyFrame.rects.map(rect=>({rect}))))){
+        loading.visionMissed=true;loading.offerWasOnScreen=false;
+      }
+    const publish=detected.cards&&offerTracker.streak>=2?detected.cards:augmentOffers.filledCards(loading.partialOffer);
+    updateVisionOffer(publish?{ids:publish.map(c=>c.id),at:input.at}:null);
     let saved=false;
     if(id){
       try{
@@ -1359,7 +1527,7 @@ async function readAutomaticAugment(input,state){
         }
       }catch{visionStatus('conflict');return {ok:true};}
     }
-    visionStatus(saved?'detected':offerTracker.pending?'confirming':detected.cards?offerTracker.streak>=2?'offers':'reading-offers':loading.visionMissed?'missed':detected.candidates.length?'partial':'scanning');
+    visionStatus(saved?'detected':offerTracker.pending?'confirming':publish?'offers':detected.cards?'reading-offers':loading.partialOffer?.stable?'partial-offer':loading.visionMissed?'missed':detected.candidates.length?'partial':'scanning');
     if(loadingDirty){loadingDirty=false;send(buildLoadingView());}
     return {ok:true};
   });
@@ -1538,6 +1706,7 @@ app.whenReady().then(() => {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
   desktop = createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen:require('electron').screen,settings,
+    onBookmark:markReplayMoment,
     onViewMode:compact=>win.webContents.send('view-mode',compact),
     saveSettings: () => writeJson(userFile('settings.json'), settings), log,
     notify: message => { dialog.showMessageBox({ type: 'info', title: 'Skrót klawiaturowy', message }).catch(err => log(err.message)); } });

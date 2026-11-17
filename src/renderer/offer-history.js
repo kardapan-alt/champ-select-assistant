@@ -13,7 +13,7 @@ function offerPlanView(offer, card) {
 function historyOfferView(offer, previewId) {
   const picked = offer.cards.find(c=>c.id===offer.picked);
   const card = offer.cards.find(c=>c.id===previewId) || picked || offer.cards[0];
-  const status = picked ? `Wybrano ${picked.name}${offer.source==='manual'?' · Twoja korekta':''}` : offer.replacedBy ? 'Przerzucona' : 'Wybór niepotwierdzony';
+  const status = picked ? `Wybrano ${picked.name}${offer.source==='manual'?' · Twoja korekta':offer.source==='confirmed'?' · potwierdzono w meczu':''}` : offer.replacedBy ? 'Przerzucona' : 'Wybór niepotwierdzony';
   const when = Number.isFinite(offer.time) ? reviewTime(offer.time) : 'Brak czasu gry';
   const positions = ['Lewa','Środkowa','Prawa'];
   return `<summary><b>${esc(when)}</b> · ${esc(status)}</summary>
@@ -21,7 +21,7 @@ function historyOfferView(offer, previewId) {
       <small>${positions[i]}${c.id===offer.picked?' · Wybrana':''}</small><b>${esc(c.name)}</b>${c.english!==c.name?`<small lang="en">${esc(c.english)}</small>`:''}</button>`).join('')}</div>
     <div data-history-plan>${offerPlanView(offer,card)}</div>
     <p class="note">${offer.inventory==='live'?'Porównanie z ekwipunkiem i ustawieniami z chwili odczytu.':offer.inventory==='manual'?'Porównanie z ręcznie ustawionym ekwipunkiem z chwili odczytu.':'Brak danych do przeliczenia zakupów w chwili odczytu.'}</p>
-    ${!offer.replacedBy && offer.source!=='screen' ? `<div class="actions">
+    ${!offer.replacedBy && !['screen','confirmed'].includes(offer.source) ? `<div class="actions">
       ${card.id!==offer.picked?`<button type="button" data-history-correct="${card.id}">Wybrałem tę kartę</button>`:''}
       ${offer.source==='manual'?'<button type="button" data-history-correct="">Cofnij korektę</button>':''}</div>`:''}
     <p class="note" role="status" aria-live="polite"></p>`;
