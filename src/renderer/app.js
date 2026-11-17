@@ -21,6 +21,7 @@ const STATUS = {
   'no-client': ['Klient LoL nie jest uruchomiony', false],
   loading: ['Wczytywanie danych z klienta…', false],
   idle: ['Połączono z klientem', true],
+  unsupported: ['Nierozpoznana lub nieobsługiwana kolejka', false],
   champselect: ['Wybór postaci', true],
   'loading-screen': ['Ekran ładowania', true],
   error: ['Błąd połączenia', false],
@@ -247,7 +248,9 @@ function liveShopPanel(b,compact=false) {
 function buildPanel(b, readonly = false, auto = null) {
   const aram = isAramView(b.mode);
   return `<div class="panel build-panel">
-    <div class="build-heading"><h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>${dataFreshnessBadge()}</div>
+    <div class="build-heading"><h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
+      <div class="build-heading-tools">${!labActive ? '<button data-build-report>Zgłoś dziwny build</button>' : ''}${dataFreshnessBadge()}</div></div>
+    ${mayhemChoiceView(b.mayhem)}
     ${readoutPanel(b)}
     ${liveShopPanel(b)}
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
@@ -273,20 +276,15 @@ function buildPanel(b, readonly = false, auto = null) {
 const gier = (n) => (n === 1 ? 'gra' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'gry' : 'gier');
 const pctClass = (v) => (v == null ? '' : v >= 55 ? 'good' : v < 48 ? 'bad' : '');
 
-// Blok statystyki: duży procent wygranych (kolor zależny od wyniku), nazwa, liczba gier i pasek.
-function stat(value, title, caption, sample = 0) {
-  const v = value == null ? null : Math.max(0, Math.min(100, value));
-  const small = v != null && sample < 20;
-  const cls = small ? '' : pctClass(v);
-  return `<div class="stat">
-    <div class="stat-v ${cls}">${v == null ? '–' : `${v}%`}</div>
-    <div class="stat-t">${title}</div>
-    <div class="stat-c">${caption}${small ? '<span class="sample-note">mała próba</span>' : ''}</div>
-    <div class="stat-bar"><i class="${cls}" style="width:${v ?? 0}%"></i></div>
-  </div>`;
+function rosterStat(title, value, count, below) {
+  const rate = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null;
+  const caption = below ? `&lt; ${below} ${gier(below)}` : count == null ? 'Brak próby' : `${count} ${gier(count)}`;
+  return `<span class="roster-stat"><span class="stat-t">${esc(title)}</span>
+    <strong class="stat-v ${count >= 20 ? pctClass(rate) : ''}">${rate == null ? '–' : rate + '%'}</strong>
+    <span class="stat-c">${caption}</span></span>`;
 }
 
-// Rozwinięte listy championów (pamiętane między odświeżeniami widoku).
+// Rozwinięcia pozostają otwarte przy kolejnych odczytach meczu.
 const expanded = new Map();
 // Zakładka na ekranie ładowania i w trakcie gry: gracze albo build z champion selecta.
 let loadingTab = 'overview';
@@ -307,50 +305,60 @@ function champTable(list, withKda) {
     </div>`).join('')}</div>`;
 }
 
-function poolSection(p) {
-  const key = p.name;
-  const open = expanded.get(key);
-  const tabs = `<div class="pool-tabs">
-    <button data-pool="${esc(key)}" data-view="season" class="${open === 'season' ? 'on' : ''}">Sezon ▾</button>
-    <button data-pool="${esc(key)}" data-view="30" class="${open === '30' ? 'on' : ''}">30 dni ▾</button>
-  </div>`;
-  const body = open === 'season' ? champTable(p.seasonChamps, false) : open === '30' ? champTable(p.recent30Champs, true) : '';
-  return `<div class="pool-box">${tabs}${body}</div>`;
+let rosterPeriod = 'season';
+
+function playerCardHtml(p, side, index) {
+  const champion = p.championView || {};
+  const anonymous = !!p.anonymous;
+  const name = anonymous ? 'Gracz anonimowy' : p.name || 'Nieznany gracz';
+  const loaded = !anonymous && !p.statsDisabled && !p.pending && p.loaded;
+  const rank = loaded && p.rank;
+  const title = [champion.name || 'Nieznana postać', p.position, p.isMe ? 'Ty' : '', p.laneOpponent ? 'Twój rywal z linii' : ''].filter(Boolean).join(' · ');
+  const identity = `<span class="pc-head">${img(champion.icon, 'icon', '')}
+    <span class="pc-identity"><strong class="pc-name" title="${esc(name)}">${esc(name)}</strong>
+    <span class="pc-champion">${esc(title)}</span></span></span>`;
+  const cls = `pcard ${side}${p.isMe ? ' me' : ''}`;
+  if (!loaded) {
+    const message = anonymous ? 'Brak publicznego Riot ID' : p.statsDisabled ? 'Statystyki wyłączone' : p.pending ? 'Pobieram statystyki…' : 'Profil OP.GG niedostępny';
+    return `<article class="${cls}"><div class="roster-summary">${identity}<span class="pc-wait">${message}</span></div></article>`;
+  }
+  const c = p.champion || {};
+  const recent = p.recent || {};
+  const month = rosterPeriod === '30';
+  const stats = month
+    ? rosterStat('Gracz', recent.last30WinRate, recent.last30Days) + rosterStat('Postać', c.last30WinRate, c.last30Days)
+    : rosterStat(rank?.queue || 'Ranking', rank?.winRate, rank?.games) + rosterStat('Postać', c.seasonWinRate, c.seasonGames, c.seasonBelow);
+  const rankLine = rank ? `<span class="rank-badge tier-${esc(String(rank.tier).toLowerCase())}">${esc(rank.label)}</span>
+    <span class="rank-queue">${esc(rank.queue || 'Ranking')}${rank.lp != null ? ` · ${esc(rank.lp)} LP` : ''}</span>` : 'Brak danych rangi';
+  const pool = month ? p.recent30Champs : p.seasonChamps;
+  const tags = p.tags || [];
+  const details = `<div class="roster-details">
+    ${c.kda ? `<p>KDA postaci w dostępnej historii <strong>${esc(c.kda.k)} / ${esc(c.kda.d)} / ${esc(c.kda.a)}</strong></p>` : ''}
+    ${p.mainRole && p.profileMode === 'classic' ? `<p>Najczęstsza rola <strong>${esc(p.mainRole)}</strong></p>` : ''}
+    ${tags.length ? `<div class="pc-tags">${tags.map(t => `<span class="tag">${esc(t.text)}</span>`).join('')}</div>` : ''}
+    <h4>${month ? 'Postacie z ostatnich 30 dni' : 'Postacie w sezonie'}</h4>
+    ${champTable(pool, month)}</div>`;
+  const key = `roster-${side}-${index}`;
+  return `<details class="${cls}" data-detail="${key}"${expanded.get('detail:' + key) ? ' open' : ''}>
+    <summary class="roster-summary" title="Rozwiń lub zwiń profil gracza ${esc(name)}">${identity}
+      <span class="pc-rank">${rankLine}</span><span class="stats">${stats}</span></summary>${details}</details>`;
 }
 
-function playerCardHtml(p, side) {
-  const c = p.champion || {};
-  const r = p.rank;
-  const rec = p.recent || {};
-  const games = (n) => `${n ?? 0} ${gier(n ?? 0)}`;
-  const rankLine = r
-    ? `<span class="rank-badge tier-${esc(r.tier.toLowerCase())}" title="${esc(r.queue||'Ranking')}">${esc(r.label)}</span>${r.lp != null ? `<span class="lp">${r.lp} LP</span>` : ''}`
-    : '<span class="rank-badge">Brak danych rangi</span>';
-  const tags = [...p.tags].sort((x, y) => (x.kind === 'warn' ? -1 : 0) - (y.kind === 'warn' ? -1 : 0)).slice(0, 3);
-  const body = p.pending
-    ? '<div class="muted pc-wait">Pobieram statystyki…</div>'
-    : !p.loaded
-      ? `<div class="muted pc-wait">${p.statsDisabled?'Statystyki OP.GG wyłączone':'Profil OP.GG niedostępny'}</div>`
-      : `<div class="stats">
-          ${stat(r ? r.winRate : null, r?.queue||'Ranking', r && r.games ? games(r.games) : 'brak gier', r?.games)}
-          ${stat(c.seasonWinRate, 'Champion', c.seasonBelow ? `&lt; ${c.seasonBelow} ${gier(c.seasonBelow)}` : games(c.seasonGames), c.seasonGames)}
-          ${stat(rec.last30WinRate, '30 dni', rec.last30More ? `próba ${games(rec.last30Days)}` : games(rec.last30Days), rec.last30Days)}
-        </div>
-        ${c.kda ? `<div class="pc-kda">KDA championem <b>${c.kda.k} / <span class="bad">${c.kda.d}</span> / ${c.kda.a}</b></div>` : ''}
-        ${tags.length ? `<div class="pc-tags">${tags.map((t) => `<span class="tag ${t.kind === 'good' ? 'good' : t.kind === 'warn' ? 'bad' : ''}">${esc(t.text)}</span>`).join('')}</div>` : ''}
-        ${poolSection(p)}`;
-  return `<div class="pcard ${side}${p.isMe ? ' me' : ''}${p.laneOpponent ? ' lane-opp' : ''}">
-    ${p.laneOpponent ? '<div class="lane-badge">Twój przeciwnik z linii</div>' : ''}
-    <div class="pc-head">
-      ${img(p.championView && p.championView.icon, 'icon', p.championView && p.championView.name)}
-      <div class="meta">
-        <div class="name" title="${esc(p.name)}">${esc(p.name)}</div>
-        <div class="pc-champion">${esc(p.championView?.name||'Nieznany champion')}${p.isMe?' · Ty':''}</div>
-        <div class="sub">${rankLine}</div>
-      </div>
-    </div>
-    ${body}
-  </div>`;
+function rosterPanel(s) {
+  const month = rosterPeriod === '30';
+  const team = (players, side, label) => `<section class="roster-team" aria-labelledby="roster-${side}">
+    <h3 class="${side}-h" id="roster-${side}">${label} <span>${players.length}</span></h3>
+    <div class="players-grid">${players.map((p,i) => playerCardHtml(p,side,i)).join('')}</div></section>`;
+  const note = isAramView(s.mode)
+    ? 'Ranga dotyczy kolejki rankingowej. Historia OP.GG obejmuje również mecze z innych trybów.'
+    : 'Statystyki z OP.GG. Przy każdym wyniku podano liczbę gier.';
+  return `<div class="players-context"><div class="roster-toolbar">
+    <div class="seg" role="group" aria-label="Okres statystyk obu drużyn">
+      <button data-roster-period="season" class="${month ? '' : 'on'}" aria-pressed="${!month}">Sezon</button>
+      <button data-roster-period="30" class="${month ? 'on' : ''}" aria-pressed="${month}">30 dni</button></div>
+    <button data-toggle-stats>${s.statsEnabled ? 'Wyłącz statystyki' : 'Włącz statystyki'}</button></div>
+    <p class="note">${note}${month ? ' Próba obejmuje ostatnie pobrane mecze rozegrane w tym okresie.' : ''}</p></div>
+    <div class="roster-teams">${team(s.allies,'ally','Twoja drużyna')}${team(s.enemies,'enemy','Przeciwnicy')}</div>`;
 }
 
 const VERDICT_LABEL = { good: ['Korzystny', 'good'], bad: ['Trudny', 'bad'], even: ['Wyrównany', ''] };
@@ -430,7 +438,7 @@ function loadingScreen(s) {
   const list = s.final?.build?.situations || s.gamePlan?.situations || [];
   const planDetails = s.mode === 'mayhem' ? '' : disclosure('full-plan', aram ? 'Plan walk na ARAM-ie' : 'Pełny plan na linię i grę', plans);
   const body = tab === 'players'
-    ? `<div class="players-context"><p class="note">${aram?`Profile OP.GG: ranga dotyczy kolejki rankingowej, a historia i statystyki championa mogą pochodzić z innych trybów. To nie jest winrate ${s.mode==='mayhem'?'Mayhem':'ARAM'}. Bez ocen roli, wizji i porad soloQ.`:'Winrate opisuje widoczną próbę gier. Mała próba i inna rola nie przesądzają o umiejętnościach gracza.'}</p><button data-toggle-stats>${s.statsEnabled?'Wyłącz statystyki':'Włącz statystyki'}</button></div><h3 class="ally-h">Twoja drużyna</h3><div class="pgrid players-grid">${s.allies.map((p) => playerCardHtml(p, 'ally')).join('')}</div><h3 class="enemy-h">Przeciwnicy</h3><div class="pgrid players-grid">${s.enemies.map((p) => playerCardHtml(p, 'enemy')).join('')}</div>`
+    ? rosterPanel(s)
     : tab === 'build'
       ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane postaci.</p>'}${priorityAdvicePanel(s)}${planDetails}${adviceDetails(list)}`
     : `${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
@@ -470,6 +478,10 @@ function render(s) {
   if (!s) return;
   const previous = lastState;
   lastState = s;
+  if (s.status === 'champselect' && previous?.status !== 'champselect') labEntry++;
+  if (previous?.status === 'loading-screen' && s.status !== 'loading-screen') {
+    for (const key of expanded.keys()) if (key.startsWith('detail:roster-')) expanded.delete(key);
+  }
   if (!labActive && (s.mode !== 'mayhem' || s.final?.build?.mayhem?.matchKey !== previous?.final?.build?.mayhem?.matchKey)) document.getElementById('mayhem-dialog')?.close();
   if (labActive) {
     if (s.status === 'champselect' && previous?.status !== 'champselect') {
@@ -482,6 +494,10 @@ function render(s) {
   if (s.mode === 'mayhem') $status.textContent = s.status === 'champselect' ? 'Mayhem · wybór postaci' : 'ARAM: Mayhem';
   $status.className = 'status' + (live ? ' live' : '');
 
+  if(s.status==='unsupported'){
+    patch($app,'<section class="empty"><h2>Ta kolejka nie została rozpoznana</h2><p>Asystent czeka na obsługiwany tryb. Analizy i importy są wstrzymane.</p></section>');
+    return;
+  }
   if(compactMode){patch($app,compactScreen(s));return;}
 
   if (s.status === 'loading-screen') {
@@ -535,9 +551,8 @@ $app.addEventListener('toggle', (e) => {
 $app.addEventListener('click', async (e) => {
   const btn = e.target.closest('button');
   if (!btn) return;
-  if (btn.dataset.pool) {
-    const key = btn.dataset.pool;
-    expanded.set(key, expanded.get(key) === btn.dataset.view ? null : btn.dataset.view);
+  if (btn.dataset.rosterPeriod) {
+    rosterPeriod = btn.dataset.rosterPeriod;
     render(lastState);
     return;
   }

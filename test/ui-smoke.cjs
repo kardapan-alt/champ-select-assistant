@@ -38,8 +38,8 @@ app.whenReady().then(async () => {
   const myChampion = { ...view('Leona'), locked: true, runes: engine.runePageFor('Leona', game, data, s) };
   const card = (p) => ({
     name: `${p.gameName}#TEST`, loaded: true, isMe: p.isMe, tags: [{ text: 'Mała próba danych o championie', kind: 'info' }],
-    rank: { tier: 'EMERALD', label: 'Emerald III', lp: 50, winRate: 51, games: 200 },
-    champion: { seasonGames: 16, seasonWinRate: 69 }, recent: { last30Days: 20, last30More: true, last30WinRate: 55 },
+    position: p.position, rank: { tier: 'EMERALD', label: 'Emerald III', queue: 'Solo/duo', lp: 50, winRate: 51, games: 200 },
+    champion: { seasonGames: 16, seasonWinRate: 69, last30Days: 3, last30WinRate: 67 }, recent: { last30Days: 20, last30More: true, last30WinRate: 55 },
     championView: view(game.championsById.get(p.championId).alias), seasonChamps: [], recent30Champs: [],
   });
   const plan = lanePlan(s.me, enemies, card, game, data);
@@ -88,8 +88,25 @@ app.whenReady().then(async () => {
   fs.writeFileSync(path.join(out, 'runes.png'), (await win.webContents.capturePage()).toPNG());
   await evaluate(`document.querySelector('[data-loading-tab="players"]').click()`); await settled();
   assert.equal(await evaluate(`document.querySelectorAll('.pcard').length`), 10);
-  assert.equal(await evaluate(`document.querySelectorAll('.stat-v.good').length`), 10, '69% z 16 gier ma neutralny kolor; dobre tylko 30 dni');
+  assert.equal(await evaluate(`document.querySelectorAll('.stat-v.good').length`), 0, '69% z 16 gier ma neutralny kolor');
+  assert.equal(await evaluate(`new Set([...document.querySelectorAll('.players-grid .pcard')].map(c=>c.offsetTop)).size`), 2, 'Szeroki ekran: pięciu graczy w każdym rzędzie');
+  await evaluate(`document.querySelector('[data-roster-period="30"]').click()`); await settled();
+  assert.equal(await evaluate(`document.querySelectorAll('[data-roster-period][aria-pressed="true"]').length`), 1);
+  assert.equal(await evaluate(`document.querySelectorAll('.stat-v.good').length`), 10, 'Wspólny filtr przełącza obie drużyny; dodatni kolor tylko dla 55% przy 20 grach');
+  assert.ok(await evaluate(`[...document.querySelectorAll('.pcard .stats')].every(el=>el.textContent.includes('67%') && el.textContent.includes('3 gry'))`));
+  await evaluate(`document.querySelector('.pcard summary').click()`); await settled();
+  assert.ok(await evaluate(`document.querySelector('.pcard').open && document.querySelector('.pcard h4').innerText.includes('30 dni')`));
+  await evaluate(`document.querySelector('.pcard summary').click()`); await settled();
+  const originalRoster = fixture;
+  fixture = {...fixture, enemies:fixture.enemies.map((p,i)=>i===4?{...p,anonymous:true,name:'SECRET#HIDDEN'}:p)};
+  win.webContents.send('state', fixture); await settled();
+  assert.ok(await evaluate(`document.querySelector('.roster-teams').innerHTML.includes('Gracz anonimowy') && !document.querySelector('.roster-teams').innerHTML.includes('SECRET')`));
+  assert.equal(await evaluate(`document.querySelectorAll('.pcard .stats').length`),9,'Anonimowy profil zachowuje kartę i ukrywa statystyki');
   fs.writeFileSync(path.join(out, 'players.png'), (await win.webContents.capturePage()).toPNG());
+  win.setContentSize(820,600); await settled();
+  assert.ok(await evaluate(`(() => { const teams=[...document.querySelectorAll('.roster-team')];return teams[0].offsetTop===teams[1].offsetTop && teams.every(team=>new Set([...team.querySelectorAll('.pcard')].map(c=>c.offsetTop)).size===5) && document.documentElement.scrollWidth<=innerWidth })()`),'Wąski ekran: dwie zwarte listy po pięciu graczy');
+  fs.writeFileSync(path.join(out, 'players-820.png'), (await win.webContents.capturePage()).toPNG());
+  fixture=originalRoster;win.webContents.send('state',fixture);await settled();
   await evaluate(`document.querySelector('[data-loading-tab="overview"]').click(); document.querySelector('[data-detail="team-advice"]').open = true`); await settled();
   fixture = { ...fixture, region: 'TEST2' }; win.webContents.send('state', fixture); await settled();
   assert.ok(await evaluate(`document.querySelector('[data-detail="team-advice"]').open`), 'rozwinięcie zachowane po aktualizacji');

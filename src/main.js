@@ -14,6 +14,7 @@ const { createDesktop, DEFAULT_SHORTCUT } = require('./desktop');
 const { roleQuestsEnabled } = require('./rolequests');
 const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
 const draftlab = require('./draftlab');
+const { createReport, readReport } = require('./build-report');
 const mayhem = require('./mayhem');
 const { LiveClient, componentCredit } = require('./liveclient');
 const { shopPlan } = require('./shop-plan');
@@ -43,6 +44,7 @@ const visionCatalog=require('../data/mayhem-augments.json').augments;
 const visionConsensus = new augmentVision.Consensus();
 let visionConfig = null, visionRevision = 0, visionToken = '', visionLastFrame = 0;
 const { isAram, modeFromFlow } = require('./modes');
+const { writeRunePage } = require('./rune-import');
 const offlineGame = require('./gamedata').buildGameData(require('../data/catalog.json'));
 const choiceWrites = serialQueue();
 let choicesStore;
@@ -95,17 +97,30 @@ const writeJson = (file, value) => { try { fs.writeFileSync(file, JSON.stringify
 const log = (line) => { try { fs.appendFileSync(userFile('log.txt'), `${new Date().toISOString()} ${line}\n`); } catch { /* brak zapisu */ } };
 
 let settings = { stats: true, autoRunes: true, autoItemSet: true, autoPopup: true, launchAtLogin: false, keyboardShortcut: DEFAULT_SHORTCUT };
-// Tryb gry z /lol-gameflow/v1/session: 'aram' (Howling Abyss) albo 'classic'.
-let currentMode = 'classic';
+// Włączamy funkcje dopiero po potwierdzeniu obsługiwanej kolejki przez klienta.
+let currentMode = 'unsupported';
 let currentMayhemPool = 'KIWI';
 let currentRoleQuests = false;
-async function detectMode() {
-  const flow = await lcu.get('/lol-gameflow/v1/session').catch(() => null);
+function detectMode(flow) {
   const gameMode = String((flow && flow.gameData && flow.gameData.queue && flow.gameData.queue.gameMode) || '').toUpperCase();
-  currentMode = modeFromFlow(flow);
-  currentMayhemPool = gameMode === 'KIWI_JADE' ? 'KIWI_JADE' : 'KIWI';
-  currentRoleQuests = roleQuestsEnabled(flow);
-  recomputeData();
+  const nextMode = modeFromFlow(flow);
+  const pool = gameMode === 'KIWI_JADE' ? 'KIWI_JADE' : 'KIWI';
+  const roleQuests = roleQuestsEnabled(flow);
+  const changed = nextMode !== currentMode || pool !== currentMayhemPool || roleQuests !== currentRoleQuests;
+  if (changed) {
+    lastSessionJson = '';
+    lastSelectState = null;
+    lastFinal = null;
+    lastImportedRunes = null;
+    lastObservedRunes = null;
+    autoRunes = { key:'', done:'', error:'' };
+    autoItemSet = { key:'', done:'', error:'' };
+    loading = null;
+  }
+  currentMode = nextMode;
+  currentMayhemPool = pool;
+  currentRoleQuests = roleQuests;
+  if (changed) recomputeData();
   return currentMode;
 }
 let provider = null;
@@ -162,7 +177,7 @@ function loadMeta() {
 const attempted = new Map();
 
 function requestAnalysis(alias, position, mode = currentMode, replace = true) {
-  if (mode === 'mayhem') return;
+  if (mode !== 'classic' && mode !== 'aram') return;
   // OP.GG wymaga pozycji; bez niej (champion spoza danych, zanim wczyta się meta) spróbujemy przy następnym odświeżeniu.
   // Na ARAM-ie pozycja nic nie zmienia, ale pole jest wymagane, więc wystarczy dowolna.
   if (mode === 'aram') position = position || 'middle';
@@ -205,6 +220,8 @@ function requestNeeded(state, picks) {
   for (const id of state.bench || []) requestAnalysis(aliasOf(id), roleOf(aliasOf(id)));
 }
 
+const shownBuildReports = new Map();
+let reportSession = '';
 function send(state) {
   const b=state.final?.build||state.build,analysisKey=b?.fromStats?stats.analyses[b.alias]?._key:null;
   const [analysisAlias,analysisRole,analysisMode]=(analysisKey||'').split(':');
@@ -212,6 +229,17 @@ function send(state) {
     analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null,baseSource:b?.baseSource,
     runeSource:(state.final?.myChampion||state.myChampion)?.runes?.runeSource});
   if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.list()[0]||null;
+  const session = b && ['champselect','loading-screen'].includes(state.status)
+    ? JSON.stringify([state.status,loading?.gameId || loading?.sessionId || '',b.alias,b.mode]) : '';
+  if (session !== reportSession) { shownBuildReports.clear(); reportSession = session; }
+  if (session && game && lastSelectState?.mode === b.mode && game.championsById.get(lastSelectState.me?.championId)?.alias === b.alias) {
+    const report = createReport(withChoices(b.alias,lastSelectState),b,game,{
+      version:app.getVersion(),patch:state.dataStatus.version,gold:b.shop?.gold
+    });
+    b.reportToken = crypto.createHash('sha256').update(session).update(JSON.stringify(report)).digest('hex');
+    shownBuildReports.set(b.reportToken,report);
+    if (shownBuildReports.size > 8) shownBuildReports.delete(shownBuildReports.keys().next().value);
+  }
   if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
     ||state.final.build.mayhem.matchKey!==lastState?.final?.build?.mayhem?.matchKey))stopVisionWorkers();
   lastState = state;
@@ -253,10 +281,16 @@ async function tick() {
       game = null;
     }
     const phase = await lcu.get('/lol-gameflow/v1/gameflow-phase').catch(() => undefined);
-    if (phase === undefined) { matchReview?.gap(); lcu = null; return send({ status: 'no-client' }); }
+    if (phase === undefined) { matchReview?.gap(); lcu = null; loading = null; return send({ status: 'no-client' }); }
     if(visionToken && phase!=='InProgress')stopVisionWorkers();
     // Przejścia faz są niezależne od odświeżania statystyk i zawartości draftu.
-    desktop?.observePhase(phase);
+    const active = phase === 'ChampSelect' || LOADING_PHASES.includes(phase);
+    const flow = active ? await lcu.get('/lol-gameflow/v1/session').catch(() => null) : null;
+    // During an established game a transient read failure is handled by the
+    // existing stale-snapshot path. A new session always needs positive proof.
+    if (active && (flow || !loading || phase === 'ChampSelect')) detectMode(flow);
+    desktop?.observePhase(active && currentMode === 'unsupported' ? 'Unsupported' : phase);
+    if (active && currentMode === 'unsupported') return send({ status:'unsupported', mode:currentMode, phase });
     if (!game) {
       game = await loadGameData(lcu).catch(() => null);
       if (!game) return send({ status: 'loading' });
@@ -265,14 +299,22 @@ async function tick() {
     }
     if (LOADING_PHASES.includes(phase)) {
       lastSessionJson = '';
-      if (!loading) {
-        await detectMode();
-        const players = await readLoadingPlayers(lcu).catch(() => null);
+      if (flow && loading?.gameId && String(loading.gameId) !== String(flow.gameData?.gameId)) loading=null;
+      if (!loading || flow) {
+        const players = await readLoadingPlayers(lcu, flow, loading).catch(() => null);
         if (!players) return send({ status: 'idle', phase });
-        loading = { ...players, summaries: {} };
-        fetchPlayerStats(loading);
-        loadingDirty = true;
-        autoExportItemSetForLoading();
+        if (!loading) {
+          loading = { ...players, summaries: {} };
+          fetchPlayerStats(loading);
+          loadingDirty = true;
+          autoExportItemSetForLoading();
+        } else if (JSON.stringify([players.allies,players.enemies]) !== JSON.stringify([loading.allies,loading.enemies])) {
+          Object.assign(loading, players);
+          const visible = new Set([...players.allies,...players.enemies].filter(p=>!p.anonymous).map(playerKey));
+          for (const key of Object.keys(loading.summaries)) if (!visible.has(key)) delete loading.summaries[key];
+          fetchPlayerStats(loading);
+          loadingDirty = true;
+        }
       }
       if (phase === 'InProgress') await syncLiveInventory();
       if (!loading) return;
@@ -287,6 +329,9 @@ async function tick() {
     else matchReview?.gap();
     loading = null;
     if (phase !== 'ChampSelect') {
+      currentMode = 'unsupported';
+      lastSelectState = null;
+      lastFinal = null;
       resultResolver.poll(matchReview,lcu).then(changed=>{
         if(changed&&lastState?.status==='idle')send({...lastState});
       }).catch(()=>{});
@@ -298,7 +343,6 @@ async function tick() {
     }
     const session = await lcu.get('/lol-champ-select/v1/session');
     if (!session) return;
-    if (!lastSessionJson) { await detectMode(); recomputeData(); }
     await choiceWrites(() => preserveManualRunes(engine.readSession(session, currentMode, { roleQuestsEnabled: currentRoleQuests })));
     // Bany i dostępność z osobnych list klienta: akcje w sesji nie zawsze pokazują ban od razu.
     const [pickable, disabled] = await Promise.all([
@@ -376,16 +420,20 @@ async function syncLiveInventory() {
 function fetchPlayerStats(target) {
   if (!settings.stats) return;
   target.statsFetching ||= new Set();
-  const players = [...target.allies, ...target.enemies].filter((p) => p.gameName && p.tagLine);
+  const players = [...target.allies, ...target.enemies].filter((p) => !p.anonymous && p.gameName && p.tagLine);
   let next = 0;
   const worker = async () => {
     while (next < players.length) {
       if(loading!==target||!settings.stats)return;
       const p = players[next++];
-      const key=playerKey(p);if(target.statsFetching.has(key)||target.summaries[key])continue;
+      const key=playerKey(p);
+      const visible=()=>[...target.allies,...target.enemies].some(current=>!current.anonymous && playerKey(current)===key);
+      if(!visible()||target.statsFetching.has(key)||target.summaries[key])continue;
       target.statsFetching.add(key);
       const summary = await provider.summoner({ gameName: p.gameName, tagLine: p.tagLine, region: target.region }).catch(() => null);
-      target.statsFetching.delete(key);target.summaries[key] = summary || false;
+      target.statsFetching.delete(key);
+      if (!visible() || loading!==target) continue;
+      target.summaries[key] = summary || false;
       if (target === loading) loadingDirty = true;
     }
   };
@@ -393,7 +441,7 @@ function fetchPlayerStats(target) {
 }
 
 function buildLoadingView() {
-  const cardOf = (p) => playerCard(p, settings.stats?loading.summaries[playerKey(p)]||null:null, game,Date.now(),currentMode);
+  const cardOf = (p) => playerCard(p, settings.stats && !p.anonymous ? loading.summaries[playerKey(p)]||null:null, game,Date.now(),currentMode);
   const card = (p) => ({
     ...cardOf(p),
     championView: champView(p.championId, p.skinId),
@@ -484,7 +532,7 @@ function finalWithEnemies(me) {
         live:{ auto, status:auto ? loading.liveStatus || 'waiting' : 'manual', inventory:mayhemSession.value?.inventory || null },
         screen:{ enabled:!!visionConfig?.enabled, config:visionConfig, revision:visionRevision,
           status:visionConfig?.enabled ? loading.visionStatus || 'waiting' : 'off', error:loading.visionError||null,
-          diagnostics:loading.visionDiagnostics||null } };
+          missed:!!loading.visionMissed,diagnostics:loading.visionDiagnostics||null } };
       const undo=augmentScreen.undoCandidate(mayhemSession.value);
       build.mayhem.undo=undo?{token:undo.token,names:undo.ids.map(id=>visionCatalog.find(a=>a.id===id)?.name).filter(Boolean)}:null;
       const offer=loading.visionOffer;
@@ -562,11 +610,12 @@ function buildView(session) {
 // ---------- akcje wywoływane z interfejsu (tylko na kliknięcie użytkownika) ----------
 
 const RUNE_PREFIX = 'CS Assist';
+let runePageOwners;
 
 let lastImportedRunes = null;
 let lastObservedRunes = null;
 async function preserveManualRunes(state) {
-  if (state?.mode === 'mayhem') return null;
+  if (state?.mode !== 'classic' && state?.mode !== 'aram') return null;
   const alias = game?.championsById.get(state?.me?.championId)?.alias;
   if (!alias || !lcu) return null;
   const current = await lcu.get('/lol-perks/v1/currentpage').catch(() => null);
@@ -586,25 +635,20 @@ async function preserveManualRunes(state) {
 }
 async function importRunes(alias, automatic = false) {
   if (currentMode === 'mayhem') throw new Error('W Mayhem runy są wyłączone.');
-  if (!lcu || !game) throw new Error('Brak połączenia z klientem');
+  if (!lcu || !game || currentMode === 'unsupported' || lastState?.status !== 'champselect') throw new Error('Import wymaga wyboru postaci w obsługiwanej kolejce.');
   if (automatic && (lastState?.status !== 'champselect' || game.championsById.get(lastSelectState?.me?.championId)?.alias !== alias)) return { ok: true, skipped: true };
   const currentPage = automatic ? await preserveManualRunes(lastSelectState) : null;
   const page = runesFor(alias);
   if (automatic && runeSignature(currentPage) === runeSignature(page)) return { ok: true, name: page.pinned ? 'Zachowane własne runy' : page.name };
   const body = { name: page.name, primaryStyleId: page.primaryStyleId, subStyleId: page.subStyleId, selectedPerkIds: page.selectedPerkIds, current: true };
-  const pages = (await lcu.get('/lol-perks/v1/pages')) || [];
-  const own = pages.find((p) => p.isDeletable && String(p.name).startsWith(RUNE_PREFIX));
-  if (own) await lcu.request('DELETE', `/lol-perks/v1/pages/${own.id}`);
-  let res = await lcu.request('POST', '/lol-perks/v1/pages', body);
-  if (!res.ok) {
-    // Brak wolnego miejsca: nadpisz aktualnie wybraną edytowalną stronę.
-    const current = await lcu.get('/lol-perks/v1/currentpage');
-    if (current && current.isDeletable) {
-      await lcu.request('DELETE', `/lol-perks/v1/pages/${current.id}`);
-      res = await lcu.request('POST', '/lol-perks/v1/pages', body);
-    }
-  }
-  if (!res.ok) throw new Error((res.data && res.data.message) || `Klient odrzucił runy (${res.status})`);
+  const file = userFile('rune-page-owners.json');
+  runePageOwners ||= readJson(file, {}) || {};
+  await verifyActionMode('ChampSelect');
+  await writeRunePage(lcu, body, runePageOwners, (account, entry) => {
+    runePageOwners[account] = entry;
+    fs.writeFileSync(file+'.tmp', JSON.stringify(runePageOwners));
+    fs.renameSync(file+'.tmp',file);
+  });
   lastImportedRunes = { scope: choiceKey(alias, lastSelectState), page: savedRunes(page) };
   return { ok: true, name: page.name };
 }
@@ -612,7 +656,7 @@ async function importRunes(alias, automatic = false) {
 // Automatyczny import run, gdy wszyscy zablokowali championów (raz na dany skład; można wyłączyć w ustawieniach).
 let autoRunes = { key: '', done: '', error: '' };
 async function autoImportRunes() {
-  if (currentMode === 'mayhem') return;
+  if (currentMode !== 'classic' && currentMode !== 'aram') return;
   const s = lastSelectState;
   if (!settings.autoRunes || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
@@ -634,6 +678,7 @@ const autoRunesView = () => ({ enabled: settings.autoRunes, done: autoRunes.done
 
 async function setSpells(alias) {
   if (!lcu || !game || !lastState || lastState.status !== 'champselect') throw new Error('Brak aktywnego wyboru postaci');
+  await verifyActionMode('ChampSelect');
   const { ids } = engine.spellsFor(alias, lastSelectState, game, data);
   const body = engine.orderSpells(ids, lastState._state.me);
   const res = await lcu.request('PATCH', '/lol-champ-select/v1/session/my-selection', body);
@@ -667,6 +712,8 @@ async function itemSetsUrl() {
 // Zestaw przedmiotów w sklepie: zastępuje poprzedni zestaw tej aplikacji, pozostałe zestawy gracza zostają.
 async function exportItemSet(alias, state = lastSelectState) {
   if (!lcu || !game || !state) throw new Error('Brak aktywnego wyboru postaci');
+  await verifyActionMode();
+  if (state.mode !== currentMode) throw Error('Tryb gry zmienił się przed zapisem zestawu.');
   const build = buildFor(alias, state);
   const set = engine.itemSetFor(build, alias, state, game, data);
   const { me, url } = await itemSetsUrl();
@@ -729,6 +776,12 @@ function autoExportItemSetForLoading() {
 const wrap = (fn) => async (_e, ...args) => {
   try { return await fn(...args); } catch (err) { return { ok: false, error: String(err.message || err), ...(err.extra || {}) }; }
 };
+
+async function verifyActionMode(requiredPhase) {
+  const [phase, flow] = await Promise.all([lcu.get('/lol-gameflow/v1/gameflow-phase'), lcu.get('/lol-gameflow/v1/session')]);
+  const validPhase = requiredPhase ? phase === requiredPhase : phase === 'ChampSelect' || LOADING_PHASES.includes(phase);
+  if (!validPhase || currentMode === 'unsupported' || currentMode !== modeFromFlow(flow)) throw Error('Poczekaj na potwierdzenie obsługiwanej kolejki.');
+}
 
 // Usuwa zestawy z wybranej grupy (tylko na kliknięcie gracza), żeby zrobić miejsce na zestaw aplikacji.
 async function cleanItemSets(group) {
@@ -815,6 +868,34 @@ ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
   return { ok: true, choices: own };
 })));
 ipcMain.handle('draft-catalog', wrap(() => ({ ok: true, ...draftlab.catalog(game || offlineGame, baseData) })));
+let buildReportDraft = null;
+ipcMain.handle('capture-build-report', wrap(token => {
+  const report = shownBuildReports.get(token);
+  if (!report) throw Error('Build się zmienił. Otwórz zgłoszenie jeszcze raz.');
+  buildReportDraft = {token:crypto.randomUUID(),report};
+  return {ok:true,...buildReportDraft};
+}));
+ipcMain.handle('save-build-report', wrap(async token => {
+  const draft = buildReportDraft;
+  if (!draft || draft.token !== token) throw Error('Otwórz ponownie podgląd zgłoszenia.');
+  const {filePath,canceled} = await dialog.showSaveDialog(win,{
+    title:'Zapisz anonimowe zgłoszenie buildu',defaultPath:`build-${draft.report.scenario.alias}.json`,
+    filters:[{name:'Zgłoszenie Champ Select Assistant',extensions:['json']}]
+  });
+  if (!canceled && filePath) {
+    const tempFile = filePath + '.' + crypto.randomUUID() + '.tmp';
+    try {
+      await fs.promises.writeFile(tempFile,JSON.stringify(draft.report,null,2),{encoding:'utf8',flag:'wx'});
+      await fs.promises.rename(tempFile,filePath);
+    } finally { await fs.promises.rm(tempFile,{force:true}); }
+  }
+  return {ok:true,saved:!canceled && !!filePath};
+}));
+ipcMain.handle('read-build-report', wrap(text => {
+  const report = readReport(text);
+  draftlab.preview(report.scenario,game || offlineGame,baseData);
+  return {ok:true,report};
+}));
 ipcMain.handle('preview-draft', wrap((input) => ({ ok: true, ...draftlab.preview(input, game || offlineGame, baseData) })));
 ipcMain.handle('mayhem-catalog', wrap(pool => ({ ok:true, ...mayhem.choicesCatalog(pool === 'KIWI_JADE' ? pool : 'KIWI') })));
 ipcMain.handle('match-reviews',wrap(()=>({ok:true,matches:matchReview.list()})));
@@ -852,6 +933,7 @@ ipcMain.handle('set-mayhem', wrap(input => choiceWrites(async () => {
   mayhemSession.patch(state.mayhemKey,{screenIgnored:merged.screenIgnored,screenHistory:merged.screenHistory});
   mayhemSession.setAutoInventory(state.mayhemKey,automatic);
   if(input.headlinerEdited===true){mayhemSession.patch(state.mayhemKey,{autoHeadliner:input.autoHeadliner,headlinerSource:'manual'});headlinerConsensus.reset();}
+  loading.visionMissed=false;
   loadingDirty = true; send(buildLoadingView());
   return { ok:true };
 })));
@@ -861,7 +943,7 @@ ipcMain.handle('undo-augment-recognition',wrap(input=>choiceWrites(async()=>{
   const state=mayhemContext(input.matchKey),next=augmentScreen.undoRecognition(mayhemSession.value,input.token);
   mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenHistory:next.screenHistory,
     screenIgnored:next.screenIgnored,screenUndoRevision:next.screenUndoRevision});
-  offerTracker.reset();visionConsensus.reset();loadingDirty=true;visionStatus('undone');
+  loading.visionMissed=false;offerTracker.reset();visionConsensus.reset();loadingDirty=true;visionStatus('undone');
   return {ok:true};
 })));
 function updateVisionOffer(value,invalidatedAt){
@@ -899,6 +981,7 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();headlinerConsensus.reset();
   offerTracker.reset();
   if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>{
+    if(loading&&event.type==='focus'&&!event.focused&&offerTracker.hasChoiceInput())loading.visionMissed=true;
     offerTracker.input(event);
     if(event.type==='down'||event.type==='cancel')updateVisionOffer(null,event.at);
     if(event.type==='focus'&&!event.focused){headlinerConsensus.reset();visionStatus('paused');}
@@ -971,40 +1054,63 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
 async function readAutomaticAugment(input,state){
   if(loading?.visionOffer&&Date.now()-loading.visionOffer.at>=30000)updateVisionOffer(null);
   if(!augmentClicks.child)return {ok:false,error:'Ponawiam odczyt okna gry.'};
-  if(!augmentClicks.active()){offerTracker.reset();headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
+  const active=augmentClicks.active();
+  if(!active&&!offerTracker.paused)offerTracker.input({type:'focus',focused:false,at:Date.now()});
+  const focusedAtCapture=active&&input.at>=offerTracker.resumedAt;
+  if(!focusedAtCapture&&!loading.visionOffer){headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
   const grid=augmentOffers.readGrid(input.grid);
   loading.visionDiagnostics={...(loading.visionDiagnostics||{}),width:input.width,height:input.height,
     frame:input.frame,frameValid:!!grid?.valid,receivedAt:Date.now()};
   if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
-    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus('unreadable-frame');return {ok:true};}
+    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){
+    if(!focusedAtCapture){offerTracker.preview(null,null,input.at);visionStatus('paused');return {ok:true};}
+    offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus('unreadable-frame');return {ok:true};}
   const started=Date.now(),result=await windowsOcr.read(input.png),readMs=Date.now()-started;
   return choiceWrites(async()=>{
     mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
+    // Losing focus invalidates an unfinished gesture, including OCR results that
+    // return after a focus change. The last verified offer remains visible.
+    if(input.at<=offerTracker.cancelledAt)return {ok:true};
+    const focusedNow=augmentClicks.active();
+    if(!focusedAtCapture&&focusedNow)return {ok:true};
+    if(focusedAtCapture&&!focusedNow){visionStatus('paused');return {ok:true};}
+    const cropWidth=Math.min(1,input.height*16/9/input.width);
+    const detected=result?.layouts&&augmentOffers.detectOffer({...result,crop:{x:(1-cropWidth)/2,y:0,w:cropWidth,h:1}},grid,visionCatalog,state.mayhemPool);
+    if(!focusedNow){
+      const ids=loading.visionOffer?.ids;
+      if(offerTracker.preview(detected?.cards,ids,input.at))loading.visionOffer.at=input.at;
+      else if(detected?.cards&&ids&&detected.cards.some((card,i)=>card.id!==ids[i]))updateVisionOffer(null);
+      visionStatus('paused');
+      return {ok:true};
+    }
     if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'ocr-error');return {ok:true};}
-    if(augmentClicks.active())noteVisionRead();
-    if(augmentClicks.active()&&automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
+    noteVisionRead();
+    if(automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
       const headliner=headlinerConsensus.observe(`${state.mayhemKey}:${visionToken}:${visionRevision}`,result,input.at);
       const patch=headliner&&applyHeadliner(mayhemSession.value,headliner);
       if(patch){mayhemSession.patch(state.mayhemKey,patch);loadingDirty=true;}
     }
-    const cropWidth=Math.min(1,input.height*16/9/input.width);
-    const detected=augmentOffers.detectOffer({...result,crop:{x:(1-cropWidth)/2,y:0,w:cropWidth,h:1}},grid,visionCatalog,state.mayhemPool);
     loading.visionDiagnostics={...loading.visionDiagnostics,readMs,
       titles:detected.candidates.length,cards:detected.cards?.length||0,
       recognizedIds:detected.candidates.map(c=>c.id)};
-    const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:augmentClicks.active(),readMs});
-    if(augmentClicks.active())updateVisionOffer(detected.cards&&offerTracker.streak>=2?{ids:detected.cards.map(c=>c.id),at:input.at}:null);
+    const previousOffer=offerTracker.offer;
+    const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:true,readMs});
+    if(detected.cards||id)loading.visionMissed=false;
+    else if(previousOffer&&!offerTracker.pending&&!offerTracker.down&&!augmentOffers.oldCardsVisible(grid,previousOffer))loading.visionMissed=true;
+    updateVisionOffer(detected.cards&&offerTracker.streak>=2?{ids:detected.cards.map(c=>c.id),at:input.at}:null);
+    let saved=false;
     if(id){
       try{
         const known=mayhemSession.value.screenSlots||[];
         const next=augmentScreen.reconcile(mayhemSession.value,[...new Set([...known,id])],game,state.mayhemPool,{token:crypto.randomUUID(),at:Date.now()});
+        saved=next.selection.augments.includes(id)&&!mayhemSession.value.selection.augments.includes(id);
         if(JSON.stringify(next)!==JSON.stringify(mayhemSession.value)){
           mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots,screenHistory:next.screenHistory});loadingDirty=true;
         }
       }catch{visionStatus('conflict');return {ok:true};}
     }
-    visionStatus(id?'detected':offerTracker.pending?'confirming':detected.cards?offerTracker.streak>=2?'offers':'reading-offers':detected.candidates.length?'partial':'scanning');
+    visionStatus(saved?'detected':offerTracker.pending?'confirming':detected.cards?offerTracker.streak>=2?'offers':'reading-offers':loading.visionMissed?'missed':detected.candidates.length?'partial':'scanning');
     if(loadingDirty){loadingDirty=false;send(buildLoadingView());}
     return {ok:true};
   });

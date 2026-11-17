@@ -8,7 +8,7 @@ process.argv.push('--background');process.env.PORT='0';process.env.STEP='8';
 const server=require('../mock/mock-lcu');
 const {LcuClient}=require('../src/lcu'),originalGet=LcuClient.prototype.get;
 LcuClient.prototype.get=async function(url){if(url.endsWith('/items.json'))return require('../data/catalog.json').items;const result=await originalGet.call(this,url);
-  if(url==='/lol-gameflow/v1/session'&&result)result.gameData.queue.gameMode='KIWI';return result;};
+  if(url==='/lol-gameflow/v1/session'&&result)Object.assign(result.gameData.queue,{id:2400,gameMode:'KIWI'});return result;};
 require('../src/liveclient').LiveClient.prototype.inventory=async()=>({status:'waiting'});
 require('../src/augment-screen').gameWindowHandle=async()=>'1234';
 desktopCapturer.getSources=async options=>{assert.deepEqual(options.types,['window']);assert.equal(options.thumbnailSize.width,0);return [{id:'window:1234:0',name:'Fixture'}];};

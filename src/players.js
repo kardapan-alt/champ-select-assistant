@@ -9,14 +9,29 @@ const POSITION_NAMES = {
 };
 const normPosition = (p) => ({ mid: 'middle', adc: 'bottom', bot: 'bottom', support: 'utility' }[String(p || '').toLowerCase()] || String(p || '').toLowerCase());
 
-// Gracze z sesji gry. Riot ID uzupełniamy z profilu, jeśli sesja go nie zawiera.
-async function readLoadingPlayers(lcu) {
-  const session = await lcu.get('/lol-gameflow/v1/session');
+// Use only identities explicitly visible in this match. A public account
+// profile by itself does not override a hidden/unspecified match identity.
+function visibleIdentity(p, me, isMe) {
+  const visibility = String(p.nameVisibilityType || '').toUpperCase();
+  const profilePrivacy = String(p.privacy || p.summonerInfo?.privacy || '').toUpperCase();
+  const hidden = (visibility && visibility !== 'VISIBLE') || p.isAnonymous === true || p.isNameHidden === true
+    || p.isRiotIdHidden === true || p.isIncognito === true || p.isNameVisible === false || p.isRiotIdVisible === false
+    || (profilePrivacy && profilePrivacy !== 'PUBLIC');
+  const explicitlyVisible = visibility === 'VISIBLE' || p.isNameVisible === true || p.isRiotIdVisible === true;
+  if (!isMe && (hidden || !explicitlyVisible)) return null;
+  const source = isMe ? me : p;
+  const gameName = String(source.gameName || source.riotIdGameName || source.summonerInfo?.gameName || '').trim();
+  const tagLine = String(source.tagLine || source.riotIdTagLine || source.summonerInfo?.tagLine || '').trim();
+  return gameName && tagLine ? { gameName, tagLine } : null;
+}
+
+async function readLoadingPlayers(lcu, session, previous) {
+  if (session === undefined) session = await lcu.get('/lol-gameflow/v1/session');
   const gameData = session && session.gameData;
   if (!gameData) return null;
-  const me = await lcu.get('/lol-summoner/v1/current-summoner');
-  const locale = await lcu.get('/riotclient/region-locale');
-  const region = (locale && (locale.webRegion || locale.region)) || '';
+  const me = previous?.allies.find(p=>p.isMe) || await lcu.get('/lol-summoner/v1/current-summoner');
+  const locale = previous?.region ? null : await lcu.get('/riotclient/region-locale');
+  const region = previous?.region || locale?.webRegion || locale?.region || '';
 
   // Wybrane skiny: selectedSkinIndex z playerChampionSelections (id skina = champion * 1000 + numer).
   const selections = new Map((gameData.playerChampionSelections || []).map((s) => [s.puuid || s.summonerInternalName, s]));
@@ -25,27 +40,23 @@ async function readLoadingPlayers(lcu) {
     const s = selections.get(p.puuid) || selections.get(p.summonerInternalName);
     return s && p.championId && s.selectedSkinIndex > 0 ? p.championId * 1000 + s.selectedSkinIndex : 0;
   };
-  const toPlayer = async (p, teamIndex) => {
-    let gameName = p.gameName || p.riotIdGameName || '';
-    let tagLine = p.tagLine || p.riotIdTagLine || '';
-    if ((!gameName || !tagLine) && p.puuid) {
-      const s = await lcu.get(`/lol-summoner/v2/summoners/puuid/${p.puuid}`).catch(() => null);
-      if (s) { gameName = s.gameName || gameName; tagLine = s.tagLine || tagLine; }
-    }
-    if (!gameName && p.summonerName && p.summonerName.includes('#')) [gameName, tagLine] = p.summonerName.split('#');
+  const toPlayer = (p, teamIndex) => {
+    const isMe = !!(me && p.puuid && p.puuid === me.puuid);
+    const identity = visibleIdentity(p, me, isMe);
     return {
-      puuid: p.puuid || '',
-      gameName,
-      tagLine,
+      puuid: isMe ? p.puuid : '',
+      gameName: identity?.gameName || '',
+      tagLine: identity?.tagLine || '',
+      anonymous: !identity,
       championId: p.championId || 0,
       skinId: skinOf(p),
       position: normPosition(p.selectedPosition || p.position),
       team: teamIndex,
-      isMe: !!(me && p.puuid && p.puuid === me.puuid),
+      isMe,
     };
   };
-  const one = await Promise.all((gameData.teamOne || []).map((p) => toPlayer(p, 1)));
-  const two = await Promise.all((gameData.teamTwo || []).map((p) => toPlayer(p, 2)));
+  const one = (gameData.teamOne || []).map((p) => toPlayer(p, 1));
+  const two = (gameData.teamTwo || []).map((p) => toPlayer(p, 2));
   const myTeamIsTwo = two.some((p) => p.isMe);
   return {
     gameId: gameData.gameId || (session.gameData && session.gameData.gameId) || 0,
@@ -82,8 +93,10 @@ function championList(games, game) {
 
 // Karta gracza: liczby i tagi wyliczone z jego ostatnich gier i statystyk sezonu.
 function playerCard(player, summary, game, now = Date.now(),mode='classic') {
+  if (player.anonymous) summary = null;
   const card = {
-    name: player.gameName ? `${player.gameName}#${player.tagLine}` : 'Nieznany gracz',
+    name: player.anonymous ? 'Brak publicznego Riot ID' : player.gameName ? `${player.gameName}#${player.tagLine}` : 'Nieznany gracz',
+    anonymous: !!player.anonymous,
     isMe: player.isMe,
     championId: player.championId,
     position: POSITION_NAMES[player.position] || '',

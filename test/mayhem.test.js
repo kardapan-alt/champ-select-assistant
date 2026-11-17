@@ -15,9 +15,9 @@ const state = (alias='Ahri', selection={}, enemies=[]) => ({ mode:'mayhem', role
 const build = (alias,selection,enemies) => engine.buildFor(alias,state(alias,selection,enemies),game,data);
 
 test('KIWI i KIWI_JADE są osobnym Mayhem; zwykły ARAM i SR nie zmieniają trybu', () => {
-  for(const mode of ['KIWI','KIWI_JADE'])assert.equal(modeFromFlow({gameData:{queue:{gameMode:mode}}}),'mayhem');
-  assert.equal(modeFromFlow({map:{id:12},gameData:{queue:{gameMode:'ARAM'}}}),'aram');
-  assert.equal(modeFromFlow({map:{id:11},gameData:{queue:{gameMode:'CLASSIC'}}}),'classic');
+  for(const mode of ['KIWI','KIWI_JADE'])assert.equal(modeFromFlow({gameData:{queue:{id:2400,gameMode:mode}}}),'mayhem');
+  assert.equal(modeFromFlow({map:{id:12},gameData:{queue:{id:450,gameMode:'ARAM'}}}),'aram');
+  assert.equal(modeFromFlow({map:{id:11},gameData:{queue:{id:420,gameMode:'CLASSIC'}}}),'classic');
   const s=engine.readSession({myTeam:[{cellId:1,championId:103}],localPlayerCellId:1,benchEnabled:true},'mayhem');
   assert.equal(s.mode,'mayhem');assert.equal(s.allLocked,true);assert.equal(s.roleQuestsEnabled,false);
 });

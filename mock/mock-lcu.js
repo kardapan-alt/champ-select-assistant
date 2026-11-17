@@ -81,7 +81,7 @@ const LOADING = {
 };
 function gameflowSession() {
   const team = (list) => list.map(([gameName, tagLine, alias, pos]) => ({
-    puuid: gameName === 'Daniel' ? 'puuid-me' : `puuid-${gameName}`, gameName, tagLine, championId: id(alias), selectedPosition: pos,
+    puuid: gameName === 'Daniel' ? 'puuid-me' : `puuid-${gameName}`, gameName, tagLine, nameVisibilityType:'VISIBLE', championId: id(alias), selectedPosition: pos,
   }));
   const aram = step >= 7;
   return { phase: step === 7 ? 'ChampSelect' : 'InProgress', map: { id: aram ? 12 : 11 }, gameData: { gameId: 777, queue: { id: aram ? 450 : 420, gameMode: aram ? 'ARAM' : 'CLASSIC' }, teamOne: team(LOADING.teamOne), teamTwo: team(LOADING.teamTwo) } };
@@ -135,13 +135,19 @@ const server = http.createServer((req, res) => {
       // Kolekcja ma też championy, których brakuje w liście local-player (jak w prawdziwym kliencie).
       case 'GET /lol-collections/v1/inventories/1001/champion-mastery':
         return json(champions.filter((c, i) => i % 3 === 0).map((c) => ({ championId: c.id, championLevel: 7, championPoints: 55000 })));
-      case 'GET /lol-perks/v1/pages': return json(pages);
+      case 'GET /lol-perks/v1/pages': return json(pages.map((page, i) => ({...page, current:i===pages.length-1})));
       case 'GET /lol-perks/v1/currentpage': return json(pages[pages.length - 1]);
       case 'POST /lol-perks/v1/pages': {
         if (pages.length >= 2) return json({ message: 'Max pages reached' }, 400);
         const page = { id: Date.now(), isDeletable: true, ...JSON.parse(body) };
         pages.push(page);
         return json(page);
+      }
+      case 'PUT /lol-perks/v1/currentpage': {
+        const index = pages.findIndex(page => page.id === JSON.parse(body));
+        if (index < 0) return json({message:'Unknown page'},404);
+        pages.push(...pages.splice(index,1));
+        return json({});
       }
       case 'GET /lol-item-sets/v1/item-sets/1001/sets': return json(itemSets);
       // Jak w prawdziwym kliencie: wszystkie zestawy razem mają limit rozmiaru.
@@ -150,6 +156,12 @@ const server = http.createServer((req, res) => {
         itemSets = JSON.parse(body); return json({});
       case 'PATCH /lol-champ-select/v1/session/my-selection': mySpells = JSON.parse(body); return json({});
       default:
+        if (req.method === 'PUT' && p.startsWith('/lol-perks/v1/pages/')) {
+          const page = pages.find(x => String(x.id) === p.split('/').pop());
+          if (!page) return json({message:'Unknown page'},404);
+          Object.assign(page, JSON.parse(body));
+          return json(page);
+        }
         if (req.method === 'DELETE' && p.startsWith('/lol-perks/v1/pages/')) {
           const i = pages.findIndex((x) => String(x.id) === p.split('/').pop());
           if (i >= 0) pages.splice(i, 1);

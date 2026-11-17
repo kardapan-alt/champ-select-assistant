@@ -1,6 +1,20 @@
 function augmentGrade(rating){
   return `<div class="augment-rating" title="${esc(rating?.reason||'Brak wystarczających danych do oceny dopasowania.')}" aria-label="Ocena dopasowania ${esc(rating?.grade||'brak')}"><span>Ocena dla Ciebie</span><strong class="grade-${esc(rating?.grade||'none')}">${esc(rating?.grade||'—')}</strong></div>`;
 }
+function mayhemChoiceView(m,compact=false){
+  if(!m||labActive||!m.matchKey)return '';
+  const comparison=m.comparison;
+  let cards='';
+  if(comparison){
+    if(compact){
+      cards=`<section class="augment-comparison" aria-label="Trzy karty augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${comparison.paused?'Ostatnia oferta z gry':'Kolejność jak w grze'}</span></div>
+        <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer" data-offer-id="${c.id}"><div class="offer-position">${['Lewa','Środkowa','Prawa'][i]}</div><b>${esc(c.name)}</b>${c.english&&c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}</article>`).join('')}</div></section>`;
+    }else cards=augmentComparison(comparison);
+  }
+  const saved=m.undo?`<div class="augment-receipt"><span>Ostatnio zapisano <b>${m.undo.names.map(esc).join(', ')}</b></span><button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Cofa ostatni zapis w asystencie">Cofnij odczyt</button></div>`:'';
+  const missed=m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
+  return cards+missed+saved;
+}
 function mayhemPanel(b) {
   if (!b?.mayhem) return '';
   const m = b.mayhem, canEdit = labActive || !!m.matchKey;
@@ -14,13 +28,12 @@ function mayhemPanel(b) {
   screenText['unreadable-frame']='Otrzymuję pusty lub nieczytelny obraz. Ustaw w grze okno bez ramek.';
   screenText['partial']='Czytam nazwy, ale jeszcze nie potwierdziłem trzech kart';
   screenText['reading-offers']='Trzy karty odczytane · potwierdzam obraz';
+  screenText.missed='Ostatni wybór wymaga potwierdzenia';
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
     ${m.headliner?`<div class="headliner-tip"><b>Headliner ${m.headlinerDetection?.source==='screen'?'· wykryty automatycznie':''}: ${esc(m.headliner.name)}${m.headliner.ability?' · '+esc(m.headliner.ability):''}</b><p>${esc(m.headliner.tip)}</p>${m.headliner.warning?`<p class="bad">${esc(m.headliner.warning)}</p>`:''}</div>`:`<p class="note">${m.headlinerDetection?.auto ? m.headlinerDetection.available ? 'Headliner: czekam na nazwę i opis wydarzenia w obrazie gry.' : 'Headliner: włącz automatyczny OCR, aby wykrywać go z ekranu.' : 'Headlinera ustawisz w „Augmenty i ekwipunek”.'}</p>`}
     ${live && !b.readout ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)}</p>` : ''}
     ${m.screen && !labActive ? `<div class="augment-screen-controls"><span>${esc(screenText[m.screen.status] || screenText.waiting)}${m.screen.diagnostics?.readMs?` · OCR ${Math.round(m.screen.diagnostics.readMs)} ms`:''}</span>${m.screen.config?.mode!=='auto'?'<button data-augment-auto>Tryb automatyczny</button>':''}<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button></div>` : ''}
     ${selected.length||!m.comparison?`<div class="augment-chips">${selected.length ? selected.map(a => `<article class="selected-augment-card" data-selected-augment="${a.id}"><b title="${esc(a.summary)}">${esc(a.name)}${a.completed?' ✓':''}</b><small>${esc(a.english)}</small>${augmentGrade(a.rating)}<p>${esc(a.rating?.reason||a.summary)}</p>${(a.requiredItems||[]).map(i=>`<p class="augment-required-item">${esc(i.status==='owned'?'Już kupiony':i.status==='planned'?'W buildzie':'Poza planem')}: <b>${esc(i.name)}</b>${i.status==='outside'?' · sprawdź wolne sloty i przypięcia':''}</p>`).join('')}</article>`).join('') : '<span class="muted">Czekam na nowe karty wyboru w oknie gry. Wcześniej pominięte augmenty dodasz przez „Augmenty i ekwipunek”. Odczyt augmentów nie wymaga rozpoznania Headlinera.</span>'}</div>${selected.length?'<p class="offer-note">Dopasowanie w tym buildzie: S → A → B → C → D → E → F. „—” = brak oceny, nie słaby augment.</p>':''}`:''}
-    ${m.undo&&!labActive?`<button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Poprawia zapis w asystencie, nie zmienia wyboru w LoL-u. Ekwipunek i pozostałe augmenty zostają. Ten odczyt nie zostanie ponownie dodany w tym meczu.">Cofnij odczyt: ${m.undo.names.map(esc).join(', ')}</button>`:''}
-    ${m.comparison&&!labActive?augmentComparison(m.comparison):''}
     ${m.nextItem && !b.shop ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b>${m.nextItem.components ? ` · masz komponenty za ${m.nextItem.components.credit} złota, do ukończenia ${m.nextItem.components.remaining}` : ''}</p>` : ''}
     ${live?.auto && live.inventory ? disclosure('live-inventory', 'Odczytany ekwipunek · '+live.inventory.items.length+' zajętych slotów', live.inventory.items.length ? `<div class="live-items">${live.inventory.items.map(i=>`<span class="tag" title="${esc(i.name)}">${i.icon?`<img src="${esc(i.icon)}" alt="">`:''}${esc(i.name)}${i.count>1?' ×'+i.count:''}${i.kind==='component'?' · komponent':i.kind==='unknown'?' · poza katalogiem':''}</span>`).join('')}</div><p class="note">Gotowe przedmioty zostają w buildzie. Komponenty i mikstury są śledzone osobno.</p>` : '<p class="note">Ekwipunek jest pusty.</p>') : ''}
     ${live?.auto && live.inventory?.items.some(i=>i.kind==='unknown') ? '<p class="note">Przedmiot spoza katalogu: widoczny w odczycie, ale jeszcze nieuwzględniony w planie zakupów.</p>' : ''}
@@ -47,7 +60,7 @@ async function openMayhemEditor() {
   if (build?.mode !== 'mayhem') return;
   let revision = labRevision, headlinerEdited=false;
   const context = wasLab
-    ? { ...(await window.assist.mayhemCatalog('KIWI')), selection:labView.mayhem || {}, items:labView.catalog, alias:build.alias }
+    ? { ...(await window.assist.mayhemCatalog(labInput.context?.pool || 'KIWI')), selection:labView.mayhem || {}, items:labView.catalog, alias:build.alias }
     : await window.assist.getMayhem();
   if (!context.ok) throw Error(context.error);
   if (wasLab !== labActive || (wasLab && revision !== labRevision) || currentBuild()?.alias !== build.alias) throw Error('Draft się zmienił. Otwórz augmenty ponownie.');

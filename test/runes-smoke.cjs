@@ -14,13 +14,13 @@ const server=require('../mock/mock-lcu'),{LcuClient}=require('../src/lcu');
 const aliases=[...Object.keys(data.champions),'Zoe','KSante','Rumble'],id=a=>aliases.indexOf(a)+1;
 let win,swapped=false,mode='CLASSIC',posts=0;
 const get=LcuClient.prototype.get,request=LcuClient.prototype.request;
-LcuClient.prototype.request=async function(method,url,...args){if(method==='POST'&&url==='/lol-perks/v1/pages')posts++;return request.call(this,method,url,...args);};
+LcuClient.prototype.request=async function(method,url,...args){if(method==='POST'&&url==='/lol-perks/v1/pages'||method==='PUT'&&url.startsWith('/lol-perks/v1/pages/'))posts++;return request.call(this,method,url,...args);};
 LcuClient.prototype.get=async function(url){
   if(url.endsWith('/perkstyles.json'))return catalog.perkstyles;
   if(url.endsWith('/perks.json'))return catalog.perks;
   if(url==='/lol-patch/v1/game-version')return '16.22.1';
   const value=await get.call(this,url);
-  if(value&&url==='/lol-gameflow/v1/session'){value.gameData.queue.gameMode=mode;value.map.id=mode==='CLASSIC'?11:12;}
+  if(value&&url==='/lol-gameflow/v1/session'){value.gameData.queue={gameMode:mode,id:mode==='CLASSIC'?420:mode==='ARAM'?450:2400};value.map.id=mode==='CLASSIC'?11:12;}
   if(value&&url==='/lol-champ-select/v1/session'){
     const me=value.myTeam.find(p=>p.cellId===value.localPlayerCellId);me.championId=id('Garen');me.assignedPosition='top';
     const opponents=[['Teemo',swapped?'middle':'top'],['Renekton',swapped?'top':'middle'],['Jinx','bottom'],['Sejuani','jungle'],['Lulu','utility']];
@@ -57,19 +57,36 @@ server.once('listening',async()=>{
     await waitFor(async()=> (await state()).myChampion?.runes.pinned,'Manual page not preserved');
     swapped=false;await waitFor(async()=> (await state()).myChampion?.runes.laneOpponent==='Teemo','Draft did not refresh');
     assert.deepEqual((await current()).selectedPerkIds,manual.selectedPerkIds);
+    // Both slots hold player pages now. A fresh import must preserve both.
+    const allPages=()=>fetch(process.env.LCU_MOCK+'/lol-perks/v1/pages').then(r=>r.json());
+    const full=await allPages();
     for(const next of ['ARAM','KIWI']){
       await step(-1);await waitFor(async()=> (await state()).status==='idle','Lobby');mode=next;await step(3);
       await waitFor(async()=> (await state()).status==='champselect'&&(await state()).mode===(next==='ARAM'?'aram':'mayhem'),'Mode');
       if(next==='ARAM'){
-        await waitFor(async()=> (await current()).selectedPerkIds?.[0]===data.champions.Garen.aram.runes.perks[0],'ARAM rune import');
+        await waitFor(async()=> (await state()).autoRunes?.error?.includes('Brak miejsca'),'Missing safe full-page message');
+        assert.deepEqual(await allPages(),full);
+        const freed=full.find(p=>p.name==='Moja strona');
+        await fetch(process.env.LCU_MOCK+'/lol-perks/v1/pages/'+freed.id,{method:'DELETE'});
+        assert.equal((await evaluate('window.assist.importRunes("Garen")')).ok,true);
+        assert.equal((await current()).selectedPerkIds?.[0],data.champions.Garen.aram.runes.perks[0]);
         assert.equal((await state()).myChampion.runes.runeSource.mode,'aram');
       }else{
         const count=posts;assert.equal((await state()).myChampion.runes.disabled,true);
         await new Promise(r=>setTimeout(r,2200));assert.equal(posts,count,'Mayhem imported runes');
       }
     }
-    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({version:require('../package.json').version,posts,migration:true,roleSwap:true,manualPreserved:true,aram:true,mayhemDisabled:true},null,2));
-    console.log('PASS: migration → actual rune import → same champions swap roles → manual preservation → ARAM page → Mayhem disabled.');
+    const count=posts;
+    mode='NEW_MODE';
+    await waitFor(async()=> (await state()).status==='unsupported','Unsupported queue displayed recommendations');
+    assert.equal((await evaluate('window.assist.importRunes("Garen")')).ok,false);
+    assert.equal((await evaluate('window.assist.exportItemSet("Garen")')).ok,false);
+    assert.equal((await evaluate('window.assist.setSpells("Garen")')).ok,false);
+    assert.equal((await state()).build,undefined);assert.equal(posts,count);
+    mode='CLASSIC';
+    await waitFor(async()=> (await state()).status==='champselect','Recognized queue did not recover');
+    fs.writeFileSync(path.join(out,'result.json'),JSON.stringify({version:require('../package.json').version,posts,migration:true,roleSwap:true,manualPreserved:true,fullPages:true,aram:true,mayhemDisabled:true,unsupported:true},null,2));
+    console.log('PASS: safe creation and update, protected full slots, manual changes, ARAM, Mayhem, unknown queue and recovery.');
     server.close();win.destroy();app.quit();
   }catch(e){console.error(e);server.close();app.exit(1);}
 });

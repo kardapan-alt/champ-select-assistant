@@ -24,7 +24,7 @@ LcuClient.prototype.get=async function(url){
   const value=await originalGet.call(this,url);
   if(url==='/lol-summoner/v1/current-summoner')currentSummoner=value;
   if(url.endsWith('/champion-summary.json'))champions=value;
-  if(url==='/lol-gameflow/v1/session'&&value){value.gameData.queue.gameMode=mode;value.map.id=mode==='CLASSIC'?11:12;value.gameData.queue.id=mode==='CLASSIC'?420:450;value.gameData.gameId=gameId;flow=value;}
+  if(url==='/lol-gameflow/v1/session'&&value){value.gameData.queue.gameMode=mode;value.map.id=mode==='CLASSIC'?11:12;value.gameData.queue.id=mode==='CLASSIC'?420:mode==='ARAM'?450:2400;value.gameData.gameId=gameId;flow=value;}
   return value;
 };
 LiveClient.prototype.inventory=async function(...args){
@@ -50,6 +50,21 @@ server.once('listening',async()=>{
     const step=n=>fetch(`${process.env.LCU_MOCK}/__step?n=${n}`);
     await waitFor(async()=> (await state())?.final?.build?.shop?.gold===1000,'Brak odczytu złota');
     let b=(await state()).final.build;
+    await evaluate("document.querySelector('[data-build-report]').click()");
+    await waitFor(()=>evaluate("document.getElementById('build-report-dialog')?.open"),'Nie otwarto podglądu zgłoszenia');
+    const report=await evaluate("JSON.parse(document.querySelector('.build-report-json').textContent)");
+    assert.equal(report.scenario.alias,b.alias);assert.equal(report.observed.gold,1000);
+    assert.deepEqual(report.scenario.context.inventory.map(i=>i.itemID),ownItems);
+    assert.doesNotMatch(JSON.stringify(report),/puuid|Daniel#|gameName|matchKey/i);
+    const reportFile=path.join(profile,'test-build-report.json');
+    require('electron').dialog.showSaveDialog=async()=>({canceled:false,filePath:reportFile});
+    await evaluate("document.querySelector('#build-report-dialog [data-save]').click()");
+    await waitFor(()=>evaluate("document.querySelector('#build-report-dialog [role=status]').textContent.startsWith('Zapisano plik')"),'Nie zapisano zgłoszenia');
+    assert.deepEqual(JSON.parse(fs.readFileSync(reportFile,'utf8')),report);
+    await evaluate("document.querySelector('#build-report-dialog [data-replay]').click()");
+    await waitFor(()=>evaluate("labActive && !!labView?.build && !!openedBuildReport"),'Nie otwarto przypadku w testerze');
+    assert.deepEqual(await evaluate('labView.build.items.map(i=>i.id)'),b.items.map(i=>i.id));
+    await evaluate("document.getElementById('draft-lab').click()");
     assert.equal(JSON.parse(fs.readFileSync(path.join(profile,'champions.json'))).version,7);
     assert.equal(JSON.parse(fs.readFileSync(path.join(profile,'champions.backup-v6.json'))).version,6);
     assert.equal(b.baseSource.mode,'aram');

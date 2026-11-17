@@ -1,4 +1,4 @@
-let labActive = false, labView = null, labCatalog = null, labRevision = 0;
+let labActive = false, labView = null, labCatalog = null, labRevision = 0, labEntry = 0;
 let labInput = { alias: 'Leona', role: 'utility', mode: 'classic', allies: ['', '', '', ''], enemies: ['Yasuo', 'Jhin', 'Ahri', 'LeeSin', 'Lulu'], choices: {} };
 let editorContext = null;
 const roleNames = { top: 'Top', jungle: 'Jungle', middle: 'Mid', bottom: 'Bot / ADC', utility: 'Support' };
@@ -81,7 +81,9 @@ function labControls() {
   const champions = (value, blank) => `${blank ? '<option value="">Nieznany / pusty</option>' : ''}${labCatalog.champions.map(c => `<option value="${esc(c.alias)}" ${c.alias === value ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
   return `<section class="panel lab-controls"><div class="panel-head"><h2>Tester draftów</h2><span class="tag">Symulacja</span></div>
     <p class="muted">Sprawdź build i runy przed grą. Wybory w testerze są niezależne od Twoich zapisanych ustawień.</p>
-    <div class="lab-main"><label>Twój champion<select data-lab-field="alias">${champions(labInput.alias)}</select></label><label>Rola<select data-lab-field="role">${Object.entries(roleNames).map(([v,n]) => `<option value="${v}" ${labInput.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <div class="actions"><button data-open-build-report>Otwórz zgłoszenie buildu</button></div>
+    ${reportLabSummary()}
+    <div class="lab-main"><label>Twój champion<select data-lab-field="alias">${champions(labInput.alias)}</select></label><label>Rola<select data-lab-field="role">${labInput.role === '' ? '<option value="" selected>Rola nieznana</option>' : ''}${Object.entries(roleNames).map(([v,n]) => `<option value="${v}" ${labInput.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <label>Tryb<select data-lab-field="mode"><option value="classic" ${labInput.mode === 'classic' ? 'selected' : ''}>Summoner's Rift · questy</option><option value="aram" ${labInput.mode === 'aram' ? 'selected' : ''}>ARAM</option><option value="mayhem" ${labInput.mode === 'mayhem' ? 'selected' : ''}>ARAM: Mayhem · augmenty</option></select></label></div>
     <details class="lab-allies"><summary>Sojusznicy · 4 opcjonalne miejsca</summary><div class="lab-team">${Array.from({length:4},(_,i) => `<label>Sojusznik ${i+1}<select data-lab-team="allies" data-index="${i}">${champions(labInput.allies[i],true)}</select></label>`).join('')}</div></details>
     <h4>Przeciwnicy</h4><div class="lab-team">${Array.from({length:5},(_,i) => `<label>${Object.values(roleNames)[i]}<select data-lab-team="enemies" data-index="${i}">${champions(labInput.enemies[i],true)}</select></label>`).join('')}</div>
@@ -103,20 +105,32 @@ async function evaluateLab() {
 document.getElementById('draft-lab').addEventListener('click', async () => {
   const dialog = document.getElementById('choices-dialog'); dialog?.close(); editorContext = null;
   document.getElementById('mayhem-dialog')?.close();
-  if (labActive) { labActive = false; labRevision++; document.getElementById('draft-lab').textContent = 'Tester draftów'; render(lastState); return; }
-  try {
-    labCatalog = await window.assist.draftCatalog();
-    if (!labCatalog.ok) throw new Error(labCatalog.error);
+  if (labActive) { labActive = false; labRevision++; labEntry++; document.getElementById('draft-lab').textContent = 'Tester draftów'; render(lastState); return; }
+  try { await enterDraftLab(); } catch (err) { toast(err.message, true); }
+});
+async function enterDraftLab(report = null) {
+    const entry = ++labEntry;
+    if (compactMode) await window.assist.setViewMode(false);
+    const catalog = await window.assist.draftCatalog();
+    if (entry !== labEntry) return;
+    if (!catalog.ok) throw new Error(catalog.error);
+    labCatalog = catalog;
+    if (report) { openedBuildReport = report; labInput = structuredClone(report.scenario); }
     labActive = true; document.getElementById('draft-lab').textContent = 'Wróć do asystenta';
     $status.textContent = 'Testowy draft'; $status.className = 'status';
     patch($app, labControls()); await evaluateLab();
-  } catch (err) { toast(err.message, true); }
-});
+}
 document.getElementById('app').addEventListener('change', async (e) => {
   const t = e.target;
   if (!labActive || (!t.dataset.labField && !t.dataset.labTeam)) return;
+  if (labInput.context && (t.dataset.labField === 'alias' || t.dataset.labField === 'mode')) {
+    delete labInput.context; openedBuildReport = null;
+    if (!labInput.role) labInput.role = 'middle';
+  }
+  if (labInput.context && t.dataset.labTeam === 'enemies') labInput.context.enemies = null;
   if (t.dataset.labField) { labInput[t.dataset.labField] = t.value; labInput.choices = {}; labInput.mayhem = {}; }
   if (t.dataset.labTeam) labInput[t.dataset.labTeam][Number(t.dataset.index)] = t.value;
+  patch($app,labControls());
   await evaluateLab();
 });
 document.getElementById('app').addEventListener('click', async (e) => {
@@ -134,6 +148,7 @@ document.getElementById('app').addEventListener('click', async (e) => {
         tanks: { alias:'Jinx',role:'bottom',enemies:['Ornn','Amumu','Malphite','Jhin','Soraka'] },
       };
       labInput = { ...labInput, ...presets[btn.dataset.labPreset], allies:['','','',''], choices:{}, mayhem:{} };
+      delete labInput.context; openedBuildReport = null;
       patch($app, labControls()); await evaluateLab();
     }
   } catch (err) { toast(err.message, true); }

@@ -109,16 +109,38 @@ function oldCardsVisible(grid,cards){
 
 class OfferTracker {
   constructor(){this.reset();}
-  reset(){this.offer=null;this.streak=0;this.at=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;}
+  reset(){this.offer=null;this.streak=0;this.at=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;this.paused=false;this.resumedAt=0;}
   input(event){
-    if(event.type==='cancel'||event.type==='focus'&&!event.focused){
+    if(event.type==='focus'){
+      if(event.focused){if(this.paused)this.resumedAt=event.at;this.paused=false;return;}
+      if(this.paused)return; // Heartbeat from the same unfocused window.
+      this.paused=true;
+    }
+    if(event.type==='cancel'||event.type==='focus'){
       this.offer=null;this.streak=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=event.at;return;
     }
-    if(['down','up'].includes(event.type)){
+    if(!this.paused&&event.at>=this.resumedAt&&['down','up'].includes(event.type)){
       this.events.push(event);if(this.events.length>40){this.reset();this.cancelledAt=event.at;}
     }
   }
+  // While the player reads the assistant, only revalidate an already confirmed
+  // offer from the captured game window. No selections are processed in this phase.
+  preview(cards,ids,at){
+    if(!Number.isSafeInteger(at)||!this.paused||at<=this.cancelledAt||at<=this.at)return false;
+    this.offer=cards&&ids&&signature(cards)===ids.join(':')?cards:null;
+    this.streak=this.offer?2:0;this.at=at;return !!this.offer;
+  }
+  hasChoiceInput(){
+    return !!(this.pending||this.down||this.offer&&this.events.some(e=>e.type==='down'&&e.width>0&&e.height>0&&
+      this.offer.some(c=>inside({x:e.x/e.width,y:e.y/e.height},c.rect))));
+  }
   click(e,aspect){
+    // The first clean game frame proves the offer has closed. Ordinary clicks on
+    // the map between that frame and the second confirmation belong to gameplay.
+    if(this.pending?.absent>0){
+      if(e.type==='down')this.pending.laterClick=true;
+      return;
+    }
     // Some game buttons dismiss on mouse-down, before the next frame / mouse-up.
     // Retain that exact card until release, while still rejecting a drag outside it.
     if(e.type==='up'&&this.down){
@@ -128,29 +150,32 @@ class OfferTracker {
         this.pending={id:down.id,at:e.at,absent:0,cards:down.cards};
       return;
     }
-    if(!this.offer||this.streak<2||e.at-this.at>this.freshness||e.at<this.at||!Number.isFinite(e.width)||!Number.isFinite(e.height)
+    if(!this.offer||e.at-this.at>this.freshness||e.at<this.at||!Number.isFinite(e.width)||!Number.isFinite(e.height)
       ||Math.abs(e.width/e.height-aspect)>.025||!Number.isFinite(e.x)||!Number.isFinite(e.y)){this.down=null;this.pending=null;return;}
     const p={x:e.x/e.width,y:e.y/e.height},card=this.offer.find(c=>inside(p,c.rect));
     if(e.type==='down'){this.pending=null;this.down=card?{id:card.id,rect:card.rect,cards:this.offer,at:e.at}:null;if(!card){this.offer=null;this.streak=0;}return;}
     this.down=null;
   }
   observe({at,aspect,cards,candidates=[],grid,active,readMs=0}){
-    // Dwie pełne klatki nadal są wymagane. Wolniejszy OCR nie może jednak
-    // zerować serii tylko dlatego, że przetworzenie klatki trwało >1,8 s.
+    // A complete three-title OCR with three independently bounded cards can
+    // identify a fast click. Publishing an offer still requires two sightings,
+    // and saving a click always requires release and two clean game frames.
     this.freshness=Math.min(5000,Math.max(1800,Number.isFinite(readMs)?readMs+1000:1800));
-    if(!active||!grid?.valid||at<=this.cancelledAt||at<=this.at){this.pending=null;this.offer=null;this.streak=0;return null;}
+    if(at<=this.cancelledAt||at<this.resumedAt||at<=this.at)return null;
+    if(!active||!grid?.valid){this.pending=null;this.down=null;this.offer=null;this.streak=0;this.events=[];this.at=at;return null;}
     const events=this.events.filter(e=>e.at<=at);this.events=this.events.filter(e=>e.at>at);
     for(const e of events)this.click(e,aspect);
     if(this.pending&&at-this.pending.at>Math.max(4000,this.freshness*2+1000))this.pending=null;
     if(cards){
-      if(this.pending&&signature(cards)!==signature(this.pending.cards))this.pending=null;
+      if(this.pending&&(this.pending.laterClick||signature(cards)!==signature(this.pending.cards)))this.pending=null;
       if(this.pending)this.pending.absent=0;
       if(this.down&&signature(cards)!==signature(this.down.cards))this.down=null;
       this.streak=this.offer&&signature(cards)===signature(this.offer)&&at-this.at<this.freshness?this.streak+1:1;
       this.offer=cards;this.at=at;return null;
     }
     if(this.pending){
-      if(candidates.length||oldCardsVisible(grid,this.pending.cards)){this.pending.absent=0;}
+      const titleInCard=candidates.some(title=>this.pending.cards.some(({id,rect})=>title.id===id&&inside({x:title.x+title.w/2,y:title.y+title.h/2},rect)));
+      if(titleInCard||oldCardsVisible(grid,this.pending.cards)){this.pending.absent=0;}
       else if(++this.pending.absent>=2 && at-this.pending.at>=250){const id=this.pending.id;this.pending=null;this.offer=null;this.streak=0;this.at=at;return id;}
     }
     this.at=at;this.offer=null;this.streak=0;return null;

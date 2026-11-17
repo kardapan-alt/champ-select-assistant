@@ -9,7 +9,7 @@ const server=require('../mock/mock-lcu');
 const {LcuClient}=require('../src/lcu'),originalGet=LcuClient.prototype.get;
 let gameId=777;
 LcuClient.prototype.get=async function(url){if(url.endsWith('/items.json'))return require('../data/catalog.json').items;const result=await originalGet.call(this,url);
-  if(url==='/lol-gameflow/v1/session'&&result){result.gameData.queue.gameMode='KIWI';result.gameData.gameId=gameId;}return result;};
+  if(url==='/lol-gameflow/v1/session'&&result){Object.assign(result.gameData.queue,{gameMode:'KIWI',id:2400});result.gameData.gameId=gameId;}return result;};
 require('../src/liveclient').LiveClient.prototype.inventory=async()=>({status:'waiting'});
 let gameWindowAvailable=false;
 require('../src/augment-screen').gameWindowHandle=async()=>gameWindowAvailable?'1234':null;
@@ -84,6 +84,13 @@ server.once('listening',async()=>{
     // Otworzenie asystenta zachowuje jawnie zatrzymany podgląd kart.
     watcher.focused=false;onInput({type:'focus',focused:false,at:Date.now()});
     await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.paused'),'Alt-Tab zgubił porównanie');
+    await evaluate('window.assist.setViewMode(true)');
+    await waitFor(()=>evaluate('document.querySelectorAll(".compact-content [data-offer-id]").length===3'),'Brak 3 kart w małym widoku');
+    assert.ok(await evaluate('[...document.querySelectorAll(".compact-content [data-offer-id]")].every(e=>e.getBoundingClientRect().bottom<innerHeight)'));
+    assert.ok(await evaluate('document.querySelector(".compact-content .augment-comparison").innerText.includes("Ostatnia oferta")'));
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
+    fs.writeFileSync(path.resolve(profile,'../comparison-compact.png'),(await win.webContents.capturePage()).toPNG());
+    await evaluate('window.assist.setViewMode(false)');
     watcher.focused=true;onInput({type:'focus',focused:true,at:Date.now()});await new Promise(r=>setTimeout(r,2000));
     // Przerzut nie jest wyborem; starszy OCR kończący się po kliknięciu nie przywraca oferty.
     let rerolled=false;
@@ -98,10 +105,24 @@ server.once('listening',async()=>{
     assert.ok(await evaluate('!offerHistory.includes(1002)'),'Spóźniony OCR przywrócił stare karty');
     await evaluate('window.trackOffers=false');
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);
-    await evaluate('drawOffer()');await new Promise(r=>setTimeout(r,2500));
+    await evaluate('drawOffer()');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards[0].id===1002'),'Pierwotne karty po przerzucie');
+    watcher.focused=false;onInput({type:'focus',focused:false,at:Date.now()});
+    await evaluate('window.assist.setViewMode(true)');
+    let previewReads=0;
+    function observePreview(){previewReads++;if(previewReads<3)beforeOcrResult=observePreview;}
+    beforeOcrResult=observePreview;
+    await waitFor(()=>previewReads>=3,'OCR nie odświeżył potwierdzonej oferty podczas czytania w kompakcie');
+    watcher.focused=true;onInput({type:'focus',focused:true,at:Date.now()});
+    // Click immediately upon returning to the game, before a new focused OCR.
     for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
     await evaluate('drawOffer(null)');
     await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(1002)'),'Wybór nie dopisany');
+    const persisted=JSON.parse(fs.readFileSync(path.join(profile,'mayhem-session.json'),'utf8'));
+    assert.deepEqual(persisted.selection.augments,[1002]);assert.equal(persisted.screenHistory.at(-1).ids[0],1002);
+    await evaluate('window.assist.setViewMode(true)');
+    await waitFor(()=>evaluate('!!document.querySelector(".compact-content [data-augment-undo]")'),'Brak zapisu i cofania w kompakcie');
+    assert.ok(await evaluate('document.querySelector(".compact-content .augment-receipt").innerText.includes(lastState.final.build.mayhem.undo.names[0])'));
     assert.ok(await evaluate('lastState.final.build.items.some(i=>i.source==="augment")'));
     assert.equal(await evaluate('document.querySelectorAll("[data-offer-id]").length'),0);
     assert.ok(await evaluate('!!document.querySelector("[data-augment-undo]")'));
@@ -109,6 +130,7 @@ server.once('listening',async()=>{
     await evaluate('document.querySelector("[data-augment-undo]").click()');
     await waitFor(()=>evaluate('!lastState.final.build.mayhem.selection.augments.includes(1002)'),'Cofnięcie nie usunęło augmentu');
     assert.ok(await evaluate('!lastState.final.build.mayhem.undo'));
+    await evaluate('window.assist.setViewMode(false)');
     const stale=await evaluate('window.assist.setMayhem({...beforeUndo,knownScreenAugments:beforeUndo.screenAugments})');
     assert.ok(!stale.ok&&stale.error.includes('cofnięto'));
     assert.ok(!(await evaluate('window.assist.undoAugmentRecognition({matchKey:beforeUndo.matchKey,token:oldUndo.token})')).ok);
@@ -126,6 +148,7 @@ server.once('listening',async()=>{
     watcher.focused=false;onInput({type:'focus',focused:false,at:Date.now()});
     await evaluate('drawOffer(null)');await new Promise(r=>setTimeout(r,1800));
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),1);
+    assert.ok(await evaluate('lastState.final.build.mayhem.screen.missed'),'Brak informacji o niepotwierdzonym kliknięciu po utracie fokusu');
     // Ulepszenie Stormsurge: prawdziwy OCR → zapis → wymagany item i ocena.
     watcher.focused=true;onInput({type:'focus',focused:true,at:Date.now()});
     await evaluate('drawOffer(["Upgrade Stormsurge","Back To Basics","Ice Cold"])');

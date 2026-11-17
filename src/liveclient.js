@@ -90,9 +90,12 @@ function enemyInventories(players, own, expected, game, mode) {
   const used = new Set(), result = [];
   for (const enemy of expected) {
     const id = enemy.gameName && enemy.tagLine ? `${enemy.gameName}#${enemy.tagLine}` : '';
-    const matches = opponents.filter(p=>sameId(riotId(p),id));
-    const found = matches.length === 1 ? matches[0] : null;
     const alias = game.championsById.get(enemy.championId)?.alias;
+    // An anonymous opponent's champion can still be matched on the public
+    // scoreboard when unique on their team. No account identity is needed.
+    if (!alias) return null;
+    const matches = enemy.anonymous ? opponents.filter(p=>matchesChampion(p,alias)) : opponents.filter(p=>sameId(riotId(p),id));
+    const found = matches.length === 1 ? matches[0] : null;
     if (!found || used.has(found) || !alias || !matchesChampion(found,alias)) return null;
     const inventory = inventoryOf(found.items,game,alias,mode,true);
     if (!inventory) return null;

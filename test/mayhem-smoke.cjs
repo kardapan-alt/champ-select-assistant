@@ -22,11 +22,14 @@ const {LiveClient,inventoryOf}=require('../src/liveclient');
 const catalogGame=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
 let liveResult={status:'waiting'};
 LiveClient.prototype.inventory=async()=>liveResult;
-let mode='KIWI', gameId=777, runeWrites=0, win;
+let mode='KIWI', gameId=777, runeWrites=0, conceal=false, win;
 LcuClient.prototype.get=async function(url) {
   if(url.endsWith('/items.json')) return require('../data/catalog.json').items;
   const result=await originalGet.call(this,url);
-  if(url==='/lol-gameflow/v1/session' && result) { result.gameData.queue.gameMode=mode; result.gameData.gameId=gameId; }
+  if(url==='/lol-gameflow/v1/session' && result) {
+    Object.assign(result.gameData.queue,{id:mode==='ARAM'?450:2400,gameMode:mode}); result.gameData.gameId=gameId;
+    if(conceal)result.gameData.teamTwo[0].nameVisibilityType='HIDDEN';
+  }
   return result;
 };
 LcuClient.prototype.request=async function(method,url,body) {
@@ -164,8 +167,14 @@ server.once('listening',async()=>{
     await evaluate('document.querySelector("[data-loading-tab=players]").click()');
     assert.equal(await evaluate('document.querySelectorAll(".pcard .stats").length'),10);
     assert.equal(await evaluate('document.querySelectorAll(".pc-tags,.lane-badge").length'),0);
-    assert.ok(await evaluate('document.querySelector(".players-context").textContent.includes("To nie jest winrate Mayhem")'));
-    console.log('PASS: Mayhem bez run i porad soloQ, pamięć meczu, reset następnego, odrzucenie starego edytora, ARAM z 10 kartami graczy i opisem źródła statystyk.');
+    assert.ok(await evaluate('document.querySelector(".players-context").textContent.includes("Historia OP.GG obejmuje również mecze z innych trybów")'));
+    const previousName=(await state()).enemies[0].name;
+    conceal=true;
+    await waitFor(async()=>(await state()).enemies[0].anonymous,'Zmiana widoczności nie ukryła karty z pamięci');
+    const privateView=await state(),masked=privateView.enemies[0];
+    assert.equal(masked.loaded,false);assert.equal(masked.rank,undefined);assert.equal(masked.pending,false);
+    assert.equal(JSON.stringify(privateView).includes(previousName),false);
+    console.log('PASS: Mayhem bez run i porad soloQ, pamięć meczu, 10 kart graczy, ukrycie wcześniej wczytanego profilu.');
     server.close();profiles.close();win.destroy();app.quit();
   } catch(err) { console.error(err);server.close();profiles.close();app.exit(1); }
 });

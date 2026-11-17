@@ -106,3 +106,41 @@ test('pojedyncza pionowa krawędź mapy nie udaje pozostawionej karty',()=>{
   input('down',1800);input('up',1900);assert.equal(observe(2400,null,grid),null);assert.equal(observe(3100,null,grid),ids[0]);
 });
 module.exports={fixture};
+
+test('szybki wybór po pierwszej kompletnej ofercie wymaga zwolnienia i dwóch klatek gry',()=>{
+  const {t,observe,input}=trackerFixture();t.reset();observe(1000);
+  assert.equal(t.streak,1);
+  input('down',1100);input('up',1140);
+  assert.equal(observe(1500,null,cleanGrid()),null);
+  input('down',1600,70,40);input('up',1650,70,40);
+  const unrelated=[{id:ids[1],x:.02,y:.05,w:.1,h:.03}];
+  assert.equal(observe(2100,null,cleanGrid(),unrelated),ids[0]);
+  assert.equal(observe(2800,null,cleanGrid()),null);
+});
+
+test('powrót z kompaktu dopuszcza natychmiastowy klik tylko po odświeżeniu tych samych kart',()=>{
+  for(const scenario of ['verified','changed','no-frame','too-old','delayed-frame']){
+    const {t,cards,observe,input}=trackerFixture();
+    t.input({type:'focus',focused:false,at:1800});
+    if(scenario!=='no-frame'){
+      t.preview(scenario==='changed'?[cards[1],cards[0],cards[2]]:cards,ids,scenario==='delayed-frame'?1799:2300);
+      t.input({type:'focus',focused:false,at:2400}); // heartbeat while reading the assistant
+    }
+    // Clicking inside the assistant cannot select a game card.
+    input('down',2450,320,160);input('up',2500,320,160);
+    const back=scenario==='too-old'?9000:2600;
+    t.input({type:'focus',focused:true,at:back});
+    input('down',back+50);input('up',back+100);
+    assert.equal(observe(back+350,null,cleanGrid()),null,scenario);
+    assert.equal(observe(back+900,null,cleanGrid()),scenario==='verified'?ids[0]:null,scenario);
+  }
+});
+
+test('kolejne kliknięcie przy ponownym pojawieniu się kart unieważnia stary wybór',()=>{
+  const {observe,input}=trackerFixture();input('down',1800);input('up',1900);
+  assert.equal(observe(2200,null,cleanGrid()),null);
+  input('down',2350,320,160);input('up',2370,320,160);
+  observe(2750);
+  assert.equal(observe(3300,null,cleanGrid()),null);
+  assert.equal(observe(4000,null,cleanGrid()),null);
+});
