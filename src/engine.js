@@ -796,7 +796,14 @@ function buildFor(alias, state, game, data) {
   const urgent = situations.filter((s) => s.level === 2 && s.myItem);
   // Zachowujemy pierwszy zakup definiujący championa. Mocne zagrożenia mogą
   // przesunąć drugi i trzeci przedmiot rdzenia, również przy danych OP.GG.
-  const fixed = core.filter(id => compatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active || (purchased.length && live.length) ? 0 : urgent.length ? 1 : FIXED_CORE));
+  let fixed = core.filter(id => compatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active || (purchased.length && live.length) ? 0 : urgent.length ? 1 : FIXED_CORE));
+  // Reakcja na zakupy wroga nie może wyprzeć całego rdzenia już wybranego
+  // stylu gry. Dwa gotowe itemy krytyczne oznaczają inwestycję w kryty;
+  // zachowujemy IE w wolnym miejscu, bez nadpisywania zakupów i przypięć.
+  const critCore = champ.class === 'adc' && champ.dmg === 'ad'
+    && purchased.filter(id => game.items.get(id)?.categories?.includes('CriticalStrike')).length >= 2
+    && isBuildItem(3031) && compatible(3031, pinIds) && fullBuild > pins.length;
+  if (critCore) fixed = [3031, ...fixed.filter(id => id !== 3031)].slice(0, fullBuild - pins.length);
   const situationByTag = new Map();
   const situational = new Map();
   let forced = 0;
@@ -863,7 +870,8 @@ function buildFor(alias, state, game, data) {
   const notes = [];
   const automatic = [...fixed.map(id => {
     const sit = situations.find(s => s.myItem === id);
-    return { ...item(id), why: sit ? reasonFor(sit) : 'rdzeń championa', situational: !!sit, source: 'core' };
+    return { ...item(id), why: critCore && id === 3031 ? 'wzmocnienie już kupionych przedmiotów pod kryty' : sit ? reasonFor(sit) : 'rdzeń championa',
+      priority:critCore && id === 3031, situational: !!sit, source: 'core' };
   }), ...chosen.map(c => ({ ...item(c.id), why: c.why, priority: c.priority, situational: c.situational, source: c.augmented ? 'augment' : c.situational ? 'rule' : c.popular ? 'stats' : 'core' }))];
   const finalItems = Array.from({ length: fullBuild }, (_, slot) => {
     const pin = pins.find(p => p.slot === slot);
