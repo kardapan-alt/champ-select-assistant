@@ -15,6 +15,8 @@ const { roleQuestsEnabled } = require('./rolequests');
 const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
 const draftlab = require('./draftlab');
 const { createReport, readReport } = require('./build-report');
+const { ReplayLibrary, replayEntries, checkReplay } = require('./replay-checks');
+let replayLibrary;
 const mayhem = require('./mayhem');
 const { LiveClient, componentCredit } = require('./liveclient');
 const { shopPlan } = require('./shop-plan');
@@ -30,15 +32,18 @@ const {compareAugments}=require('./mayhem-compare');
 const {headlinerView}=require('./headliners');
 const {synergies}=require('./augment-synergies');
 const {MatchReview}=require('./match-review');
+const { MayhemFavorites } = require('./mayhem-favorites');
+const {augmentImpact}=require('./augment-impact');
 const {readoutFor,BuildChanges}=require('./build-insight');
 const {purchaseKey,canBuy,withPurchaseGoal,PurchaseGoal}=require('./next-purchase');
-const {dataFreshness}=require('./data-freshness');
+const {dataFreshness,patchOf}=require('./data-freshness');
 let purchaseGoal;
 const {ownerKey,ResultResolver}=require('./match-result');
 const resultResolver=new ResultResolver();
 const {HeadlinerConsensus,automaticHeadliner,applyHeadliner}=require('./headliner-vision');
 const headlinerConsensus=new HeadlinerConsensus();
 let matchReview;
+let mayhemFavorites;
 const offerTracker=new augmentOffers.OfferTracker();
 const visionCatalog=require('../data/mayhem-augments.json').augments;
 const visionConsensus = new augmentVision.Consensus();
@@ -140,6 +145,10 @@ function scheduleRefresh() {
 }
 
 function initStats() {
+  replayLibrary = new ReplayLibrary(readJson(userFile('saved-build-reports.json'),[]),entries=>{
+    const file=userFile('saved-build-reports.json');
+    fs.writeFileSync(file+'.tmp',JSON.stringify(entries)); fs.renameSync(file+'.tmp',file);
+  });
   purchaseGoal=new PurchaseGoal(readJson(userFile('next-purchase.json'),null),value=>{
     const file=userFile('next-purchase.json');fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
   });
@@ -159,6 +168,11 @@ function initStats() {
     const file=userFile('match-review.json');fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
   });
   if(matchReview.value.active)matchReview.gap();
+  const favoritesFile = userFile('mayhem-favorites.json');
+  mayhemFavorites = new MayhemFavorites(readJson(favoritesFile,[]), entries => {
+    fs.writeFileSync(favoritesFile+'.tmp',JSON.stringify(entries),'utf8');
+    fs.renameSync(favoritesFile+'.tmp',favoritesFile);
+  });
   provider = new OpggProvider({
     endpoint: process.env.OPGG_ENDPOINT || undefined,
     cache: readJson(userFile('opgg-cache.json'), {}),
@@ -228,7 +242,7 @@ function send(state) {
   state.dataStatus=dataFreshness(game||offlineGame,{connected:!!lcu&&!['no-client','error'].includes(state.status),mode:state.mode||currentMode,
     analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null,baseSource:b?.baseSource,
     runeSource:(state.final?.myChampion||state.myChampion)?.runes?.runeSource});
-  if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.list()[0]||null;
+  if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.latest()||null;
   const session = b && ['champselect','loading-screen'].includes(state.status)
     ? JSON.stringify([state.status,loading?.gameId || loading?.sessionId || '',b.alias,b.mode]) : '';
   if (session !== reportSession) { shownBuildReports.clear(); reportSession = session; }
@@ -548,8 +562,12 @@ function finalWithEnemies(me) {
     build.readout=readoutFor(build,insightContext);
     loading.buildChanges ||= new BuildChanges();
     build.lastChange=loading.buildChanges.observe(build,insightContext);
-    if(liveStatus==='live')matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
+    if(liveStatus==='live'||(liveStatus==='manual' && loading.liveStatus==='live' && Date.now()-(loading.liveAt||0)<6000))matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
       alias,name:game.championsById.get(me.championId)?.name||alias,mode:currentMode,snapshot:loading.liveSnapshot,build,
+      compareAugment:id=>augmentImpact(id,withChoices(alias,s),build,goal.id,game,data),
+      replayReport:()=>createReport(withChoices(alias,s),build,game,{
+        version:app.getVersion(),patch:patchOf(game.provenance?.version),gold:build.shop?.gold
+      }),
       gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid)});
     return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
@@ -897,10 +915,48 @@ ipcMain.handle('read-build-report', wrap(text => {
   return {ok:true,report};
 }));
 ipcMain.handle('preview-draft', wrap((input) => ({ ok: true, ...draftlab.preview(input, game || offlineGame, baseData) })));
+ipcMain.handle('inspect-items', wrap(() => ({ok:true, items:draftlab.inspectionCatalog(game || offlineGame)})));
+ipcMain.handle('inspect-draft-item', wrap((input,id) => ({ok:true, ...draftlab.preview(input,game || offlineGame,baseData,{inspectItem:id})})));
 ipcMain.handle('mayhem-catalog', wrap(pool => ({ ok:true, ...mayhem.choicesCatalog(pool === 'KIWI_JADE' ? pool : 'KIWI') })));
 ipcMain.handle('match-reviews',wrap(()=>({ok:true,matches:matchReview.list()})));
+const currentReplays = () => replayEntries(matchReview.value.matches,replayLibrary);
+ipcMain.handle('check-saved-matches',wrap(async () => {
+  const {entries,missing}=currentReplays(), catalog=game || offlineGame, currentData=baseData, checks=[];
+  for (const entry of entries.values()) {
+    checks.push(checkReplay(entry,catalog,currentData));
+    await new Promise(resolve=>setImmediate(resolve));
+  }
+  return {ok:true,version:app.getVersion(),patch:patchOf(catalog.provenance?.version),missing,
+    checks};
+}));
+ipcMain.handle('manage-replay',wrap(input=>{
+  if (input?.action==='import') {
+    const report=readReport(input.text);
+    // Keep a valid historical file even when its champion, augment or item
+    // is missing from today's catalogue. checkReplay reports that case separately.
+    return {ok:true,id:replayLibrary.add(report)};
+  }
+  if (typeof input?.id!=='string') throw Error('Wybierz zapisany przypadek.');
+  const entry=currentReplays().entries.get(input.id);
+  if (!entry) throw Error('Ta sytuacja wypadła już z historii meczu.');
+  if (input.action==='remove') { replayLibrary.remove(entry.caseId); return {ok:true}; }
+  if (input.action==='keep') return {ok:true,id:replayLibrary.add(entry.report)};
+  if (input.action==='open') return {ok:true,report:entry.report};
+  throw Error('Nieznana operacja na zapisanym przypadku.');
+}));
 ipcMain.handle('open-riot-policy',wrap(async()=>{await require('electron').shell.openExternal('https://support-developer.riotgames.com/hc/en-us/articles/22698591841939-General-Policies');return {ok:true};}));
 ipcMain.handle('review-feedback',wrap(input=>({ok:true,match:matchReview.feedback(input?.key,input)})));
+ipcMain.handle('mayhem-favorites',wrap(() => ({ok:true,entries:mayhemFavorites.list()})));
+ipcMain.handle('add-mayhem-favorite',wrap(key => {
+  const match = matchReview.value.matches.find(m => m.key === key);
+  return {ok:true,...mayhemFavorites.add(match)};
+}));
+ipcMain.handle('edit-mayhem-favorite',wrap(({id,note}) => {
+  mayhemFavorites.note(id,note); return {ok:true};
+}));
+ipcMain.handle('remove-mayhem-favorite',wrap(id => {
+  mayhemFavorites.remove(id); return {ok:true};
+}));
 function mayhemContext(key) {
   if (currentMode !== 'mayhem' || lastState?.status !== 'loading-screen' || !loading) throw Error('Augmenty meczu można zmieniać po rozpoczęciu Mayhem. Do symulacji użyj testera draftów.');
   const state = loadingSelectState(loading.allies.find(p => p.isMe));

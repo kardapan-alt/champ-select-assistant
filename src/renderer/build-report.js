@@ -5,7 +5,8 @@ function reportLabSummary() {
   const r = openedBuildReport;
   return `<details class="lab-allies" open><summary>Oryginalny build · ${esc(r.scenario.alias)}</summary>
     <p>${r.observed.plan.map(i=>esc(i.name)).join(' → ')}${r.observed.questSlot ? ' · Slot questa: '+esc(r.observed.questSlot.name) : ''}</p>
-    <p class="muted">Patch ${esc(r.patch || 'nieznany')} · ${esc(r.observed.source)}. Tester poniżej przelicza ten przypadek na obecnej bazie.</p></details>`;
+    <p class="muted">Patch ${esc(r.patch || 'nieznany')} · ${esc(r.observed.source)}. Tester poniżej przelicza ten przypadek na obecnej bazie.</p>
+    <button data-keep-open-report>Zachowaj oryginał do porównań wersji</button></details>`;
 }
 
 async function openReportInLab(report) {
@@ -44,6 +45,13 @@ function previewBuildReport(draft) {
 }
 
 document.addEventListener('click', async e => {
+  if (openedBuildReport && e.target.closest('[data-keep-open-report]')) {
+    try {
+      const result=await window.assist.manageReplay({action:'import',text:JSON.stringify(openedBuildReport)});
+      if (!result.ok) throw Error(result.error);
+      toast('Oryginalny przypadek jest w „Porównaj wersje”.');
+    } catch (err) { toast(err.message,true); }
+  }
   if (e.target.closest('[data-build-report]')) {
     const b = currentBuild();
     if (!b) return;

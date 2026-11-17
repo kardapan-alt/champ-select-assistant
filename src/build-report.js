@@ -1,6 +1,7 @@
 const { inventoryOf } = require('./liveclient');
 const { validateHeadliner, MAX_AUGMENTS } = require('./headliners');
 const { EFFECTS } = require('./mayhem');
+const { planOf, questSlotOf } = require('./plan-diff');
 
 const FORMAT = 'champ-select-assistant/build-report';
 const roles = ['top', 'jungle', 'middle', 'bottom', 'utility'];
@@ -41,15 +42,12 @@ function scenarioFrom(state, build, game) {
 
 function createReport(state, build, game, {version, patch, gold}) {
   if (!build || !state || !['classic','aram','mayhem'].includes(state.mode)) throw Error('Brak aktywnego buildu.');
-  const items = [...build.items];
-  if (build.boots?.id && build.inventory?.bootsSlot === 'inventory') items.splice(1,0,build.boots);
   return {
     format:FORMAT, schema:1, version:limited(version,30), patch:limited(patch,40) || null,
     scenario:scenarioFrom(state,build,game),
     observed:{
       gold:Number.isFinite(gold) ? gold : null, source:build.fromStats ? 'OP.GG' : build.baseSource ? 'OP.GG · zapisana baza' : 'Baza wbudowana',
-      plan:items.map(i => ({id:i.id, name:limited(i.name), reason:limited(i.why,450), source:limited(i.source,40)})),
-      questSlot:build.quest?.slotItem ? {id:build.quest.slotItem.id,name:limited(build.quest.slotItem.name)} : null,
+      plan:planOf(build), questSlot:questSlotOf(build),
       target:build.shop?.target ? {id:build.shop.target.id, name:limited(build.shop.target.name), cost:build.shop.target.cost} : null
     }
   };

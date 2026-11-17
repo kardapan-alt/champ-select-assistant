@@ -7,6 +7,35 @@ function reviewOutcome(m){
   return (result==='win'?'Wygrana':'Przegrana')+' · '+source;
 }
 let refreshOpenReview=null;
+function augmentImpactView(match) {
+  if (match.mode!=='mayhem' || !match.augments?.length) return '';
+  const title = '<h4>Build przed i po augmencie</h4>';
+  if (!match.augmentComparisons?.length) return title+'<p>W tym meczu zapisano karty bez porównań z chwili odczytu.</p>';
+  const plan = items => items.map(i=>esc(i.name)).join(' → ') || 'Pusty plan';
+  const contexts = {first:'Karta była już zapisana przy pierwszym odczycie.',gap:'Kartę odczytano po przerwie w zapisie.',group:'Kilka kart zmieniło się w jednym odczycie.'};
+  const choices = match.augments.map(card => {
+    const c = match.augmentComparisons.find(x=>x.id===card.id);
+    if (!c?.before || !c?.after) return `<p><b>${esc(card.name)}</b> · Brak zapisanego porównania.</p>`;
+    const moved = c.changes || [], upgraded = c.beforeUpgrade?.id!==c.afterUpgrade?.id;
+    const result = c.supported===false ? 'Brak sprawdzonej reguły' : moved.length || upgraded ? 'Zmiana planu' : 'Ta sama kolejność zakupów';
+    const reasons = moved.map(i=>{
+      const change = i.from==null ? `dodany na pozycję ${i.to}` : i.to==null ? `wypadł z pozycji ${i.from}` : `pozycja ${i.from} → ${i.to}`;
+      const reason=i.to==null?i.previousReason:i.reason;
+      return `<li><b>${esc(i.name)}</b> · ${change}${reason?`<span class="muted"> · ${i.to==null?'wcześniej: ':''}${esc(reason)}</span>`:''}</li>`;
+    }).join('');
+    const related = (c.requiredItems||[]).map(i=>{
+      const slot=c.after.findIndex(item=>item.id===i.id)+1;
+      const status=i.status==='owned'?'już kupiony':slot?`pozycja ${slot}`:'poza planem';
+      return `<p><b>${esc(i.name)}</b> · ${status}</p>`;
+    }).join('');
+    return `<details class="augment-impact"><summary><b>${esc(card.name)}</b> · ${result}</summary>
+      <p class="muted">Odczyt ${reviewTime(c.time)}. ${contexts[c.context] || ''}</p>
+      <p>${esc(c.summary)}</p><p><b>Bez tej karty</b> · ${plan(c.before)}</p><p><b>Z tą kartą</b> · ${plan(c.after)}</p>
+      ${reasons?`<ul>${reasons}</ul>`:''}${upgraded?`<p>Cel ulepszenia · ${esc(c.beforeUpgrade?.name||'brak')} → ${esc(c.afterUpgrade?.name||'brak')}</p>`:''}
+      ${related?`<div><b>Przedmioty powiązane z kartą</b>${related}</div>`:''}</details>`;
+  }).join('');
+  return title+'<p class="note">Porównanie zmienia jedną kartę. W obu planach zachowujemy ten sam ekwipunek, pozostałe augmenty, skład i przypięcia.</p>'+choices;
+}
 async function openMatchReviews(){
   const response=await window.assist.matchReviews();if(!response.ok)throw Error(response.error);
   let dialog=document.getElementById('review-dialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='review-dialog';document.body.appendChild(dialog);}
@@ -14,13 +43,15 @@ async function openMatchReviews(){
   const renderReview=key=>{
     const m=matches.find(m=>m.key===key)||matches[0];
     const names=list=>list.map(i=>`${i.count>1?i.count+' × ':''}${esc(i.name)}`).join(', ');
-    dialog.innerHTML=`<div class="panel-head"><h2>Po meczu</h2><button data-close-review>Zamknij</button></div>${!m?'<p>Podsumowanie pojawi się po meczu, w którym aplikacja odczyta Twój ekwipunek. Zapisujemy lokalnie ostatnie 10 meczów.</p>':`
+    dialog.innerHTML=`<div class="panel-head review-head"><h2>Po meczu</h2><div class="actions"><button data-compare-versions>Porównaj wersje</button><button data-open-favorites>Ulubione kombinacje</button><button data-close-review>Zamknij</button></div></div>${!m?'<p>Podsumowanie pojawi się po meczu, w którym aplikacja odczyta Twój ekwipunek. Zapisujemy lokalnie ostatnie 10 meczów.</p>':`
       <label>Mecz<select id="review-match">${matches.map(r=>`<option value="${esc(r.key)}" ${r.key===m.key?'selected':''}>${esc(r.name)} · ${esc(new Date(r.endedAt).toLocaleString('pl-PL'))}</option>`).join('')}</select></label>
       <h3>${esc(m.name)} · ${esc(m.mode==='mayhem'?'ARAM: Mayhem':m.mode==='aram'?'ARAM':'Summoner’s Rift')}</h3>
+      ${m.mode==='mayhem' && (m.augments?.length || m.items?.length) ? `<button data-save-favorite="${esc(m.key)}">Dodaj do ulubionych</button>` : ''}
       <p id="review-outcome" class="review-result" aria-live="polite">${esc(reviewOutcome(m))}</p><p class="note">Zapis od ${reviewTime(m.firstRead)} do ${reviewTime(m.duration)}. ${m.reason==='ended'?'Klient potwierdził koniec gry.':'Zakończono zapis; nie potwierdzono momentu końca gry.'} Zmiany ekwipunku mogą oznaczać zakupy, sprzedaż, łączenie części lub nagrody. ${m.trimmed?'Pokazuję ostatnie 200 zdarzeń.':''} ${m.gap?'Końcowy odczyt był niedostępny.':''}</p>
       ${m.headliner?`<p><b>Headliner:</b> ${esc(m.headliner.name)} ${esc(m.headliner.ability)}</p>`:''}
       <h4>Ostatnio zapisane augmenty</h4><p>${names(m.augments)||'Brak zapisanych augmentów'}</p>
       ${(m.synergies||[]).map(p=>`<p class="good">${esc(p.names.join(' + '))}: ${esc(p.text)}</p>`).join('')}
+      ${augmentImpactView(m)}
       <h4>Ostatni odczyt ekwipunku</h4><div class="review-items">${m.items.map(i=>`<div>${img(i.icon,'shop-icon',i.name)}<span>${i.count>1?i.count+' × ':''}${esc(i.name)}</span></div>`).join('')||'Pusty ekwipunek'}</div>
       <details class="review-timeline"><summary>Historia ekwipunku, augmentów i porad (${m.events.length})</summary><ol>${m.events.map(e=>`<li><time>${reviewTime(e.time)}</time> ${e.type==='initial'?`Pierwszy odczyt: ${names(e.added)||'pusto'}`:e.type==='inventory'?`${e.added.length?'Przybyło: '+names(e.added)+'. ':''}${e.removed.length?'Ubyło: '+names(e.removed):''}`:e.type==='plan'?e.target?`Cel zakupów: <b>${esc(e.target.name)}</b> — ${esc(e.target.why)}`:'Build kupiony lub brak dostępnego celu.':e.type==='gap'?'Przerwa w odczycie — część zmian mogła nie zostać zapisana.':`Zestaw augmentów: ${names(e.augments)||'pusto'}${e.headliner?' · Headliner: '+esc(e.headliner.name):''}`}</li>`).join('')}</ol></details>
       <form id="review-feedback"><h4>Twoja ocena</h4><div class="choice-grid"><label>Wynik · opcjonalna korekta<select name="result">${[['auto','Automatycznie z gry'],['win','Wygrana — moja korekta'],['loss','Przegrana — moja korekta']].map(([v,t])=>`<option value="${v}" ${(['win','loss'].includes(m.feedback?.result)?m.feedback.result:'auto')===v?'selected':''}>${t}</option>`).join('')}</select></label><label>Czy porady pomogły?<select name="rating">${[['none','Jeszcze nie oceniam'],['helpful','Pomogły'],['mixed','Częściowo'],['unhelpful','Nie pomogły']].map(([v,t])=>`<option value="${v}" ${(m.feedback?.rating||'none')===v?'selected':''}>${t}</option>`).join('')}</select></label></div><button type="submit">Zapisz ocenę</button><p role="status" id="feedback-status"></p></form>

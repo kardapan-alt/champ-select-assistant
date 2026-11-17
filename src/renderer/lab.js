@@ -81,14 +81,14 @@ function labControls() {
   const champions = (value, blank) => `${blank ? '<option value="">Nieznany / pusty</option>' : ''}${labCatalog.champions.map(c => `<option value="${esc(c.alias)}" ${c.alias === value ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}`;
   return `<section class="panel lab-controls"><div class="panel-head"><h2>Tester draftów</h2><span class="tag">Symulacja</span></div>
     <p class="muted">Sprawdź build i runy przed grą. Wybory w testerze są niezależne od Twoich zapisanych ustawień.</p>
-    <div class="actions"><button data-open-build-report>Otwórz zgłoszenie buildu</button></div>
+    <div class="actions"><button data-inspect-item>Dlaczego nie ten przedmiot?</button><button data-open-build-report>Otwórz zgłoszenie buildu</button><button data-compare-versions>Porównaj wersje</button></div>
     ${reportLabSummary()}
     <div class="lab-main"><label>Twój champion<select data-lab-field="alias">${champions(labInput.alias)}</select></label><label>Rola<select data-lab-field="role">${labInput.role === '' ? '<option value="" selected>Rola nieznana</option>' : ''}${Object.entries(roleNames).map(([v,n]) => `<option value="${v}" ${labInput.role === v ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <label>Tryb<select data-lab-field="mode"><option value="classic" ${labInput.mode === 'classic' ? 'selected' : ''}>Summoner's Rift · questy</option><option value="aram" ${labInput.mode === 'aram' ? 'selected' : ''}>ARAM</option><option value="mayhem" ${labInput.mode === 'mayhem' ? 'selected' : ''}>ARAM: Mayhem · augmenty</option></select></label></div>
     <details class="lab-allies"><summary>Sojusznicy · 4 opcjonalne miejsca</summary><div class="lab-team">${Array.from({length:4},(_,i) => `<label>Sojusznik ${i+1}<select data-lab-team="allies" data-index="${i}">${champions(labInput.allies[i],true)}</select></label>`).join('')}</div></details>
     <h4>Przeciwnicy</h4><div class="lab-team">${Array.from({length:5},(_,i) => `<label>${Object.values(roleNames)[i]}<select data-lab-team="enemies" data-index="${i}">${champions(labInput.enemies[i],true)}</select></label>`).join('')}</div>
     <div class="actions lab-presets"><span class="muted">Przykłady:</span><button data-lab-preset="crit">Dwa źródła krytów</button><button data-lab-preset="autos">Dużo autoataków</button><button data-lab-preset="tanks">Tanki + leczenie</button></div>
-    <p id="lab-error" class="form-error" role="alert"></p></section><div id="lab-results"></div>`;
+    <p id="lab-error" class="form-error" role="alert"></p></section><dialog id="inspect-item-dialog"></dialog><div id="lab-results"></div>`;
 }
 function renderLabResults() {
   if (!labActive || !labView || !document.getElementById('lab-results')) return;

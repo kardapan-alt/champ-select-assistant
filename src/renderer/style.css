@@ -548,17 +548,34 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 .augment-fit dt { color:var(--gold); margin-top:8px; }
 .augment-fit dd { margin:2px 0; }
 #review-dialog { width:min(900px,94vw); }
+#replay-checks { width:min(820px,94vw); max-height:90vh; overflow:auto; }
+.replay-case { margin:8px 0; padding:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:6px; }
+.replay-case summary { cursor:pointer; }
+.replay-case li p { margin:3px 0 8px; color:var(--muted); }
+.review-head,.review-head .actions { flex-wrap:wrap; }
 #riot-dialog { width:min(700px,94vw); }
 #review-dialog,#riot-dialog { max-height:90vh; overflow:auto; }
 #review-match { max-width:100%; }
 .review-items { display:flex; flex-wrap:wrap; gap:12px; }
 .review-items > div { display:flex; flex-direction:column; align-items:center; width:100px; text-align:center; font-size:12px; gap:5px; }
 .review-timeline { margin:20px 0; }
+.augment-impact { margin:6px 0; padding:9px 12px; border:1px solid var(--line); border-radius:var(--radius); }
+.augment-impact summary { cursor:pointer; }
+.augment-impact ul { padding-left:22px; }
 .review-timeline ol { padding-left:24px; }
 .review-timeline li { padding:6px; }
 .review-timeline time { color:var(--gold); margin-right:8px; }
 .recent-match { max-width:900px; margin:18px auto; }
 .recent-match + .empty { margin-top:30px; }
+.favorite-search,.favorite-note label { display:grid; gap:6px; }
+#favorites-dialog input,#favorites-dialog textarea { box-sizing:border-box; width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:5px; padding:8px; font:inherit; }
+.favorite { margin-top:12px; padding:10px; border:1px solid var(--line); border-radius:6px; }
+.favorite summary span { color:var(--muted); margin-left:10px; }
+.favorite-note textarea { resize:vertical; }
+.favorite-note [role=status]:empty,.favorite-empty:empty { display:none; }
 header { gap:8px; flex-wrap:wrap; }
 @media(max-width:850px) { .purchase-options { grid-template-columns:1fr; } header { padding:10px 14px; } header .brand { margin-right:auto; } }
 .build-report-json {white-space:pre-wrap;overflow-wrap:anywhere;max-height:32vh;overflow:auto}
+#inspect-item-dialog { width:min(620px,94vw); }
+#inspect-item-dialog label { display:grid; gap:4px; margin:10px 0; }
+#inspect-item-dialog input,#inspect-item-dialog select { width:100%; }

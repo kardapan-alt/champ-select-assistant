@@ -1,9 +1,8 @@
-## Wersja 0.6.34
+## Wersja 0.6.35
 
-- **Import run** zarządza stroną utworzoną przez asystenta dla danego konta. Przy pełnych slotach lub błędzie klienta zachowuje strony gracza.
-- **Prywatność i kolejki.** Asystent pomija wyszukiwanie ukrytych profili. Dla nierozpoznanej kolejki wstrzymuje analizę i automatyczny import.
-- **ARAM Mayhem.** Pod Ctrl+X widać trzy karty w kolejności z gry. Aplikacja oddzielnie pokazuje ofertę i potwierdzenie wybranej karty. Poprawiony zapis uwzględnia powrót z podglądu, przerzuty i kliknięcia następujące po wyborze.
-- **Gracze i statystyki.** Podczas ładowania i meczu obie drużyny są widoczne w dwóch rzędach lub w dwóch zwartych listach. Wspólny filtr zmienia okres dla wszystkich graczy. Każdą dostępną kartę można rozwinąć.
-- **Zgłoś dziwny build.** Przy buildzie można podejrzeć i zapisać lokalny plik JSON ze składem postaci, zakupami, augmentami i uzasadnieniami. Tester draftów otwiera ten plik także bez uruchomionej gry. Zawartość można przeczytać przed udostępnieniem.
+- **Dlaczego nie ten przedmiot?** W Testerze draftów wyszukaj przedmiot według nazwy PL/EN, ID lub skrótu, np. IE. Zobaczysz powód jego wyboru albo pominięcia i wpływ próbnego dodania na kolejność zakupów. Symulacja uwzględnia posiadany ekwipunek, przypięcia i sloty questów.
+- **Build przed i po augmencie.** W podsumowaniu Mayhem rozwiń zapisaną kartę. Zobaczysz dwa plany dla tej samej sytuacji oraz przedmioty dodane, przesunięte lub usunięte. Przy ulepszeniach widać też powiązany przedmiot. Początkowe i niepełne odczyty mają osobne oznaczenia.
+- **Porównaj wersje.** Otwórz tę opcję w Testerze draftów lub w „Po meczu”. Aplikacja przeliczy zapisane sytuacje na obecnej bazie i pokaże różnice względem oryginalnego planu. Możesz zachować sytuację poza historią ostatnich dziesięciu gier albo dodać raport JSON z wersji 0.6.34. Starsze podsumowania bez danych odtworzeniowych pokazują informację o brakującym zapisie.
+- **Ulubione kombinacje Mayhem.** Z podsumowania można zapisać bohatera, augmenty, Headlinera i ostatni odczyt ekwipunku oraz dopisać notatkę. Lokalna biblioteka pozwala wrócić do kombinacji po wygaśnięciu historii i szukać według postaci, augmentów, przedmiotów lub treści notatki.
 
-Wersja instalowana pobiera wydania z GitHuba w tle. Po pobraniu wybierz „Uruchom ponownie”, gdy zakończysz mecz. Wersja portable pokazuje odsyłacz do pobrania.
+Wersja instalowana pobiera wydanie w tle. Po pobraniu wybierz „Uruchom ponownie”, kiedy skończysz mecz. Wersja portable udostępnia odsyłacz do pobrania.

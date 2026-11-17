@@ -6,6 +6,9 @@ const { isBootItem, baseBoots, SUPPORT_ITEMS } = require('./rolequests');
 const mayhem = require('./mayhem');
 const { replayContext } = require('./build-report');
 const { withPurchaseGoal } = require('./next-purchase');
+const { explainItem } = require('./item-inspection');
+const englishNames = new Map(require('../data/catalog.json').items.map(i=>[i.id,i.name]));
+const polishNames = require('../data/item-names-pl.json').items;
 const ROLES = ['top', 'jungle', 'middle', 'bottom', 'utility'];
 
 function catalog(game, data, state = { mode: 'classic' }, alias = '') {
@@ -23,7 +26,13 @@ function catalog(game, data, state = { mode: 'classic' }, alias = '') {
   };
 }
 
-function preview(input, game, data) {
+function inspectionCatalog(game) {
+  return [...game.items.values()].filter(i=>i.id>0 && i.name).map(i=>({
+    id:i.id,name:i.name,english:englishNames.get(i.id) || '',polish:polishNames[i.id] || ''
+  })).sort((a,b)=>a.name.localeCompare(b.name) || a.id-b.id);
+}
+
+function preview(input, game, data, {buildOnly=false,inspectItem=null} = {}) {
   if (!input || !game.championsByAlias.has(input.alias)) throw new Error('Wybierz swojego championa z listy.');
   if ((!ROLES.includes(input.role) && !(input.context && input.role === '')) || !['classic', 'aram', 'mayhem'].includes(input.mode)) throw new Error('Wybierz prawidłową rolę i tryb.');
   const validateTeam = (value, limit) => {
@@ -48,13 +57,19 @@ function preview(input, game, data) {
   }
   const base = engine.buildFor(input.alias, state, game, data);
   state.choices = validateChoices(input.choices || {}, base, input.alias, state, game);
+  if (inspectItem != null) {
+    if (!Number.isSafeInteger(inspectItem) || !game.items.has(inspectItem)) throw Error('Wybierz przedmiot z katalogu.');
+    state.inspectItem = inspectItem;
+  }
   const view = (p) => { const c = game.championsById.get(p.championId); return { ...p, champion: c ? { ...c, icon: `/lol-game-data/assets/v1/champion-icons/${c.id}.png` } : null }; };
   const natural = engine.buildFor(input.alias,state,game,data);
   const build = withPurchaseGoal(input.alias,state,game,data,natural,input.context?.goal).build;
+  if (inspectItem != null) return {inspection:explainItem(inspectItem,state,build,game,data)};
+  if (buildOnly) return {build};
   return { status: 'preview', build,
     myChampion: { alias: input.alias, name: game.championsByAlias.get(input.alias).name, locked: true,
       icon: `/lol-game-data/assets/v1/champion-icons/${me.championId}.png`, runes: engine.runePageFor(input.alias, game, data, state) },
     compositions: engine.compositions(state, game, data), allies: state.allies.map(view), enemies: state.enemies.map(view),
     choices: state.choices, mayhem:state.mayhem, catalog: catalog(game, data, state, input.alias) };
 }
-module.exports = { catalog, preview };
+module.exports = { catalog, inspectionCatalog, preview };

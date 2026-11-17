@@ -1,8 +1,9 @@
 // Pełny main + prawdziwy LiveClient/parser + renderer; lokalne dane symulowane.
 const {app}=require('electron');
 const fs=require('fs'),path=require('path'),assert=require('node:assert/strict');
-const out=path.resolve(__dirname,'../../shop-preview'),profile=path.join(out,'profile');
+const out=path.resolve(process.env.SHOP_TEST_OUTPUT || path.join(__dirname,'../../shop-preview')),profile=path.join(out,'profile');
 fs.mkdirSync(profile,{recursive:true});app.setPath('userData',profile);app.disableHardwareAcceleration();
+fs.writeFileSync(path.join(profile,'saved-build-reports.json'),'[]');
 const oldBase=structuredClone(require('../data/champions.json'));
 oldBase.version=6;oldBase.champions.Ahri.items=[3078,3053,6333];
 fs.writeFileSync(path.join(profile,'champions.json'),JSON.stringify(oldBase));
@@ -175,6 +176,11 @@ server.once('listening',async()=>{
     flowFailure=false;
     await waitFor(async()=> (await state()).final.build.shop.gold===1200,'Nie wróciła weryfikacja sesji');
     // Odpowiedź ze starego meczu kończąca się podczas zmiany gameId jest odrzucana.
+    const upgrade=augmentCatalog.find(a=>a.api.replace(/^ARAM_/,'')==='Upgrade_Stormsurge').id;
+    await evaluate(`(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({matchKey:c.matchKey,selection:{...c.selection,augments:[${upgrade}]},knownScreenAugments:c.screenAugments});})()`);
+    const impact=JSON.parse(fs.readFileSync(path.join(profile,'match-review.json'))).active.augmentComparisons[0];
+    assert.equal(impact.id,upgrade);assert.ok(impact.before.length && impact.after.length);
+    assert.ok(impact.requiredItems.some(i=>i.id===4646));
     let release;pending={promise:new Promise(r=>{release=r;})};const count=requests;
     await waitFor(()=>requests>count,'Brak oczekującego odczytu');gameId++;connected=false;release();
     await waitFor(async()=> (await state()).final.build.mayhem?.matchKey?.startsWith(gameId+':'),'Nowy mecz nie odizolował odczytu');
@@ -210,6 +216,26 @@ server.once('listening',async()=>{
     await evaluate(`document.querySelector('.review-timeline').open=true;void 0`);
     await new Promise(r=>setTimeout(r,300));
     fs.writeFileSync(path.join(out,'review-820.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
+    await evaluate("document.querySelector('#review-dialog [data-compare-versions]').click()");
+    await waitFor(()=>evaluate("document.querySelector('#replay-checks')?.open"),'Nie otwarto porównania wersji');
+    assert.ok(await evaluate("document.querySelectorAll('#replay-checks [data-case]').length>=3"));
+    await evaluate("const row=document.querySelector('#replay-checks [data-replay-action=keep]').closest('[data-case]');row.open=true;row.querySelector('[data-replay-action=keep]').click();void 0");
+    await waitFor(()=>evaluate("!!document.querySelector('#replay-checks [data-replay-action=remove]')"),'Nie zachowano meczu do kolejnych wersji');
+    const retained=JSON.parse(fs.readFileSync(path.join(profile,'saved-build-reports.json'),'utf8'));
+    assert.ok(retained.some(e=>e.report.scenario.alias));
+    assert.doesNotMatch(JSON.stringify(retained),/puuid|Daniel#|matchKey|gameName/i);
+    const oldReport=structuredClone(report);
+    oldReport.version='0.6.34';
+    oldReport.observed.plan[0]={id:999999,name:'Historyczny zakup testowy',reason:'Dawna reguła'};
+    const imported=await evaluate(`window.assist.manageReplay({action:'import',text:${JSON.stringify(JSON.stringify(oldReport))}})`);
+    assert.ok(imported.ok,imported.error);
+    await evaluate(`openReplayChecks(${JSON.stringify(imported.id)})`);
+    assert.match(await evaluate("document.querySelector('#replay-checks details[open]').innerText"),/Historyczny zakup testowy.*wypadł/s);
+    await evaluate("document.querySelector('#replay-checks [data-close-checks]').click()");
+    const impactMatch=disk.matches.find(m=>m.augmentComparisons?.some(c=>c.id===upgrade));
+    await evaluate(`const choice=document.getElementById('review-match');choice.value=${JSON.stringify(impactMatch.key)};choice.dispatchEvent(new Event('change'));document.querySelector('.augment-impact').open=true;void 0`);
+    const impactText=await evaluate('document.querySelector(".augment-impact").innerText');
+    for(const text of ['Stormsurge','Bez tej karty','Z tą kartą','Przedmioty powiązane z kartą'])assert.ok(impactText.includes(text),text);
     await evaluate(`document.getElementById('review-dialog').close();document.getElementById('riot-info').click();void 0`);
     assert.ok(await evaluate(`document.getElementById('riot-dialog').open && document.getElementById('riot-dialog').textContent.includes("isn't endorsed by Riot Games")`));
     console.log('PASS: API → zakupy i przypięty cel → zmiana sytuacji → kompaktowy widok i pełny rozmiar → dane patcha → odblokowanie po zakupie; Mayhem/ARAM/SR; Headliner, augmenty, wynik i historia; widoki 520, 820 i 1100.');

@@ -23,6 +23,15 @@ app.whenReady().then(async()=>{
   await waitFor(()=>evaluate("labView?.build?.alias === 'Jinx'"),'Preset did not change');
   assert.equal(await evaluate('labView.build.items.length'),6);
   assert.ok(await evaluate('labView.build.items.some(i=>i.id===3033)'));
+  await evaluate("document.querySelector('[data-inspect-item]').click()");
+  await waitFor(()=>evaluate("document.getElementById('inspect-item-dialog')?.open"),'Brak okna wyjaśnień');
+  await evaluate(`(() => {const dlg=document.getElementById('inspect-item-dialog'), search=dlg.querySelector('input');
+    search.value='IE'; search.dispatchEvent(new Event('input')); dlg.querySelector('form').requestSubmit();})()`);
+  await waitFor(()=>evaluate("document.querySelector('[data-item-explanation] h3')?.textContent === 'Infinity Edge'"),'Skrót IE nie otworzył wyjaśnienia');
+  await evaluate(`(() => {const dlg=document.getElementById('inspect-item-dialog'), search=dlg.querySelector('input');
+    search.value='3036'; search.dispatchEvent(new Event('input')); dlg.querySelector('form').requestSubmit();})()`);
+  await waitFor(()=>evaluate("document.querySelector('[data-item-explanation]').textContent.includes('Po dodaniu')"),'Brak symulacji dodania przedmiotu');
+  await evaluate("document.querySelector('#inspect-item-dialog [data-close]').click()");
   await waitFor(()=>evaluate("document.querySelectorAll('#lab-results .icon-fallback').length > 0"),'Offline icon fallbacks missing');
   await evaluate("document.querySelector('.inventory-items [data-pin-item]').click()");
   await waitFor(()=>evaluate('labView.build.items[0].pinned'),'Offline pin did not apply');

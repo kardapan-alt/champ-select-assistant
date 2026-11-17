@@ -888,7 +888,9 @@ function buildFor(alias, state, game, data) {
     if(itemPoolKey(champ)==='tank' && tags.includes('SpellDamage') && !isSupportCore(id))return false;
     return true;
   };
-  const candidates = [
+  const fitsCritStyle = id => !(champ.buildStyle==='onhit' && [3031,6676].includes(id) && !core.includes(id) && !augmentation?.bonuses.has(id))
+    && (id!==3031 || champ.buildStyle==='crit' || critCore || core.includes(3031) || augmentation?.bonuses.has(3031));
+  const candidateEntries = [
     ...[...situational.values()].map((it) => (coreRest.includes(it.id) ? { ...it, tags: { ...it.tags, late: coreWeight }, core: true } : it)),
     ...coreRest.map((id) => ({ id, tags: { ...pooledTags(id), late: coreWeight }, core: true })),
     ...lateStats.filter(it=>fitsLateStyle(it.id)).map((it) => ({ id: it.id, tags: { ...pooledTags(it.id), late: 2 + 1.5 * (it.score / topLate) }, core: true, popular: true })),
@@ -896,9 +898,9 @@ function buildFor(alias, state, game, data) {
     ...((data.itemPools || {})[itemPoolKey(champ)] || []).filter((it) => !it.only || it.only.includes(champ.class))
       // Przy statystykach OP.GG item z puli nie wygrywa samą „późną grą”, tylko odpowiedzią na zagrożenie.
       .map((it) => (lateStats.length ? { ...it, tags: { ...it.tags, late: 0 } } : it)),
-  ].filter((it, i, arr) => isBuildItem(it.id) && fitsDamage(it.id) && !fixed.includes(it.id) && arr.findIndex((x) => x.id === it.id) === i)
-    .filter(it=>!(champ.buildStyle==='onhit'&&[3031,6676].includes(it.id)&&!core.includes(it.id)&&!augmentation?.bonuses.has(it.id)))
-    .filter(it=>it.id!==3031 || champ.buildStyle==='crit' || critCore || core.includes(3031) || augmentation?.bonuses.has(3031));
+  ];
+  const candidates = candidateEntries.filter((it, i, arr) => isBuildItem(it.id) && fitsDamage(it.id) && !fixed.includes(it.id)
+    && arr.findIndex((x) => x.id === it.id) === i && fitsCritStyle(it.id));
 
   const left = { ...threats };
   const usedAugmentGroups = new Map();
@@ -918,6 +920,8 @@ function buildFor(alias, state, game, data) {
   const coreScore = it => augmentation?.active && !augmentation.transformsBuild && foundations.has(it.id) ? 4 : 0;
   const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0) + augmentScore(it.id) + coreScore(it);
   const chosen = [];
+  const inspectId = state.inspectItem;
+  let lastCompetition = null;
   const pool = candidates.flatMap(it=>augmentation?.repeat.has(it.id) ? [it,{...it}] : [it]);
   while (chosen.length < fullBuild - fixed.length - pins.length && pool.length) {
     const selected = [...pinIds, ...fixed, ...chosen.map((x) => x.id)];
@@ -925,6 +929,10 @@ function buildFor(alias, state, game, data) {
     if (!pool.length) break;
     pool.sort((a, b) => scoreOf(b) - scoreOf(a));
     const best = pool.shift();
+    if (inspectId && best.id !== inspectId) {
+      const competitor = pool.find(it => it.id === inspectId);
+      if (competitor) lastCompetition = { winner:best.id, tied:scoreOf(best) === scoreOf(competitor) };
+    }
     const contributions = Object.entries(best.tags).map(([tag, v]) => [tag, v * (left[tag] || 0)]).sort((a, b) => b[1] - a[1]);
     // Konkretna sytuacja (np. "zabójcy AD: Zed") jest czytelniejsza niż ogólny powód, więc ma pierwszeństwo.
     const specific = contributions.find(([tag, v]) => tag.startsWith('s:') && v > 0);
@@ -1022,6 +1030,25 @@ function buildFor(alias, state, game, data) {
       const items=targets.map(id=>({...item(id),status:purchased.includes(id)?'owned':finalItems.some(i=>i.id===id)?'planned':'outside'}));
       return {...h,rating:ratings.find(r=>r.id===h.id)||null,requiredItems:items};
     });
+  }
+  if (inspectId) {
+    const decision = finalItems.find(it => it.id === inspectId);
+    const ranked = candidates.some(it => it.id === inspectId);
+    const conflict = selectedIds.find(id => id !== inspectId && !compatible(inspectId,[id]));
+    const chosenItem = chosen.find(it => it.id === inspectId);
+    const bonus = augmentation?.bonuses.get(inspectId);
+    // Report only facts from this execution. Availability and trial purchases are
+    // handled by the lab; neither changes the ranking of the natural build.
+    build.inspection = {
+      ranked, conflict, lastCompetition, inPool:candidateEntries.some(it => it.id === inspectId),
+      core:core.includes(inspectId), fixed:fixed.includes(inspectId), guardIE:critCore && inspectId === 3031,
+      excluded:!!augmentation?.excluded.has(inspectId), resource:fitsResource(inspectId),
+      damage:fitsDamage(inspectId), crit:fitsCritStyle(inspectId),
+      lateStyle:!lateStats.some(it=>it.id===inspectId) || fitsLateStyle(inspectId),
+      why:decision?.why, source:decision?.source, popular:!!chosenItem?.popular,
+      reasonRule:situations.filter(s => s.myItem===inspectId).map(reasonFor),
+      bonus:bonus ? [...new Set(bonus.reasons)] : []
+    };
   }
   return build;
 }
