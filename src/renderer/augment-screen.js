@@ -57,8 +57,8 @@ async function pollAugmentScreen(){
   }finally{augmentReaderBusy=false;}
 }
 function augmentOfferFrame(frame){
-  const c=document.createElement('canvas'),sourceWidth=Math.min(frame.width,frame.height*16/9),sourceX=(frame.width-sourceWidth)/2;
-  const crop={x:sourceX/frame.width,y:0,w:sourceWidth/frame.width,h:1},ratio=Math.min(2000/sourceWidth,1500/frame.height);
+  const c=document.createElement('canvas'),crop=AugmentVision.offerCrop(frame.width,frame.height);
+  const sourceWidth=crop.w*frame.width,sourceX=crop.x*frame.width,ratio=Math.min(2000/sourceWidth,1500/frame.height);
   c.width=Math.round(sourceWidth*ratio);c.height=Math.round(frame.height*ratio);
   c.getContext('2d').drawImage(frame,sourceX,0,sourceWidth,frame.height,0,0,c.width,c.height);
   // Jasne litery gry na ciemnej karcie: OCR lepiej odczytuje ciemny tekst na bieli.

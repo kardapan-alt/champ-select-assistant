@@ -363,6 +363,15 @@ function rosterPanel(s) {
 
 const VERDICT_LABEL = { good: ['Korzystny', 'good'], bad: ['Trudny', 'bad'], even: ['Wyrównany', ''] };
 
+function botPlanPanel(plan) {
+  if (!plan) return '';
+  return `<section class="panel plan" data-bot-duo><h3>Plan bota 2 na 2</h3>
+    <div><b>${plan.allies.map(esc).join(' + ')}</b> <span class="muted">vs</span> <b>${plan.enemies.map(esc).join(' + ')}</b></div>
+    ${plan.inferred.length ? `<div class="note">Przewidywana pozycja na podstawie zwykłej roli championa · ${plan.inferred.map(esc).join(', ')}</div>` : ''}
+    <ul class="plan-tips"><li>${esc(plan.trade)}</li><li>${esc(plan.threat)}</li></ul>
+  </section>`;
+}
+
 function planPanel(plan) {
   if (!plan) return '';
   const [label, cls] = VERDICT_LABEL[plan.verdict] || ['', ''];
@@ -399,7 +408,7 @@ function priorityAdvicePanel(s) {
   const b = s.final?.build || s.build;
   if (b?.mode === 'mayhem') return '';
   const tips = [];
-  if (s.plan?.tips?.[0]) tips.push({ label: 'Na linii', text: s.plan.tips[0] });
+  if (!s.botPlan && s.plan?.tips?.[0]) tips.push({ label: 'Na linii', text: s.plan.tips[0] });
   const mid = s.gamePlan?.phases?.find((p) => /Środek|Wasz styl|Walki drużynowe/.test(p.title));
   if (mid?.tips?.[0]) tips.push({ label: 'W walkach', text: mid.tips[0] });
   const priority = b?.items?.find((i) => i.priority);
@@ -441,7 +450,7 @@ function loadingScreen(s) {
     ? rosterPanel(s)
     : tab === 'build'
       ? `${s.final?.myChampion ? myChampionPanel(s.final.myChampion, true) : '<p class="muted">Czekam na dane postaci.</p>'}${priorityAdvicePanel(s)}${planDetails}${adviceDetails(list)}`
-    : `${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
+    : `${botPlanPanel(s.botPlan)}${s.final?.build ? buildPanel(s.final.build, true) : '<div class="panel"><h3>Build</h3><p class="muted">Czekam na dane Twojej postaci.</p></div>'}
       ${priorityAdvicePanel(s)}
       ${runeSummary(s.final?.myChampion)}
       ${planDetails}
@@ -521,6 +530,7 @@ function render(s) {
   const center = [
     bansPanel(s),
     isAramView(s.mode) ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
+    botPlanPanel(s.botPlan),
     s.build ? buildPanel({ ...s.build, mode: s.mode }, false, s.autoItemSet) : '',
     s.build ? priorityAdvicePanel(s) : '',
     s.myChampion ? disclosure('runes', s.mode==='mayhem'?'Czary przywoływacza':'Runy, czary i dopasowanie do matchupu', myChampionPanel(s.myChampion, false, s.autoRunes)) : '',

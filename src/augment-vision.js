@@ -32,6 +32,10 @@
     return {enabled:value.enabled,width,height,regions:[{x:r.x,y:r.y,w:r.w,h:r.h}]};
   }
   const sameLayout=(config,width,height)=>config?.width===width&&config?.height===height;
+  function offerCrop(width,height){
+    const w=Math.min(1,height*16/9/width);
+    return {x:(1-w)/2,y:0,w,h:1};
+  }
   // Dawna kalibracja nie jest potrzebna do odczytu kart. Zachowaj wyłączenie.
   const migrateConfig=value=>validateConfig(value?.mode?value:{enabled:value?.enabled!==false,mode:'auto'});
   class Consensus {
@@ -47,5 +51,5 @@
       });
     }
   }
-  return {normalize,recognizeText,validateConfig,migrateConfig,sameLayout,Consensus};
+  return {normalize,recognizeText,validateConfig,migrateConfig,sameLayout,offerCrop,Consensus};
 });

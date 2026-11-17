@@ -41,6 +41,51 @@ function trackerFixture(){
   const input=(type,at,x=195,y=160)=>t.input({type,at,x,y,width:640,height:360});
   return {t,cards,grid,observe,input};
 }
+test('test ze zrzutu zwraca trzy wycinki, rzeczywisty tekst OCR i wynik detektora gry',async()=>{
+  const {testOfferScreenshot}=require('../src/augment-screenshot');
+  async function check(titles,frameWidth,pool='KIWI',entries=catalog){
+    const {grid,result}=fixture(titles);
+    if(frameWidth>640){ // Środkowy obraz 16:9 z marginesami ultrawide, jak w pełnej klatce gry.
+      const scale=frameWidth/grid.width,margin=(frameWidth-grid.width)/2,height=Math.round(grid.height/scale);
+      const resized=Buffer.alloc(grid.width*height);
+      for(let y=0;y<height;y++)for(let x=0;x<grid.width;x++){
+        const sx=Math.floor(x*scale-margin);
+        if(sx>=0&&sx<grid.width)resized[y*grid.width+x]=grid.pixels[Math.floor(y*scale)*grid.width+sx];
+      }
+      grid.pixels=resized;grid.height=height;
+    }
+    const input={width:frameWidth*2,height:720,pool,grid:{...grid,pixels:grid.pixels.toString('base64')},png:'fixture'};
+    let reads=0;
+    const diagnostic=await testOfferScreenshot(input,{read:async png=>{assert.equal(png,'fixture');reads++;return result;}},entries);
+    assert.equal(reads,1);
+    return diagnostic;
+  }
+  const full=await check(names,640);
+  assert.equal(full.status,'offer');
+  assert.deepEqual(full.slots.map(s=>s.english),names);
+  assert.deepEqual(full.slots.map(s=>s.readings),names.map(n=>[n]));
+  const partial=await check([names[0],'Apex Invent0r',names[2]],800);
+  assert.equal(partial.status,'incomplete');
+  assert.deepEqual(partial.slots.map(s=>s.english),[names[0],null,names[2]]);
+  assert.deepEqual(partial.slots[1].readings,['Apex Invent0r']);
+  const jade=['Perseverance','Fan The Hammer','Vampirism'];
+  assert.equal((await check(jade,640,'auto')).status,'offer');
+  assert.equal((await check([names[0],jade[1],names[2]],640,'auto')).status,'incomplete');
+  const rival={...catalog.find(a=>a.english===names[0]),id:99999,pools:['KIWI_JADE']};
+  const ambiguous=await check(names,640,'auto',[...catalog,rival]);
+  assert.equal(ambiguous.status,'incomplete');
+  assert.equal(ambiguous.slots[0].name,null);
+  assert.equal(ambiguous.slots[0].ambiguous,true);
+});
+test('pusty zrzut i brak języka OCR mają osobne wyniki bez przydzielania kart',async()=>{
+  const {testOfferScreenshot}=require('../src/augment-screenshot'),{grid}=fixture();
+  const input={width:1280,height:720,pool:'auto',grid:{...grid,pixels:grid.pixels.toString('base64')}};
+  const language=await testOfferScreenshot(input,{read:async()=>({error:'language'})},catalog);
+  assert.equal(language.status,'language');
+  assert.ok(language.slots.length===3&&language.slots.every(s=>s.id===null));
+  input.grid.pixels=Buffer.alloc(grid.width*grid.height).toString('base64');
+  assert.equal((await testOfferScreenshot(input,{read:()=>assert.fail('Pusty obraz trafił do OCR')},catalog)).status,'empty');
+});
 test('wybór wymaga kliknięcia i zniknięcia kart na dwóch czytelnych klatkach',()=>{
   const {observe,input}=trackerFixture();input('down',1800);input('up',1900);
   assert.equal(observe(2400,null,cleanGrid()),null);assert.equal(observe(3100,null,cleanGrid()),ids[0]);

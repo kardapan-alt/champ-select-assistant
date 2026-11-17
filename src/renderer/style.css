@@ -511,6 +511,13 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 #augment-calibration { width:min(1400px,96vw); max-height:94vh; }
 .augment-calibration-canvas { display:block; width:100%; height:auto; cursor:crosshair; touch-action:none; background:#05080c; }
 #augment-calibration .actions { flex-wrap:wrap; }
+#offer-screenshot-test .actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.screenshot-slots { display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:10px; }
+.screenshot-slots article { min-width:0; padding:10px; background:var(--panel-2); border-radius:8px; overflow-wrap:anywhere; }
+.screenshot-slots h3 { margin:0 0 6px; }
+.screenshot-slots canvas { width:100%; display:block; margin-bottom:8px; }
+.screenshot-slots small { display:block; }
+.screenshot-slots p { color:var(--muted); margin:5px 0 0; }
 .live-shop { margin:0 0 12px; padding:10px 12px; border:1px solid #73613c; border-radius:9px; background:#1b211e; }
 .shop-heading { display:flex; justify-content:space-between; gap:10px; color:var(--gold); font-size:12px; margin-bottom:5px; }
 .shop-purchase { display:flex; align-items:center; gap:9px; min-width:0; }

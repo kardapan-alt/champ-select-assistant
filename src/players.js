@@ -192,4 +192,4 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
   return card;
 }
 
-module.exports = { LOADING_PHASES, readLoadingPlayers, playerCard, gier };
+module.exports = { LOADING_PHASES, readLoadingPlayers, playerCard, gier, normPosition };

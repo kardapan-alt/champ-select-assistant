@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('assist', {
   setAugmentScreen: input => ipcRenderer.invoke('set-augment-screen',input),
   augmentScreenFrame: input => ipcRenderer.invoke('augment-screen-frame',input),
   augmentScreenPreview: input => ipcRenderer.invoke('augment-screen-preview',input),
+  testOfferScreenshot: input => ipcRenderer.invoke('test-offer-screenshot',input),
   augmentScreenProblem: input => ipcRenderer.invoke('augment-screen-problem',input),
   stopAugmentCapture: () => ipcRenderer.invoke('stop-augment-capture'),
   onUpdate: (cb) => ipcRenderer.on('update', (_e, update) => cb(update)),

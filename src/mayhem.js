@@ -17,6 +17,7 @@ const EFFECTS = {
 };
 const RULES = require('./mayhem-rules');
 const headliners = require('./headliners');
+const { itemInteraction, onHitExamples } = require('./mayhem-interactions');
 
 const ruleFor = augment => RULES[augment.api.replace(/^ARAM_/, '')];
 function upgradeTargets(rule,champion,selection={},enemy={}){
@@ -126,7 +127,7 @@ function adaptation(selection, champion, context = {}) {
     if (!r && !effects.length) unknown.push(a.name);
     const overridden = Object.hasOwn(s.effects || {}, a.id);
     hints.push({ id:a.id, name:a.name, english:a.english, supported:!!r || effects.length > 0, quest:!!r?.quest,
-      neutral:!!r?.neutral || disabled,
+      neutral:!!r?.neutral || disabled, interaction:itemInteraction(a,champion,context.game),
       completed:(s.completed || []).includes(a.id), itemTargets:overridden?[]:upgradeTargets(r,champion,s,enemy),oneItem:!!r?.anyItem,
       summary:disabled ? 'Back To Basics wyłącza ultimate, więc pomijam synergię tego augmentu z R.' : overridden ? `Ręcznie wskazany wpływ: ${effects.map(e=>EFFECTS[e]).join(', ') || 'bez dodatkowego priorytetu'}.` : r?.summary || 'Brak sprawdzonej reguły zakupów dla tego augmentu.', effects });
     const why = `augment ${a.name}`;
@@ -136,7 +137,13 @@ function adaptation(selection, champion, context = {}) {
       const forcedAttack = overridden || r?.abilityOnHit || attackAP;
       if (effect === 'health' && !(r?.manaHealth && (usesMana===false || manaConversion))) add(healthConversion ? (ap ? [] : [3814,3071,3181]) : healthItems, 7, why + ': zdrowie');
       if (effect === 'attacks' || effect === 'onhit') {
-        if (!['crit','haste'].includes(attackConversion) && (attacks || forcedAttack)) add(attackItems,attackAP?16:10,why + ': efekty ataków');
+        if (!overridden && r?.abilityOnHit && !['crit','haste'].includes(attackConversion)) {
+          // Only proven on-hit passives qualify through the spell itself. Other
+          // items can still enter the build via the champion or a separate card.
+          const candidates = ap ? [3115] : attackItems.filter(id => onHitExamples.includes(id));
+          add(candidates, 10, why + ': umiejętność nakłada efekt przy trafieniu');
+        }
+        else if (!['crit','haste'].includes(attackConversion) && (attacks || forcedAttack)) add(attackItems,attackAP?16:10,why + ': efekty ataków');
         else natural();
       }
       if (effect === 'ap' && (ap && !tank || overridden)) add(support ? [6617,3089] : [3089,4645,3135],8,why + ': skalowanie AP');

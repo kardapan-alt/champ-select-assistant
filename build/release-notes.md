@@ -1,8 +1,7 @@
-## Wersja 0.6.35
+## Wersja 0.6.36
 
-- **Dlaczego nie ten przedmiot?** W Testerze draftów wyszukaj przedmiot według nazwy PL/EN, ID lub skrótu, np. IE. Zobaczysz powód jego wyboru albo pominięcia i wpływ próbnego dodania na kolejność zakupów. Symulacja uwzględnia posiadany ekwipunek, przypięcia i sloty questów.
-- **Build przed i po augmencie.** W podsumowaniu Mayhem rozwiń zapisaną kartę. Zobaczysz dwa plany dla tej samej sytuacji oraz przedmioty dodane, przesunięte lub usunięte. Przy ulepszeniach widać też powiązany przedmiot. Początkowe i niepełne odczyty mają osobne oznaczenia.
-- **Porównaj wersje.** Otwórz tę opcję w Testerze draftów lub w „Po meczu”. Aplikacja przeliczy zapisane sytuacje na obecnej bazie i pokaże różnice względem oryginalnego planu. Możesz zachować sytuację poza historią ostatnich dziesięciu gier albo dodać raport JSON z wersji 0.6.34. Starsze podsumowania bez danych odtworzeniowych pokazują informację o brakującym zapisie.
-- **Ulubione kombinacje Mayhem.** Z podsumowania można zapisać bohatera, augmenty, Headlinera i ostatni odczyt ekwipunku oraz dopisać notatkę. Lokalna biblioteka pozwala wrócić do kombinacji po wygaśnięciu historii i szukać według postaci, augmentów, przedmiotów lub treści notatki.
+- **Interakcje augmentów z przedmiotami.** Przy 34 kartach Mayhem, w tym wszystkich 13 ulepszeniach przedmiotów z katalogu 16.22, możesz sprawdzić mechanikę i patch opisu. Rozwiń „Dlaczego?” przy oferowanej karcie albo „Jak augmenty działają z przedmiotami?” po wyborze. Crimson Cobalt wykorzystuje na Zedzie Q oraz atak w oznaczony cel. Sam wybór tej karty zachowuje bazowy kierunek zakupów.
+- **Test kart ze zrzutu.** Otwórz „Test kart ze zrzutu” w Testerze draftów lub w panelu Mayhem. Wybierz pełny zrzut PNG lub JPG albo wklej go przez Ctrl+V. Aplikacja lokalnie pokazuje wycinek tytułu każdej z trzech kart, tekst odczytany przez Windows i dopasowaną nazwę. Możesz obejrzeć wyniki także przy niepełnym odczycie. Test pojedynczej klatki służy do sprawdzenia oferty i zachowuje wybory z meczu.
+- **Plan bota 2 na 2 w Solo/Duo.** ADC i support widzą wspólny plan po ujawnieniu obu par. W drafcie i na ekranie ładowania znajdziesz wskazówkę do wymiany oraz zagrożenie ze strony przeciwników. Jeśli klient nie podał pozycji, aplikacja oznacza tę przewidywaną. Przy niejednoznacznym składzie czeka na kolejne informacje.
 
-Wersja instalowana pobiera wydanie w tle. Po pobraniu wybierz „Uruchom ponownie”, kiedy skończysz mecz. Wersja portable udostępnia odsyłacz do pobrania.
+Wersja instalowana pobiera aktualizację w tle. Po meczu możesz wybrać „Uruchom ponownie”. Wersja portable udostępnia odsyłacz do pobrania.

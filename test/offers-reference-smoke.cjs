@@ -11,7 +11,9 @@ app.whenReady().then(async()=>{
     const url='data:image/'+(/\.png$/i.test(process.env.OFFER_REFERENCE)?'png':'jpeg')+';base64,'+fs.readFileSync(process.env.OFFER_REFERENCE).toString('base64');
     const expected=JSON.parse(process.env.OFFER_EXPECTED_IDS||'[2100,2126,2096]');
     const source=fs.readFileSync(require('path').join(__dirname,'../src/renderer/augment-screen.js'),'utf8');
-    await w.loadURL('about:blank');await w.webContents.executeJavaScript(source.slice(source.indexOf('function augmentOfferFrame('),source.indexOf('setInterval(pollAugmentScreen')));
+    await w.loadURL('about:blank');
+    await w.webContents.executeJavaScript(fs.readFileSync(require.resolve('../src/augment-vision'),'utf8'));
+    await w.webContents.executeJavaScript(source.slice(source.indexOf('function augmentOfferFrame('),source.indexOf('setInterval(pollAugmentScreen')));
     for(const [width,height] of [[2560,1440],[1920,1080],[1280,720],[2560,1080]]){
       const frame=await w.webContents.executeJavaScript(`(async()=>{
         const img=new Image();img.src=${JSON.stringify(url)};await img.decode();

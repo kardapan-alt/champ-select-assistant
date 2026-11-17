@@ -76,6 +76,8 @@ server.once('listening',async()=>{
     assert.equal(current.final.build.items[0].owned,true);
     assert.equal(current.final.build.boots.id,3020);
     assert.ok([3157,3102,3152].includes(current.final.build.mayhem.nextItem.id));
+    await waitFor(()=>evaluate(`document.querySelector('[data-detail="augment-reasons"]')?.textContent.includes('Time Stop')`),'Nie pokazano sprawdzonego efektu Zhonyi przy Apex Inventor');
+    assert.ok(await evaluate(`document.querySelector('[data-detail="augment-reasons"]').textContent.includes('patch 16.22')`));
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(profile,'mayhem-session.json'))).selection.augments,[1002]);
     const oldKey=current.final.build.mayhem.matchKey;
     win.setSize(1100,760); await capture('mayhem-build');

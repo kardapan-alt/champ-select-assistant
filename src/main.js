@@ -7,6 +7,7 @@ const engine = require('./engine');
 const { OpggProvider, mergeStats } = require('./opgg');
 const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
 const { lanePlan } = require('./laneplan');
+const { botLanePlan, rememberAllyRoles } = require('./bot-plan');
 const { gamePlan } = require('./gameplan');
 const crypto = require('crypto');
 const { initUpdates } = require('./updater');
@@ -28,6 +29,8 @@ const windowsOcr=new WindowsOcr();
 const {AugmentClicks}=require('./augment-clicks');
 const augmentClicks=new AugmentClicks();
 const augmentOffers=require('./augment-offers');
+const {testOfferScreenshot}=require('./augment-screenshot');
+const screenshotOcr=new WindowsOcr();
 const {compareAugments}=require('./mayhem-compare');
 const {headlinerView}=require('./headliners');
 const {synergies}=require('./augment-synergies');
@@ -104,14 +107,16 @@ const log = (line) => { try { fs.appendFileSync(userFile('log.txt'), `${new Date
 let settings = { stats: true, autoRunes: true, autoItemSet: true, autoPopup: true, launchAtLogin: false, keyboardShortcut: DEFAULT_SHORTCUT };
 // Włączamy funkcje dopiero po potwierdzeniu obsługiwanej kolejki przez klienta.
 let currentMode = 'unsupported';
+let currentQueueId = null;
 let currentMayhemPool = 'KIWI';
 let currentRoleQuests = false;
 function detectMode(flow) {
   const gameMode = String((flow && flow.gameData && flow.gameData.queue && flow.gameData.queue.gameMode) || '').toUpperCase();
   const nextMode = modeFromFlow(flow);
+  const queueId = flow?.gameData?.queue?.id ?? null;
   const pool = gameMode === 'KIWI_JADE' ? 'KIWI_JADE' : 'KIWI';
   const roleQuests = roleQuestsEnabled(flow);
-  const changed = nextMode !== currentMode || pool !== currentMayhemPool || roleQuests !== currentRoleQuests;
+  const changed = nextMode !== currentMode || queueId !== currentQueueId || pool !== currentMayhemPool || roleQuests !== currentRoleQuests;
   if (changed) {
     lastSessionJson = '';
     lastSelectState = null;
@@ -123,6 +128,7 @@ function detectMode(flow) {
     loading = null;
   }
   currentMode = nextMode;
+  currentQueueId = queueId;
   currentMayhemPool = pool;
   currentRoleQuests = roleQuests;
   if (changed) recomputeData();
@@ -374,7 +380,7 @@ async function tick() {
       if (mastery.map.size) game.mastery = mastery.map;
     }
     lastSessionJson = json;
-    send(buildView(session));
+    send(buildView(session, flow?.gameData?.gameId));
     autoImportRunes();
     autoExportItemSet();
   } catch (err) {
@@ -480,6 +486,8 @@ function buildLoadingView() {
     status: 'loading-screen',
     region: loading.region,
     plan,
+    botPlan: botLanePlan({ me, allies: loading.allies, enemies: loading.enemies, mode: currentMode, gameId: loading.gameId },
+      currentQueueId, game, data, botDraft),
     gamePlan: teamPlan,
     mode: currentMode,
     final: finalWithEnemies(me),
@@ -492,6 +500,7 @@ function buildLoadingView() {
 
 let lastSelectState = null;
 let lastFinal = null;
+let botDraft = null;
 
 // Build z champ selecta przeliczony na ekranie ładowania, gdy znamy już wszystkich przeciwników
 // (na ARAM-ie w wyborze postaci nie widać wroga).
@@ -573,8 +582,9 @@ function finalWithEnemies(me) {
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
 
-function buildView(session) {
+function buildView(session, gameId) {
   const state = engine.readSession(session, currentMode, { ...session.extra, roleQuestsEnabled: currentRoleQuests });
+  botDraft = rememberAllyRoles(state, currentQueueId, gameId);
   lastSelectState = state;
   const me = state.me;
   const myAlias = me && me.championId ? game.championsById.get(me.championId)?.alias : null;
@@ -585,6 +595,7 @@ function buildView(session) {
   const view = {
     status: 'champselect',
     mode: state.mode,
+    botPlan: botLanePlan(state, currentQueueId, game, data),
     aramChoices: aram ? engine.aramChoices(state, game, data).map((c) => ({ ...c, icon: champView(c.championId).icon })) : [],
     phase: state.phase,
     allLocked: state.allLocked,
@@ -1078,6 +1089,11 @@ ipcMain.handle('augment-screen-preview',wrap(async input=>{
   const detected=augmentVision.recognizeText(result.readings,visionCatalog,state.mayhemPool);
   return {ok:true,...detected,name:visionCatalog.find(a=>a.id===detected.id)?.name};
 }));
+ipcMain.handle('test-offer-screenshot',wrap(async input=>{
+  if(screenshotOcr.pending)throw Error('Trwa odczyt poprzedniego zrzutu.');
+  try{return {ok:true,...await testOfferScreenshot(input,screenshotOcr,visionCatalog)};}
+  finally{screenshotOcr.stop();}
+}));
 ipcMain.handle('augment-screen-frame',wrap(async input=>{
   const state=mayhemContext(input?.matchKey);
   if(!visionConfig?.enabled || !visionToken || input.token!==visionToken || input.revision!==visionRevision
@@ -1131,8 +1147,7 @@ async function readAutomaticAugment(input,state){
     const focusedNow=augmentClicks.active();
     if(!focusedAtCapture&&focusedNow)return {ok:true};
     if(focusedAtCapture&&!focusedNow){visionStatus('paused');return {ok:true};}
-    const cropWidth=Math.min(1,input.height*16/9/input.width);
-    const detected=result?.layouts&&augmentOffers.detectOffer({...result,crop:{x:(1-cropWidth)/2,y:0,w:cropWidth,h:1}},grid,visionCatalog,state.mayhemPool);
+    const detected=result?.layouts&&augmentOffers.detectOffer({...result,crop:augmentVision.offerCrop(input.width,input.height)},grid,visionCatalog,state.mayhemPool);
     if(!focusedNow){
       const ids=loading.visionOffer?.ids;
       if(offerTracker.preview(detected?.cards,ids,input.at))loading.visionOffer.at=input.at;
@@ -1172,6 +1187,7 @@ async function readAutomaticAugment(input,state){
   });
 }
 app.on('before-quit',stopVisionWorkers);
+app.on('before-quit',()=>screenshotOcr.stop());
 
 // ---------- aktualizacje ----------
 

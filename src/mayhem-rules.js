@@ -31,7 +31,7 @@ rule('Firebrand|DualWield|Typhoon|LightemUp|ShrinkRay|ThirdTimesTheHarm|HandsOff
 rule('ScopedWeapons|ScopierWeapons|ScopiestWeapons', ['attacks'], 'Większy zasięg ułatwia ataki, ale sam nie zmienia skalowania postaci. Zachowuję jej podstawowy kierunek zakupów.');
 rule('EtherealWeapon|BEES|DoubleStrike', ['onhit'], 'Umiejętność lub pociski nakładają on-hit. Dopuszczam dopasowany przedmiot on-hit także dla czarującej postaci, zachowując pozostały rdzeń.', { abilityOnHit:true });
 rule('MysticPunch|KeepGoing', ['onhit','spellblade'], 'Ataki skracają cooldown umiejętności. Wspieram przeplatanie czarów i autoataków.');
-rule('CrimsonCobalt', ['adaptive'], 'Traf wroga Q, a następnie zaatakuj oznaczony cel, aby uruchomić dodatkowe obrażenia i skrócić cooldown Q. Zachowuję skalowanie championa; ten efekt sam nie wymaga buildu on-hit ani Spellblade.');
+neutral('CrimsonCobalt', 'Traf bohatera umiejętnością wskazaną na karcie, a potem zaatakuj oznaczony cel. Obrażenia i skrócenie odnowienia działają niezależnie od zakupów.');
 rule('TapDancer', ['onhit','move'], 'Ataki zwiększają ruch, a ruch wzmacnia szybkość ataku. Uwzględniam obie części tej synergii.');
 rule('Marksmage', ['ap','onhit'], 'Autoataki zyskują obrażenia od AP: preferuję Nashor i moc umiejętności.', { attackAP:true });
 rule('MasterofDuality', ['onhit','spell'], 'Ataki gromadzą AP, a trafienia umiejętnościami AD. Łączę oba rodzaje trafień bez porzucania klasy postaci.');
