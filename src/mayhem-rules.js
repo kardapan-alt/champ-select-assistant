@@ -26,9 +26,10 @@ rule('MoshMonster|GrowthSpurt', ['resists'], 'Augment zapewnia dodatkowe HP. Odp
 rule('LonelyWarrior', ['health','onhit'], 'W pobliżu wrogów zyskujesz odporności i szybkość ataku: łączę zdrowie z on-hit.');
 rule('PinCushion', ['health','resists'], 'Otrzymywanie obrażeń ładuje kolce. Priorytetem jest przeżycie kilku trafień, nie budowanie samego ataku.');
 
-rule('Deft|Firebrand|DualWield|Typhoon|LightemUp|ShrinkRay|FanTheHammer|GetExcited|ThirdTimesTheHarm|LittleExtraHelp|FlowOfSpirit|HandsOffTheTalent', ['onhit'], 'Efekt wykorzystuje autoataki lub ich tempo. Dobieram on-hit i szybkość ataku do skalowania postaci.');
-rule('ScopedWeapons|ScopierWeapons|ScopiestWeapons', ['onhit'], 'Większy zasięg ułatwia regularne autoataki. Premiuję pasujące do postaci efekty on-hit.');
-rule('EtherealWeapon|BEES|DoubleStrike', ['onhit'], 'Umiejętność lub pociski nakładają on-hit. Uwzględniam te przedmioty także na postaci AP.');
+rule('Deft|FanTheHammer|GetExcited|LittleExtraHelp|FlowOfSpirit', ['attacks'], 'Premia do ataków wspiera istniejący styl gry. Sama szybkość lub zasięg nie zmienia maga, zabójcy ani tanka w postać on-hit.');
+rule('Firebrand|DualWield|Typhoon|LightemUp|ShrinkRay|ThirdTimesTheHarm|HandsOffTheTalent', ['onhit'], 'Dodatkowe efekty ataków wspieram przedmiotami pasującymi do obecnego buildu. Nie wymuszam całego zestawu on-hit na postaci opartej na czarach.');
+rule('ScopedWeapons|ScopierWeapons|ScopiestWeapons', ['attacks'], 'Większy zasięg ułatwia ataki, ale sam nie zmienia skalowania postaci. Zachowuję jej podstawowy kierunek zakupów.');
+rule('EtherealWeapon|BEES|DoubleStrike', ['onhit'], 'Umiejętność lub pociski nakładają on-hit. Dopuszczam dopasowany przedmiot on-hit także dla czarującej postaci, zachowując pozostały rdzeń.', { abilityOnHit:true });
 rule('MysticPunch|KeepGoing', ['onhit','spellblade'], 'Ataki skracają cooldown umiejętności. Wspieram przeplatanie czarów i autoataków.');
 rule('CrimsonCobalt', ['adaptive'], 'Traf wroga Q, a następnie zaatakuj oznaczony cel, aby uruchomić dodatkowe obrażenia i skrócić cooldown Q. Zachowuję skalowanie championa; ten efekt sam nie wymaga buildu on-hit ani Spellblade.');
 rule('TapDancer', ['onhit','move'], 'Ataki zwiększają ruch, a ruch wzmacnia szybkość ataku. Uwzględniam obie części tej synergii.');
@@ -66,14 +67,17 @@ rule('SpellVolley|Multishot|Ability_SelfAOE_DoubleCast|Missile_Split|Specialized
 rule('Quickstep|Terror|ChainReaction|SnapBack|ItsGoTime', ['spell'], 'Augment dodaje efekt do umiejętności. Wspieram jej częstsze używanie bez wymuszania zmiany typu obrażeń.');
 rule('GoH_PentakillAug_Q|GoH_PentakillAug_W|GoH_PentakillAug_E', ['spell'], 'Wzmocniona umiejętność otrzymuje haste oraz premie do obrażeń, leczenia i osłon. Rozwijam odpowiednie skalowanie championa.');
 rule('GoH_PentakillAug_R', ['ultimate'], 'Wzmocniony ultimate otrzymuje haste oraz premie do obrażeń, leczenia i osłon. Rozwijam jego użyteczność.', { ultimate:true });
-rule('Bonk|ArmoredImpact|TheBoomAndTheBass|BouncingBees|SapMagic', ['spellblade','onhit'], 'Przeplatanie czarów i ataków uruchamia wzmocnione trafienia. Dobieram Spellblade i on-hit.');
-rule('Overkill|TakeemDownDownDown|EndlessHunt|Hellbent', ['onhit','sustain'], 'Kolejne trafienia lub dłuższy kontakt z wrogiem rozwijają efekt. Wspieram regularne ataki i przeżywalność.');
-rule('DivineDomain', ['spellblade'], 'Atak na esencję resetuje podstawowe czary. Spellblade wspiera kolejną sekwencję umiejętność–atak.');
+rule('Bonk', ['adaptive'], 'Wzmocniona umiejętność lub atak zadaje dodatkowe obrażenia. Rozwijam skalowanie championa; sam efekt nie nakłada wszystkich efektów on-hit.');
+rule('ArmoredImpact', ['resists','spellblade'], 'Atak po czarze wykorzystuje pancerz. Wspieram obronę i jeden pasujący Spellblade, bez wymuszania Nashora czy Guinsoo.');
+rule('TheBoomAndTheBass|BouncingBees|SapMagic', ['spellblade'], 'Przeplatanie czarów i ataków może wykorzystać jeden dopasowany Spellblade. Sam wzmocniony atak nie uzasadnia kompletu on-hit.');
+rule('Overkill', ['attacks','sustain'], 'Ataki podczas umiejętności budują efekt. Rozwijam istniejący styl ataków i przeżywalność bez wymuszania dodatkowych efektów on-hit.');
+rule('TakeemDownDownDown|EndlessHunt|Hellbent', ['adaptive','sustain'], 'Efekt uruchamiają zarówno ataki, jak i umiejętności. Rozwijam naturalne skalowanie postaci i przeżywalność zamiast wymuszać on-hit.');
+rule('DivineDomain', ['adaptive'], 'Atak na esencję po zabójstwie resetuje podstawowe czary. To nie wymaga zakupu Spellblade; rozwijam naturalne obrażenia lub użyteczność postaci.');
 rule('MagicMissile|BangBang', ['spell'], 'Trafienia umiejętnościami z dystansu uruchamiają dodatkowe pociski. Premiuję zakupy wspierające czary.');
 rule('InfernalConduit|GrandmasChiliOil|BloodMoneyBurn', ['burn'], 'Augment współpracuje ze spalaniem i obrażeniami w czasie. Wybieram źródła DoT pasujące do postaci.');
 rule('ForgedByTheMaster', ['itemdamage'], 'Wzmacniane są obrażenia przedmiotów i augmentów. Premiuję pasujące efekty obrażeń na itemach.');
 rule('ApexInventor', ['itemhaste'], 'Haste przedmiotów skraca ich cooldowny. Premiuję użyteczne aktywy i efekty z czasem odnowienia.');
-rule('MindtoMatter', ['mana','health'], 'Mana zwiększa maksymalne zdrowie. Zakupy z maną realizują oba cele.');
+rule('MindtoMatter', ['mana','health'], 'Mana zwiększa maksymalne zdrowie. Zakupy z maną realizują oba cele; postać bez puli many nie dostaje tej premii zakupowej.', { manaHealth:true });
 rule('Overflow', ['mana'], 'Podwójny koszt many i skalowanie efektów z jej pulą zwiększają priorytet zakupów many.');
 rule('NoManaNoProblem', ['mana','ap'], 'Mana z przedmiotów zamienia się w AP. Premiuję pasujące zakupy many i moc umiejętności.', { manaConversion:true });
 rule('DoubleTime', ['spell','mana'], 'Szybkie trafienie dwoma czarami daje maksymalną manę. Wspieram cykl umiejętności i przedmioty wykorzystujące manę.');
@@ -84,7 +88,7 @@ rule('AllForYou|FirstAidKit|WindspeakersBlessing|WeeWooWeeWoo|EmpyreanPromise|Ba
 rule('CriticalHealing', ['healing'], 'Leczenie i tarcze mogą krytować. Priorytetem pozostaje siła wsparcia; nie wymuszam zakupu AD u uzdrowiciela.');
 rule('SonicBoom|EmpoweredByTheFaithful|SpiritBomb|EnchantingButterflies', ['healing','cc'], 'Wspieranie sojuszników uruchamia dodatkowy efekt. Premiuję leczenie, osłony i haste.');
 rule('SearingDawn', ['spell'], 'Umiejętności oznaczają wrogów dla obrażeń sojusznika. Premiuję częstsze trafienia czarami; augment nie wymaga leczenia.');
-rule('MercysStrike', ['healing','onhit'], 'Po wsparciu sojusznika zyskujesz wzmocniony atak. Łączę przedmioty wsparcia z użytecznym on-hit.');
+rule('MercysStrike', ['healing'], 'Po wsparciu sojusznika zyskujesz pojedynczy wzmocniony atak. Rozwijam leczenie i osłony, bez wymuszania Nashora lub Guinsoo na enchanterze.');
 rule('Sonata|LaserHeal|MissingPingAugment', ['healing'], 'Augment dodaje źródło leczenia lub osłon. Na wspierającej postaci wzmacniam je itemami, na carry zachowuję główną rolę.');
 rule('CircleofDeath', ['regen','healing'], 'Własne leczenie i regeneracja zadają dodatkowe obrażenia. Rozwijam źródła odnowy HP, uwzględniając blokady innych augmentów.');
 rule('Perseverance|OceanSoul|NatureIsHealing', ['regen'], 'Augment wzmacnia regenerację lub zapewnia leczenie. Rozwijam podtrzymanie życia odpowiednie dla postaci.');

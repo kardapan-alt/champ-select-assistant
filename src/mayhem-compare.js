@@ -12,7 +12,7 @@ function evaluateAugments(ids,{champion={},selection={},build={},game,pool='KIWI
   const picked=(selection.augments||[]).map(id=>byId.get(id)).filter(Boolean),active=picked.map(ruleFor).filter(Boolean);
   const owned=new Set(selection.owned||[]),planned=new Set((build.items||[]).filter(i=>!i.owned).map(i=>i.id));
   const itemName=id=>game.items.get(id)?.name||String(id);
-  const current=mayhem.adaptation(selection,champion,{enemy});
+  const current=mayhem.adaptation(selection,champion,{enemy,game});
   const conversion=active.map(r=>r.conversion).find(Boolean);
   const currentChampion=conversion?{...champion,dmg:conversion,class:conversion==='ap'?'mage':'fighter'}:champion;
   const cards=ids.map((id,index)=>{
@@ -31,7 +31,7 @@ function evaluateAugments(ids,{champion={},selection={},build={},game,pool='KIWI
     if(r.noRegen&&active.some(x=>x.effects.includes('regen'))){warnings.push('Wyłącza regenerację wzmacnianą przez wcześniejszy augment.');card.score-=8;}
     if(noRegen&&r.effects.includes('regen')){warnings.push('Vampirism blokuje regenerację — ta część efektu nie pomoże.');card.score-=8;}
     if(r.healthConversion&&active.some(x=>x.effects.some(e=>['health','healthhit'].includes(e)))){warnings.push('Konwersja HP zmienia dotychczasowy plan budowania zdrowia.');card.score-=5;}
-    if((attackConversion==='onhit'&&r.effects.includes('crit'))||(['crit','haste'].includes(attackConversion)&&r.effects.includes('onhit'))){warnings.push('Wybrana konwersja ataków ogranicza tę synergię.');card.score-=5;}
+    if((attackConversion==='onhit'&&r.effects.includes('crit'))||(['crit','haste'].includes(attackConversion)&&r.effects.some(e=>['attacks','onhit'].includes(e)))){warnings.push('Wybrana konwersja ataków ogranicza tę synergię.');card.score-=5;}
     if(r.conversion){warnings.push('Konwersja AP/AD wymaga przebudowy zakupów; ta ocena nie obejmuje całego nowego stylu gry.');card.score-=3;}
     const noHp=active.some(x=>x.healthConversion)||r.healthConversion;
     const affinity=nativeFit(r.effects,currentChampion,{noHp,noRegen:noRegen||r.noRegen,noUltimate:noUltimate||r.noUltimate});
@@ -39,7 +39,7 @@ function evaluateAugments(ids,{champion={},selection={},build={},game,pool='KIWI
     const combinedSelection={...selection,augments:[...(selection.augments||[]),id]};
     card.synergies=synergies(combinedSelection).filter(pair=>pair.ids.includes(id));
     if(card.synergies.length){card.score+=Math.min(6,card.synergies.length*3);reasons.push(...card.synergies.map(pair=>`${pair.names.join(' + ')}: ${pair.text}`));}
-    const combined=mayhem.adaptation(combinedSelection,champion,{enemy});
+    const combined=mayhem.adaptation(combinedSelection,champion,{enemy,game});
     const bonus=new Map();
     for(const [item,b] of combined.bonuses){
       const contributions=b.contributions.filter(c=>c.group.startsWith(`augment ${a.name}:`)||c.group===`augment ${a.name}`);
@@ -105,7 +105,7 @@ function nativeFit(effects,c,{noHp,noRegen,noUltimate}){
   if(c.unknown)return null;
   if(has('healing','healresists')&&(c.class==='support'||t.includes('enchanter')||t.includes('heal')))return 'Wspiera leczenie i osłony, z których korzysta Twoja postać.';
   if(!noHp&&durable&&has('health','resists','healthhit'))return 'Pasuje do wytrzymałej postaci walczącej w pierwszej linii.';
-  if(c.class==='adc'&&has('onhit','crit','bigcrit','spellblade'))return 'Pasuje do buildu strzelca opartego na regularnych atakach.';
+  if(c.class==='adc'&&has('attacks','onhit','crit','bigcrit','spellblade'))return 'Pasuje do buildu strzelca opartego na regularnych atakach.';
   if((c.class==='mage'||c.dmg==='ap'&&!durable&&c.class!=='support')&&has('ap','spell','haste','spellcrit','burn'))return 'Wspiera obrażenia z umiejętności i skalowanie AP Twojej postaci.';
   if(c.dmg==='ad'&&has('ad','lethality','spellblade','adaptive'))return 'Wspiera fizyczny kierunek obrażeń Twojej postaci.';
   if(t.includes('cc')&&has('cc'))return 'Wykorzystuje kontrolę tłumu obecną w zestawie Twojej postaci.';

@@ -733,7 +733,9 @@ function buildFor(alias, state, game, data) {
   const aliasOf = (id) => game.championsById.get(id)?.alias;
   const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
   const enemy = teamProfile(enemyInfos);
-  const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ, { enemy }) : null;
+  const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ, {
+    enemy,game,core:defaultTemplate(champ,data).items,pinned:(state.choices?.items || []).map(p=>p.id),
+  }) : null;
   const compatible = (id,ids) => itemsCompatible(id,ids,augmentation?.repeat) && !redundantSpellblade(id,ids);
   if (augmentation?.conversion) {
     const kind = augmentation.conversion === 'ap' ? 'mage' : 'fighter';
@@ -831,9 +833,16 @@ function buildFor(alias, state, game, data) {
 
   const left = { ...threats };
   const usedAugmentGroups = new Map();
-  const satisfyAugment = id => (augmentation?.bonuses.get(id)?.contributions || []).forEach(c => { if (!c.direct) usedAugmentGroups.set(c.group,(usedAugmentGroups.get(c.group)||0)+1); });
-  purchased.forEach(satisfyAugment);
-  const augmentScore = id => Math.min(30,(augmentation?.bonuses.get(id)?.contributions || []).reduce((sum,c)=>sum+c.score*(c.direct?1:Math.pow(0.25,usedAugmentGroups.get(c.group)||0)),0));
+  const satisfyAugment = id => new Set((augmentation?.bonuses.get(id)?.contributions || []).filter(c=>!c.direct).map(c=>c.family)).forEach(family=>usedAugmentGroups.set(family,(usedAugmentGroups.get(family)||0)+1));
+  [...pinIds,...fixed].forEach(satisfyAugment);
+  const augmentScore = id => {
+    let direct=0;const families=new Map();
+    for(const c of augmentation?.bonuses.get(id)?.contributions || []) {
+      if(c.direct)direct+=c.score;
+      else families.set(c.family,Math.max(families.get(c.family)||0,c.score*Math.pow(0.25,usedAugmentGroups.get(c.family)||0)));
+    }
+    return Math.min(30,direct+[...families.values()].reduce((sum,v)=>sum+v,0));
+  };
   // Zwykła synergia może przyspieszyć zakup, ale jej słabsze kolejne warianty
   // nie powinny wypierać całego rdzenia. Jawna konwersja nadal go przebudowuje.
   const foundations = new Set(core);

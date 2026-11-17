@@ -1,13 +1,13 @@
-## Champ Select Assistant 0.6.30
+## Champ Select Assistant 0.6.31
 
-- Poprawiony wpływ augmentów na build: podstawowe przedmioty championa zachowują większą wagę, a kolejne zakupy pod ten sam ogólny efekt dostają znacznie mniejszą premię. Drobna synergia nie oznacza już automatycznie „WCZEŚNIEJ”.
-- Szkarłatny Kobalt (Crimson Cobalt) ma osobną regułę. Wzmacnia cykl Q → atak bez wymuszania całego buildu on-hit lub Spellblade. Zed zachowuje AD/przebicie i kupione przedmioty.
-- Ogólne skalowanie korzysta z własnego rdzenia championa. Bezpośrednie ulepszenia przedmiotów i zadania nadal dostają priorytet; jawne konwersje AP/AD, ataków, HP lub many mogą przebudować zestaw.
-- Automatyczne rekomendacje nie łączą kilku różnych przedmiotów Spellblade. Filtr nie usuwa już kupionych ani ręcznie przypiętych przedmiotów.
-- Shake Proteinowy priorytetyzuje przedmioty dające odporności; Redemption nie otrzymuje premii za statystyki odporności, których nie dostarcza.
+- Rozdzielone premie do zwykłych ataków od rzeczywistego nakładania on-hit przez umiejętności. Deft, zasięg, Bonk, Mercy’s Strike, Divine Domain i efekty uruchamiane zarówno czarami, jak i atakami nie wymuszają już przypadkowego kompletu Nashor/Guinsoo/Spellblade.
+- Reguły uwzględniają rolę i obecny kierunek zakupów. Tank z obrażeniami magicznymi dostaje obronę i haste, wojownik AP zachowuje AP, a enchanter przedmioty wsparcia. Sama premia AP lub AD nie jest traktowana jak konwersja całego buildu.
+- Dane o zasobach 173 championów z Riot Data Dragon ograniczają ofensywne zakupy many na postaciach bez many. Zachowane są wyjątki dla konwersji many w AP, jawnych zadań/ulepszeń i już kupionych przedmiotów. Frozen Heart nadal może być odpowiedzią obronną.
+- Kilka augmentów wzmacniających ten sam ogólny efekt nie mnoży już premii do kolejnych wariantów przedmiotu. Kupiony, przypięty lub zarezerwowany item zaspokaja tę wspólną potrzebę, pozostawiając miejsce na rdzeń championa i odpowiedzi na wrogów.
+- Prawdziwe konwersje AP/AD, Marksmage, nakładanie on-hit przez czary, kryty umiejętności i bezpośrednie ulepszenia przedmiotów nadal mają osobne reguły. Zachowane są poprawki IE u strzelców oraz Crimson Cobalt na Zedzie.
 
-Walidacja: 223 testy, w tym 283 augmenty × 6 klas, zachowanie rdzenia, Spellblade, ulepszenia przedmiotów, konwersje oraz wcześniejsze regresje Gragasa i Xayah. Przeszły testy całego przepływu zakupów i OCR. Poprawiony build sprawdzono też na bieżącym meczu Zeda z kupionym Hubris.
+Walidacja: 229 testów logiki, w tym cały katalog 283 augmentów na 18 profilach (5094 kombinacje), dodatkowe przypadki regresji oraz pełny przepływ zakupów w aplikacji. Macierz sprawdza spójność rekomendacji, zasoby i zgodność przedmiotów; nie jest pomiarem winrate ani gwarancją optymalności każdego zestawu w meczu.
 
-Dostarczony zrzut z Upgrade Sundered Sky / Crimson Cobalt / Nightstalking jest prawidłowo rozpoznawany w 1440p, 1080p, 720p i ultrawide. W zapisie rzeczywistego meczu potwierdzono automatyczny wybór Crimson Cobalt. To potwierdzenie konkretnego przypadku, nie gwarancja odczytu każdego ekranu. Zrzut użytkownika nie jest dołączony do repozytorium ani instalatora.
+Opisy mechanik zweryfikowano z danymi gry dla patcha 16.22, wskazanymi w data/mayhem-rule-evidence.json. Ta aktualizacja dotyczy rekomendacji zakupów; nie zmienia odczytu OCR.
 
 Po pobraniu aktualizacji wybierz „Uruchom ponownie”. Krzyżyk tylko ukrywa okno. Sprawdzanie wydań odbywa się przy starcie i co 6 godzin.
