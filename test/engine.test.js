@@ -107,7 +107,8 @@ test('build po zlockowaniu i antyleczenie', async () => {
   const build = engine.buildFor('Ahri', state, game, data);
   assert.equal(build.items.length, 5);
   assert.ok(build.items.some((s) => s.why === 'leczenie: Warwick, Soraka'), 'Soraka i Warwick leczą');
-  const unknown = engine.buildFor('Zoe', state, game, data);
+  const fallback = {...data,champions:{...data.champions}};delete fallback.champions.Zoe;
+  const unknown = engine.buildFor('Zoe', state, game, fallback);
   assert.equal(unknown.estimated, true);
   assert.equal(unknown.items.length, 5);
 });
@@ -133,14 +134,13 @@ test('skład AD daje armor, zbalansowany nie przesadza z obroną', () => {
   assert.ok(defensiveCount(mixed, 'mr') + defensiveCount(mixed, 'armor') <= 1);
 });
 
-test('blind pick promuje postacie z małą liczbą kontr', () => {
+test('blind pick nie uznaje brakujących matchupów za dowód bezpieczeństwa', () => {
   const state = { me: { position: 'middle' }, allies: [], enemies: [], bans: new Set() };
   const { list, blind } = engine.suggestPicks(state, game, data);
   assert.equal(blind, true);
-  const avg = (arr) => arr.reduce((a, x) => a + engine.counterCount(x.alias, data), 0) / arr.length;
-  const all = Object.keys(data.champions).filter((a) => data.champions[a].roles.includes('middle')).map((alias) => ({ alias }));
   console.log('blind mid:', list.slice(0, 5).map((s) => `${s.name}(${s.tier}, ${engine.counterCount(s.alias, data)} kontr)`).join(', '));
-  assert.ok(avg(list.slice(0, 5)) <= avg(all), 'top 5 ma mniej kontr niż średnia');
+  assert.ok(list.every(s=>s.dataNote==='Ograniczone dane matchupów'));
+  assert.ok(list.every(s=>!s.reasons.some(r=>r.text.startsWith('mało trudnych matchupów'))));
 });
 
 test('synergia podbija pick', () => {

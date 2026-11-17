@@ -26,9 +26,11 @@ function upgradeTargets(rule,champion,selection={},enemy={}){
     if(!rule.anyItem)return targets;
     return owned.length?owned:[targets.includes(6664)&&enemy.apShare>=.55?6664:targets[0]].filter(Boolean);
   }
-  const owned=(selection.owned||[]).filter(id=>[3100,3078,6662].includes(id));
+  const owned=(selection.owned||[]).filter(id=>[3100,3078,6662,2510,3508].includes(id));
   if(owned.length)return owned;
   const conversion=(selection.augments||[]).map(id=>byId.get(id)).filter(Boolean).map(ruleFor).find(r=>r?.conversion)?.conversion;
+  const native=(champion.items||[]).find(id=>[3100,3078,6662,2510,3508].includes(id));
+  if(native&&!conversion)return [native];
   return conversion==='ap'?[3100]:conversion==='ad'?[3078]:champion.class==='tank'?[6662]
     :champion.dmg==='ap'||champion.class==='mage'?[3100]:[3078];
 }
@@ -134,22 +136,22 @@ function adaptation(selection, champion, context = {}) {
       const forcedAttack = overridden || r?.abilityOnHit || attackAP;
       if (effect === 'health' && !(r?.manaHealth && (usesMana===false || manaConversion))) add(healthConversion ? (ap ? [] : [3814,3071,3181]) : healthItems, 7, why + ': zdrowie');
       if (effect === 'attacks' || effect === 'onhit') {
-        if (!['crit','haste'].includes(attackConversion) && (attacks || forcedAttack)) add(attackItems,10,why + ': efekty ataków');
+        if (!['crit','haste'].includes(attackConversion) && (attacks || forcedAttack)) add(attackItems,attackAP?16:10,why + ': efekty ataków');
         else natural();
       }
       if (effect === 'ap' && (ap && !tank || overridden)) add(support ? [6617,3089] : [3089,4645,3135],8,why + ': skalowanie AP');
       if (effect === 'ad' && (!ap && !tank && !support || overridden)) add(adc ? [3031,3072] : [6692,3071,6333],7,why + ': skalowanie AD');
       if (effect === 'spellcrit') {
         if(tank || support) natural();
-        else { add(ap ? [3089,4645] : [3031,6676],8,why + ': skalowanie czarów'); add(ap ? [3031] : [3031,6676],ap ? 7 : 9,why + ': szansa i siła krytów'); }
+        else { add(ap ? [3089,4645] : [3031,6676],8,why + ': skalowanie czarów'); family='spellcrit-chance'; add(ap ? [3031] : [3031,6676],ap ? 7 : 9,why + ': szansa i siła krytów'); }
       }
       if (effect === 'crit' && attackConversion!=='onhit' && (critFit || overridden)) add(ap ? [3031] : [3031,3036,3046],7,why + ': kryty');
       if (effect === 'haste') add(spellItems, 9, why + ': haste');
       if (effect === 'itemhaste') add(support ? [3107,3190,3222] : tank ? [2502,3190] : ap ? [3157,3102,3152] : durable ? [6610,2502] : adc ? [6673,3026] : [6692,3814,3026], 10, why + ': cooldowny przedmiotów');
       if (effect === 'mana') {
-        if((usesMana !== false || manaConversion) && (!manaConversion || ap || tank || support)) add(support ? [3003,6617] : tank ? [3110] : ap ? [3003,6657,3118] : [3004,3508],10,why + ': mana');
+        if((usesMana !== false || manaConversion) && (!manaConversion || ap || tank || support)) add(support ? [3003,6617] : tank ? [3110] : ap ? [3003,6657,3118] : [3004,3508],manaConversion?14:10,why + ': mana');
       }
-      if (effect === 'healing') { if(support) add([6617,3107,3504,6620],8,why + ': leczenie i tarcze'); else if(durable && (champion.traits||[]).includes('heal')) add([3065],8,why + ': własne leczenie'); else natural(); }
+      if (effect === 'healing') { if(support) add([6617,3107,3504,6620],8,why + ': leczenie i tarcze'); else if(durable && (champion.traits||[]).includes('heal')) add([3065],8,why + ': własne leczenie'); }
       if (effect === 'burn') add(tank ? [3068,6664] : ap ? [6653,2503] : durable ? [3068,6664] : [], 7, why + ': obrażenia w czasie');
       if (effect === 'spellblade') {
         if(tank) add([6662],12,why + ': Spellblade z pancerzem');
@@ -160,10 +162,10 @@ function adaptation(selection, champion, context = {}) {
       if (effect === 'spell' || effect === 'cc') add(spellItems,7,why + ': cykl umiejętności');
       if (effect === 'resists') add(defensiveItems,7,why + ': efektywna wytrzymałość');
       if (effect === 'healthhit' && !healthConversion) add(tank || durable && !ap ? [3748,3084] : ap || support ? healthItems : [3748,3153],8,why + ': ataki od HP');
-      if (effect === 'healresists') { if(support || durable || (champion.traits||[]).includes('heal')) add(support ? [3190,3222] : durable ? [3065,3190,2502] : [3102,3157],10,why + ': odporności wzmacniające leczenie'); else natural(); }
+      if (effect === 'healresists') { if(support || durable || (champion.traits||[]).includes('heal')) add(support ? [3190,3222] : durable ? [3065,3190,2502] : [3102,3157],10,why + ': odporności wzmacniające leczenie'); }
       if (effect === 'sustain') add(support ? [6617,3107] : tank ? [3065,2502] : ap ? [4633] : durable ? [6610,6333,3065] : adc ? [3072,3153] : [6692,6333],7,why + ': podtrzymanie życia');
       if (effect === 'defensivecrit') { add(defensiveItems,6,why + ': obrona'); if(attacks && !ap) add([3031,6673],7,why + ': krytyczna obrona'); }
-      if (effect === 'bigcrit' && (!ap && attacks || overridden)) add([3031,6676,3072],12,why + ': pojedyncze kryty');
+      if (effect === 'bigcrit' && (!ap && attacks || overridden)) { add([3031],16,why + ': pojedyncze kryty'); add([6676,3072],12,why + ': pojedyncze kryty'); }
       if (effect === 'tickle') add([3115,3124,3091,3302],13,why + ': on-hit po konwersji');
       if (effect === 'healthlethality' && !ap) add([3814,3071,3181],10,why + ': HP jako lethality');
       if (effect === 'ultimate' && !noUltimate) add(support ? [3107,6617] : tank ? tankHaste : ap ? (usesMana===false && !manaConversion ? [4628,8010] : [3118]) : durable ? [3161,6696] : [6696],10,why + ': ultimate');

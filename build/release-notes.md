@@ -1,13 +1,13 @@
-## Champ Select Assistant 0.6.31
+## Wersja 0.6.32
 
-- Rozdzielone premie do zwykłych ataków od rzeczywistego nakładania on-hit przez umiejętności. Deft, zasięg, Bonk, Mercy’s Strike, Divine Domain i efekty uruchamiane zarówno czarami, jak i atakami nie wymuszają już przypadkowego kompletu Nashor/Guinsoo/Spellblade.
-- Reguły uwzględniają rolę i obecny kierunek zakupów. Tank z obrażeniami magicznymi dostaje obronę i haste, wojownik AP zachowuje AP, a enchanter przedmioty wsparcia. Sama premia AP lub AD nie jest traktowana jak konwersja całego buildu.
-- Dane o zasobach 173 championów z Riot Data Dragon ograniczają ofensywne zakupy many na postaciach bez many. Zachowane są wyjątki dla konwersji many w AP, jawnych zadań/ulepszeń i już kupionych przedmiotów. Frozen Heart nadal może być odpowiedzią obronną.
-- Kilka augmentów wzmacniających ten sam ogólny efekt nie mnoży już premii do kolejnych wariantów przedmiotu. Kupiony, przypięty lub zarezerwowany item zaspokaja tę wspólną potrzebę, pozostawiając miejsce na rdzeń championa i odpowiedzi na wrogów.
-- Prawdziwe konwersje AP/AD, Marksmage, nakładanie on-hit przez czary, kryty umiejętności i bezpośrednie ulepszenia przedmiotów nadal mają osobne reguły. Zachowane są poprawki IE u strzelców oraz Crimson Cobalt na Zedzie.
+- Uzupełniona baza wszystkich 173 championów: osobne rdzenie i późniejsze zakupy dla Summoner’s Rift oraz ARAM, na podstawie publicznych danych OP.GG z patcha 16.22. Mayhem korzysta z bazy ARAM przed dopasowaniem do augmentów.
+- Naprawione odczyty buildów: komponenty nie wypychają trzeciego gotowego przedmiotu; Muramana, Seraph’s Embrace, Fimbulwinter i Diadem wskazują właściwy przedmiot do kupienia. Warianty Jade nie przejmują ról zwykłych championów.
+- Późniejsze zakupy respektują wybrany styl AP/AD, kryty, on-hit i wsparcie. Zwykła zmiana roli nie zastępuje własnego rdzenia zestawem innej postaci. IE pozostaje w bazowych buildach pod kryty, a postacie bez many nie dostają przypadkowych ofensywnych przedmiotów many.
+- Rozszerzony filtr wspólnego Spellblade, również dla Dusk and Dawn i Essence Reaver. Kupione i przypięte przedmioty nadal mają pierwszeństwo.
+- Widoczne źródło, patch i data zapisanej bazy. Nieaktualny format pamięci analiz jest odrzucany; stara baza lokalna ma kopię zapasową przed migracją. Ustawienia aplikacji i własne przypięcia pozostają zachowane.
 
-Walidacja: 229 testów logiki, w tym cały katalog 283 augmentów na 18 profilach (5094 kombinacje), dodatkowe przypadki regresji oraz pełny przepływ zakupów w aplikacji. Macierz sprawdza spójność rekomendacji, zasoby i zgodność przedmiotów; nie jest pomiarem winrate ani gwarancją optymalności każdego zestawu w meczu.
+Walidacja: 237 testów logiki, w tym 2076 zestawów bez augmentów (173 postacie × 3 tryby × 4 składy przeciwników), warianty klienta, parser OP.GG, konwersje, zasoby i dotychczasowa macierz 5094 kombinacji augmentów. Pełny test aplikacji obejmuje zakupy, migrację bazy i prezentację źródła. Testy sprawdzają spójność rekomendacji; nie są pomiarem winrate ani gwarancją najlepszego buildu w każdym meczu.
 
-Opisy mechanik zweryfikowano z danymi gry dla patcha 16.22, wskazanymi w data/mayhem-rule-evidence.json. Ta aktualizacja dotyczy rekomendacji zakupów; nie zmienia odczytu OCR.
+Zapisane buildy ARAM nie są statystykami Mayhem. Prośby, liczby gier i hashe odpowiedzi źródłowych opisano w data/base-build-evidence.json; odświeżanie bazy dokumentuje scripts/import-base-builds.js.
 
 Po pobraniu aktualizacji wybierz „Uruchom ponownie”. Krzyżyk tylko ukrywa okno. Sprawdzanie wydań odbywa się przy starcie i co 6 godzin.

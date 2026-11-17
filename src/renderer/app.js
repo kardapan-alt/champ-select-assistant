@@ -250,7 +250,7 @@ function buildPanel(b, readonly = false, auto = null) {
     ${liveShopPanel(b)}
     ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
-    <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
+    <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : b.baseSource ? esc(`Baza: ${b.baseSource.mode==='aram'?'ARAM':'Summoner’s Rift'} · OP.GG ${b.baseSource.patch}, zapis ${b.baseSource.fetched}.${b.mode==='mayhem'?' Punkt wyjścia przed augmentami.':''}`) : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
     <div class="build-row build-primary"><h4>${b.purchaseGoal?.id?'Plan przedmiotów · przypięty cel w Kup teraz':'Kolejność zakupów'}${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
     ${purchaseControls(b)}
     ${buildChangePanel(b)}

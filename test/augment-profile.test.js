@@ -67,12 +67,12 @@ test('prawdziwe nakładanie on-hit, konwersje i ulepszenia nadal wpływają na z
 
 test('kilka podobnych augmentów nie mnoży premii do kolejnych wariantów itemu',()=>{
   const stacked=build('Jinx',['Deft','Typhoon','DualWield']);
-  for(const core of [6672,3031,3085])assert.ok(ids(stacked).includes(core),'Rdzeń Jinx: '+core);
+  for(const core of [3032,3031,3085])assert.ok(ids(stacked).includes(core),'Rdzeń Jinx: '+core);
   const owned=build('Jinx',['Deft','Typhoon','DualWield'],{mayhem:{owned:[3153]}});
   assert.equal(owned.items[0].id,3153);assert.ok(owned.items[0].owned);
-  for(const core of [6672,3031,3085])assert.ok(ids(owned).includes(core),'Zakup zaspokaja wspólną premię: '+core);
+  for(const core of [3032,3031,3085])assert.ok(ids(owned).includes(core),'Zakup zaspokaja wspólną premię: '+core);
   const pinned=build('Jinx',['Deft','Typhoon','DualWield'],{choices:{items:[{id:3153,slot:0}]}});
-  for(const core of [6672,3031,3085])assert.ok(ids(pinned).includes(core));
+  for(const core of [3032,3031,3085])assert.ok(ids(pinned).includes(core));
 });
 
 test('283 augmenty × 18 profili: zgodność, zasoby i brak zamiany AP/AD od samej statystyki',()=>{

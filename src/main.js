@@ -209,7 +209,7 @@ function send(state) {
   const b=state.final?.build||state.build,analysisKey=b?.fromStats?stats.analyses[b.alias]?._key:null;
   const [analysisAlias,analysisRole,analysisMode]=(analysisKey||'').split(':');
   state.dataStatus=dataFreshness(game||offlineGame,{connected:!!lcu&&!['no-client','error'].includes(state.status),mode:state.mode||currentMode,
-    analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null});
+    analysisAt:analysisKey?provider?.cache?.[`analysis:${analysisAlias}:${analysisRole}${analysisMode==='aram'?':aram':''}`]?.at:null,baseSource:b?.baseSource});
   if(['idle','no-client'].includes(state.status))state.recentMatch=matchReview?.list()[0]||null;
   if(visionToken && (state.status!=='loading-screen' || !state.final?.build?.mayhem
     ||state.final.build.mayhem.matchKey!==lastState?.final?.build?.mayhem?.matchKey))stopVisionWorkers();

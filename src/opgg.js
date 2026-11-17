@@ -3,6 +3,8 @@
 // bo format może się zmieniać. Wynik to "nakładka" na nasze dane: tiery, role, kontry, buildy, runy.
 const https = require('https');
 const http = require('http');
+const { purchaseItem } = require('./itemrules');
+const { isBootItem, SUPPORT_ITEMS } = require('./rolequests');
 
 const DEFAULT_ENDPOINT = 'https://mcp-api.op.gg/mcp';
 
@@ -338,7 +340,16 @@ function interpretAnalysis(raw, game) {
   const isItem = (id) => game.items.size === 0 || game.items.has(id);
   const boots = idSets(root, /boot/i).filter((s) => s.ids.length === 1 && isItem(s.ids[0]));
   if (boots.length) result.boots = mostPopular(boots).ids[0];
-  const core = idSets(root, /core|item/i).filter((s) => !/start|boot/.test(s.key) && s.ids.length >= 2 && s.ids.every(isItem));
+  const finished = id => {
+    if(!game.items.size)return true;
+    const item=game.items.get(id);
+    if(item && !Number.isFinite(item.priceTotal))return true; // partial fixtures/client metadata
+    return item && item.priceTotal>=1500 && !isBootItem(id,game) && !SUPPORT_ITEMS.has(id)
+      && !(item.to || []).some(next=>game.items.get(next)?.inStore===true);
+  };
+  const core = idSets(root, /core|item/i).filter(s=>!/(start|boot|fourth|fifth|sixth|last)/.test(s.key))
+    .map(s=>({...s,ids:[...new Set(s.ids.map(purchaseItem).filter(id=>isItem(id)&&finished(id)))]}))
+    .filter(s=>s.ids.length>=2);
   if (core.length) result.items = mostPopular(core).ids.slice(0, 3);
   // Późniejsze itemy (4., 5., 6. i ostatnie) z aktualnego patcha: popularność sumowana po slotach.
   const late = new Map();
@@ -347,8 +358,8 @@ function interpretAnalysis(raw, game) {
     if (!Array.isArray(node) || !/^(fourth|fifth|sixth|last)_items$/i.test(key)) return;
     const weight = /^last/i.test(key) ? 0.5 : 1;
     for (const row of node) {
-      const ids = row && Array.isArray(row.ids) ? row.ids.map(num) : [];
-      if (ids.length !== 1 || !isItem(ids[0])) continue;
+      const ids = row && Array.isArray(row.ids) ? row.ids.map(num).map(purchaseItem) : [];
+      if (ids.length !== 1 || !isItem(ids[0]) || !finished(ids[0])) continue;
       late.set(ids[0], (late.get(ids[0]) || 0) + weight * (pct(row.pick_rate) || 0));
     }
   });
@@ -397,7 +408,9 @@ const normName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 function championResolver(game) {
   const byName = new Map();
   for (const c of game.championsById.values()) {
-    byName.set(normName(c.name), c.alias);
+    // KIWI_JADE variants share display names with the normal roster. A later
+    // variant in the client catalogue must not steal a standard OP.GG row.
+    if(!byName.has(normName(c.name)) || !c.alias.startsWith('Jade_')) byName.set(normName(c.name), c.alias);
     byName.set(normName(c.alias), c.alias);
   }
   return (node) => {
@@ -669,7 +682,9 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
     } else if (k === 'limit' || k === 'count') {
       v = schema.maximum || 20;
     } else if (k.includes('desired_output_fields') || k.includes('output_fields')) {
-      v = values || undefined;
+      v = values || (/champion.*analysis/i.test(tool.name)
+        ? ['champion','position','data.core_items','data.boots','data.starter_items','data.fourth_items','data.fifth_items','data.sixth_items','data.last_items','data.runes','data.summoner_spells','data.skills','data.skill_masteries','data.strong_counters','data.weak_counters','data.synergies','data.trends.win']
+        : /lane.*meta/i.test(tool.name) ? ['data.positions'] : undefined);
     }
     if (v !== undefined) args[key] = v;
   }
@@ -679,6 +694,8 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
 // ---------- dostawca: pamięć podręczna i nakładka na dane ----------
 
 const TTL_MS = 6 * 60 * 60 * 1000;
+const BUILD_CACHE_SCHEMA = 2;
+const isBuildCache = key => key==='meta' || key.startsWith('analysis:');
 
 class OpggProvider {
   constructor({ endpoint = DEFAULT_ENDPOINT, cache = {}, saveCache = () => {}, log = () => {} } = {}) {
@@ -692,7 +709,7 @@ class OpggProvider {
 
   fresh(key) {
     const e = this.cache[key];
-    return e && Date.now() - e.at < TTL_MS ? e.value : null;
+    return e && (!isBuildCache(key) || e.schema===BUILD_CACHE_SCHEMA) && Date.now() - e.at < TTL_MS ? e.value : null;
   }
 
   async cached(key, fn) {
@@ -703,14 +720,15 @@ class OpggProvider {
       try {
         const value = await fn();
         if (value) {
-          this.cache[key] = { at: Date.now(), value };
+          this.cache[key] = { at: Date.now(), value, ...(isBuildCache(key)?{schema:BUILD_CACHE_SCHEMA}:{}) };
           this.saveCache(this.cache);
         }
         return value;
       } catch (err) {
         this.log(`OP.GG ${key}: ${err.message}`);
         // Przy błędzie użyj starszych danych z pamięci, jeśli są.
-        return this.cache[key] ? this.cache[key].value : null;
+        const stale=this.cache[key];
+        return stale && (!isBuildCache(key) || stale.schema===BUILD_CACHE_SCHEMA) ? stale.value : null;
       } finally {
         this.inflight.delete(key);
       }
@@ -844,9 +862,10 @@ function mergeStats(base, { meta, analyses = {} } = {}, game) {
     }
   }
   for (const [alias, a] of Object.entries(analyses)) {
-    if (!a || !data.champions[alias]) continue;
-    const own = data.champions[alias];
-    const merged = { ...own, statsBuild: true };
+    if (!a) continue;
+    const own = data.champions[alias] || (game ? require('./engine').champInfo(alias,game,base) : null);
+    if(!own)continue;
+    const merged = { ...own, statsBuild: !!(a.items && a.items.length>=2) };
     // Przy sprzecznych danych wygrywają statystyki: matchup z OP.GG nadpisuje nasz wpis.
     const statCounters = a.counters || [];
     const statWeak = a.weakVs || [];

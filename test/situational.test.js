@@ -99,11 +99,11 @@ test('jungle: Smite zamiast Teleportu i runy junglera dla championa z topa (Shen
   assert.ok(ids.includes(engine.SPELL.smite) && ids.includes(engine.SPELL.flash) && !ids.includes(engine.SPELL.tp), String(ids));
   assert.match(why, /Smite|czary typowe dla tej roli/);
   const page = engine.runePageFor('Shen', game, data, state);
-  assert.match(page.adaptations[0], /^Runy, czary i build pod rolę Jungle jak u /);
+  assert.match(page.adaptations[0], /^Runy i czary pod rolę Jungle jak u /);
   // Na topie zostaje Teleport i własne runy.
   const top = { ...state, me: { ...state.me, position: 'top' } };
   assert.ok(engine.spellsFor('Shen', top, game, data).ids.includes(engine.SPELL.tp));
-  assert.ok(!engine.runePageFor('Shen', game, data, top).adaptations.some((a) => a.startsWith('Runy, czary i build pod rolę')));
+  assert.ok(!engine.runePageFor('Shen', game, data, top).adaptations.some((a) => a.startsWith('Runy i czary pod rolę')));
 });
 
 test('tanki: ogólna odpowiedź mówi, co kupuje mag', () => {
@@ -117,6 +117,7 @@ test('tanki: ogólna odpowiedź mówi, co kupuje mag', () => {
 test('support spoza danych (tank): czary, build i runy supporta, nie topa', () => {
   // Zoe jest w mocku, ale nie w danych: udajemy tanka bez ról, jak Alistar bez statystyk OP.GG.
   const d = { ...data, champions: { ...data.champions } };
+  delete d.champions.Zoe; // Explicitly exercise the unknown-champion fallback.
   const g = (a) => game.championsByAlias.get(a).id;
   const state = { me: { position: 'utility', championId: g('Zoe'), isMe: true }, allies: [], enemies: [], bans: new Set() };
   const tankData = { ...d, championTraits: { ...d.championTraits, tank: [...(d.championTraits.tank || []), 'Zoe'], ap: (d.championTraits.ap || []).filter((a) => a !== 'Zoe') } };

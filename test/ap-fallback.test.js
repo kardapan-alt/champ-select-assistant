@@ -18,8 +18,8 @@ test('rola Gragasa nie podmienia AP na przedmioty wojownika AD',()=>{
     const b=engine.buildFor('Gragas',state('Gragas','classic',position),game,data);
     assert.ok(!b.items.some(i=>adCore.has(i.id)),`${position}: ${b.items.map(i=>i.name)}`);
   }
-  assert.ok(engine.buildFor('Trundle',state('Trundle'),game,data).items.some(i=>i.id===3078));
-  assert.ok(engine.buildFor('Leona',state('Leona'),game,data).items.some(i=>i.id===3190));
+  assert.ok(engine.buildFor('Trundle',state('Trundle','classic'),game,data).items.some(i=>i.id===3078));
+  assert.ok(engine.buildFor('Leona',state('Leona','classic'),game,data).items.some(i=>i.id===3190));
 });
 
 test('świadoma konwersja i kupione przedmioty zachowują pierwszeństwo nad szablonem AP',()=>{

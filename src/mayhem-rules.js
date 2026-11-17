@@ -105,7 +105,7 @@ rule('GlassCannon', ['adaptive','shield'], 'Mniej maksymalnego HP oznacza więks
 rule('GiantSlayer', ['move','adaptive'], 'Mały rozmiar i mobilność wspierają obrażenia przeciw większym celom. Zachowuję ofensywne skalowanie championa.');
 rule('HeavyIsTheCrown', ['move'], 'Siła ofensywna kosztuje prędkość ruchu. Dobieram mobilność, która pozwoli wykorzystać dodatkowe obrażenia.');
 
-rule('Upgrade_Sheen', [], 'Przyspieszam jeden przedmiot ze Spellblade dobrany do postaci. Nie kupuj kilku wariantów dla tego samego efektu.', { upgrade:true, spellbladeUpgrade:true, anyItem:true, items:[3100,3078,6662] });
+rule('Upgrade_Sheen', [], 'Przyspieszam jeden przedmiot ze Spellblade dobrany do postaci. Nie kupuj kilku wariantów dla tego samego efektu.', { upgrade:true, spellbladeUpgrade:true, anyItem:true, items:[3100,3078,6662,2510,3508] });
 for (const [name,items] of Object.entries({ Upgrade_Collector:[6676], Upgrade_IE:[3031], Upgrade_ZH:[3157],
   Upgrade_SunderedSky:[6610], Upgrade_Ravenous:[3074], Upgrade_DeathDance:[6333],
   Upgrade_Stormsurge:[4646], Upgrade_SwordOfBlossom:[124011], Upgrade_ZzRotPortal:[773512],

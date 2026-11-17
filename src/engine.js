@@ -3,7 +3,9 @@
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
 const { liveSituations, mergeSituations } = require('./live-build');
-const { itemAvailable, itemsCompatible, redundantSpellblade } = require('./itemrules');
+const { itemAvailable, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
+const { canonicalAlias, usesMana } = require('./champion-identity');
+const { buildIdentity, isSupportCore } = require('./base-build');
 const { roleQuestFor, BOOT_UPGRADES, SUPPORT_ITEMS, baseBoots, isBootItem } = require('./rolequests');
 const { normalizePins, validateRunes } = require('./choices');
 const { isAram } = require('./modes');
@@ -85,8 +87,8 @@ function readSession(session, mode = 'classic', extra = {}) {
 const CLASS_FROM_ROLES = { marksman: 'adc', mage: 'mage', assassin: 'assassin', tank: 'tank', fighter: 'fighter', support: 'support' };
 
 function champInfo(alias, game, data) {
-  const known = data.champions[alias];
-  if (known) return { alias, ...known };
+  const known = data.champions[alias] || data.champions[canonicalAlias(alias)];
+  if (known) return { ...known, alias };
   // Champion spoza wbudowanych danych: przybliżenie po klasie z klienta.
   const summary = game.championsByAlias.get(alias);
   const lcuRoles = ((summary && summary.roles) || []).map((r) => String(r).toLowerCase());
@@ -439,10 +441,11 @@ function suggestBans(state, game, data, options = {}) {
 
 function defaultTemplate(champ, data) {
   const tpl = data.classTemplates[itemPoolKey(champ)] || data.classTemplates.fighter;
+  const items=itemPoolKey(champ)==='mage'&&usesMana(champ.alias)===false?[3152,4645,3089]:tpl.items;
   // AP fighter/assassin describes combat style, not an AD shopping list.
   if (champ.dmg === 'ap' && ['fighter', 'assassin'].includes(champ.class))
-    return { ...tpl, runes: champ.class === 'fighter' ? 'conqueror_mage' : 'electrocute_mage' };
-  return tpl;
+    return { ...tpl, items, runes: champ.class === 'fighter' ? 'conqueror_mage' : 'electrocute_mage' };
+  return {...tpl,items};
 }
 
 function resolveRunes(champ, data) {
@@ -520,14 +523,16 @@ function roleAdjusted(champ, role, data) {
   if (!donor) return champ;
   const [from, d] = donor;
   const pick = (k) => (d[k] !== undefined ? d[k] : undefined);
-  return { ...champ, runes: pick('runes'), spells: pick('spells'), items: pick('items'), boots: pick('boots'), starters: pick('starters'), roleFrom: from };
+  return { ...champ, runes: pick('runes'), spells: pick('spells'), items: champ.items?.length?champ.items:pick('items'), boots: champ.boots||pick('boots'), starters: pick('starters'), roleFrom: from };
 }
 
 function matchContext(alias, state, game, data) {
   const base = champInfo(alias, game, data);
   const aram = !!state && isAram(state.mode);
   const position = aram ? 'aram' : toDataRole(state && state.me ? state.me.position : '') || (base.roles || [])[0] || '';
-  const champ = roleAdjusted(base, position, data);
+  let champ = roleAdjusted(base, position, data);
+  if(aram && !champ.statsBuild && base.aram) champ={...champ,...base.aram};
+  champ=buildIdentity(champ,game);
   const enemyInfos = state ? teamInfos(state.enemies || [], game, data) : [];
   const lane = position === 'jungle' || aram ? null : laneOpponentOf(state, game, data);
   return { champ, position, lane, enemyInfos, enemy: teamProfile(enemyInfos), enemyCount: enemyInfos.length, verdict: matchupVerdict(champ, lane) };
@@ -691,7 +696,7 @@ function runePageFor(alias, game, data, state = null) {
   }
   if (source.roleFrom && !pinned) {
     const role = POSITION_LABELS[ctx.position === 'support' ? 'utility' : ctx.position] || ctx.position;
-    changes.unshift(`Runy, czary i build pod rolę ${role} jak u ${nameOf(source.roleFrom, game)}: ${(source.roles || [])[0] && source.roles[0] !== ctx.position ? `${nameOf(alias, game)} gra zwykle na innej roli` : `brak danych o ${nameOf(alias, game)} na tej roli`}`);
+    changes.unshift(`Runy i czary pod rolę ${role} jak u ${nameOf(source.roleFrom, game)}: ${(source.roles || [])[0] && source.roles[0] !== ctx.position ? `${nameOf(alias, game)} gra zwykle na innej roli` : `brak danych o ${nameOf(alias, game)} na tej roli`}`);
   }
   const name = game.championsByAlias.get(alias)?.name || alias;
   const describe = (id) => ({ id, name: game.perks.get(id)?.name || String(id), icon: game.perks.get(id)?.iconPath || '' });
@@ -717,7 +722,8 @@ function runePageFor(alias, game, data, state = null) {
 // ---------- build ----------
 
 function itemPoolKey(champ) {
-  if (champ.class === 'tank' || champ.class === 'support') return champ.class;
+  const kind=champ.buildClass||champ.class;
+  if (kind === 'tank' || kind === 'support') return kind;
   if (champ.dmg === 'ap') return 'mage';
   return champ.class === 'adc' || champ.class === 'assassin' ? champ.class : 'fighter';
 }
@@ -739,7 +745,7 @@ function buildFor(alias, state, game, data) {
   const compatible = (id,ids) => itemsCompatible(id,ids,augmentation?.repeat) && !redundantSpellblade(id,ids);
   if (augmentation?.conversion) {
     const kind = augmentation.conversion === 'ap' ? 'mage' : 'fighter';
-    champ = { ...champ, ...data.classTemplates[kind], class:kind, dmg:augmentation.conversion, statsBuild:false, lateItems:[] };
+    champ = { ...champ, ...data.classTemplates[kind], class:kind, buildClass:kind, buildStyle:augmentation.conversion, dmg:augmentation.conversion, statsBuild:false, lateItems:[] };
   }
   const tpl = defaultTemplate(champ, data);
   const threats = threatWeights(enemy);
@@ -751,7 +757,10 @@ function buildFor(alias, state, game, data) {
   const ownedBoots = state.liveInventory?.ownedBoots || augmentation?.ownedBoots;
   const soldBoots = !!state.liveInventory && owned.length === 6 && !ownedBoots;
   const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
-  const isBuildItem = (id) => (exists(id) || (owned.includes(id) && mayhem.ownedAvailable(id,game,alias,state.mode))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || owned.includes(id));
+  const explicit = id => owned.includes(id) || (state.choices?.items || []).some(p=>p.id===id);
+  const fitsResource = id => state.mode==='mayhem' || usesMana(alias)!==false || explicit(id)
+    || !game.items.get(id)?.categories?.includes('Mana') || !game.items.get(id)?.categories?.some(c=>['Damage','SpellDamage'].includes(c));
+  const isBuildItem = (id) => (exists(id) || (owned.includes(id) && mayhem.ownedAvailable(id,game,alias,state.mode))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || owned.includes(id)) && fitsResource(id);
   const purchased = owned.filter(isBuildItem);
   const ownChoices = purchased.length ? { ...state.choices, items: [
     ...purchased.map((id, slot) => ({ id, slot })),
@@ -774,9 +783,9 @@ function buildFor(alias, state, game, data) {
   const bootsPinned = !!state.choices?.boots && exists(state.choices.boots) && isBootItem(state.choices.boots, game);
   if (bootsPinned) { boots = baseBoots(state.choices.boots); bootsWhy = 'Twój przypięty wybór'; }
   if (ownedBoots && mayhem.ownedAvailable(ownedBoots,game,alias,state.mode)) { boots = ownedBoots; bootsWhy = 'Już posiadane buty'; }
-  const core = (champ.items || tpl.items).filter(isBuildItem).filter((id, i, all) => compatible(id, all.slice(0, i)));
+  const core = (champ.items || tpl.items).map(purchaseItem).filter(isBuildItem).filter((id, i, all) => compatible(id, all.slice(0, i)));
   const pooledTags = (id) => (Object.values(data.itemPools || {}).flat().find((it) => it.id === id) || {}).tags || {};
-  const lateStats = (champ.lateItems || []).filter((it) => isBuildItem(it.id));
+  const lateStats = (champ.lateItems || []).map(it=>({...it,id:purchaseItem(it.id)})).filter((it) => isBuildItem(it.id));
   const topLate = Math.max(1, ...lateStats.map((it) => it.score));
   // Pozostałe itemy rdzenia i popularne późniejsze itemy z OP.GG startują z wysoką bazą,
   // żeby itemy sytuacyjne z wbudowanej puli wchodziły tylko przy wyraźnie jednostronnym składzie wroga.
@@ -806,6 +815,8 @@ function buildFor(alias, state, game, data) {
     && purchased.filter(id => game.items.get(id)?.categories?.includes('CriticalStrike')).length >= 2
     && isBuildItem(3031) && compatible(3031, pinIds) && fullBuild > pins.length;
   if (critCore) fixed = [3031, ...fixed.filter(id => id !== 3031)].slice(0, fullBuild - pins.length);
+  else if(!augmentation?.active && champ.buildStyle==='crit' && core.includes(3031)
+    && compatible(3031,pinIds) && fixed.length<fullBuild-pins.length && !fixed.includes(3031)) fixed.push(3031);
   const situationByTag = new Map();
   const situational = new Map();
   let forced = 0;
@@ -821,15 +832,37 @@ function buildFor(alias, state, game, data) {
   }
   const reasonOf = (tag) => (situationByTag.has(tag) ? reasonFor(situationByTag.get(tag)) : THREAT_REASONS[tag]);
   const coreRest = core.filter(id => !fixed.includes(id) && compatible(id, pinIds));
+  const coreWeight = augmentation?.active ? 1.6 : 4;
+  const fitsDamage = id => {
+    if(core.includes(id)||explicit(id)||augmentation?.bonuses.has(id))return true;
+    const tags=game.items.get(id)?.categories || [];
+    if(champ.dmg==='ap'&&tags.includes('Damage')&&!tags.includes('SpellDamage'))return false;
+    if(champ.dmg==='ad'&&tags.includes('SpellDamage')&&!tags.includes('Damage')&&!tags.some(t=>['Armor','SpellBlock','MagicResist'].includes(t)))
+      return champ.buildStyle==='onhit'&&id===3115;
+    return true;
+  };
+  // Late-item statistics pool different builds. Keep the chosen style; explicit
+  // purchases, augment effects and concrete defensive responses remain eligible.
+  const fitsLateStyle = id => {
+    if(core.includes(id)||explicit(id)||augmentation?.bonuses.has(id)||situational.has(id))return true;
+    const tags=game.items.get(id)?.categories || [];
+    if(!tags.length)return true; // unavailable client metadata is not evidence of another style
+    if(itemPoolKey(champ)==='mage' && champ.class!=='fighter' && !tags.includes('SpellDamage'))return false;
+    if(itemPoolKey(champ)==='support' && tags.includes('SpellDamage') && !isSupportCore(id))return false;
+    if(itemPoolKey(champ)==='tank' && tags.includes('SpellDamage') && !isSupportCore(id))return false;
+    return true;
+  };
   const candidates = [
-    ...[...situational.values()].map((it) => (coreRest.includes(it.id) ? { ...it, tags: { ...it.tags, late: 1.6 }, core: true } : it)),
-    ...coreRest.map((id) => ({ id, tags: { ...pooledTags(id), late: 1.6 }, core: true })),
-    ...lateStats.map((it) => ({ id: it.id, tags: { ...pooledTags(it.id), late: 2 + 1.5 * (it.score / topLate) }, core: true, popular: true })),
+    ...[...situational.values()].map((it) => (coreRest.includes(it.id) ? { ...it, tags: { ...it.tags, late: coreWeight }, core: true } : it)),
+    ...coreRest.map((id) => ({ id, tags: { ...pooledTags(id), late: coreWeight }, core: true })),
+    ...lateStats.filter(it=>fitsLateStyle(it.id)).map((it) => ({ id: it.id, tags: { ...pooledTags(it.id), late: 2 + 1.5 * (it.score / topLate) }, core: true, popular: true })),
     ...[...(augmentation?.bonuses.keys() || [])].map(id => ({ id, tags:pooledTags(id) })),
     ...((data.itemPools || {})[itemPoolKey(champ)] || []).filter((it) => !it.only || it.only.includes(champ.class))
       // Przy statystykach OP.GG item z puli nie wygrywa samą „późną grą”, tylko odpowiedzią na zagrożenie.
       .map((it) => (lateStats.length ? { ...it, tags: { ...it.tags, late: 0 } } : it)),
-  ].filter((it, i, arr) => isBuildItem(it.id) && !fixed.includes(it.id) && arr.findIndex((x) => x.id === it.id) === i);
+  ].filter((it, i, arr) => isBuildItem(it.id) && fitsDamage(it.id) && !fixed.includes(it.id) && arr.findIndex((x) => x.id === it.id) === i)
+    .filter(it=>!(champ.buildStyle==='onhit'&&[3031,6676].includes(it.id)&&!core.includes(it.id)&&!augmentation?.bonuses.has(it.id)))
+    .filter(it=>it.id!==3031 || champ.buildStyle==='crit' || critCore || core.includes(3031) || augmentation?.bonuses.has(3031));
 
   const left = { ...threats };
   const usedAugmentGroups = new Map();
@@ -929,8 +962,9 @@ function buildFor(alias, state, game, data) {
     quest: quest ? { ...quest, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
       : quest.extraSlot === 'control-wards' && exists(2055) ? { ...item(2055), why: 'Po queście: do 2 szt.' } : null } : null,
     name: game.championsByAlias.get(alias)?.name || alias,
-    estimated: !!champ.unknown || (champ.fromStats && !champ.statsBuild),
+    estimated: !!(champ.unknown || (champ.fromStats && !champ.statsBuild)),
     fromStats: !!champ.statsBuild,
+    baseSource:!champ.statsBuild?champ.baseSource||null:null,
     enemy: describeEnemy(enemy),
     spells: spells.ids.map(spell),
     spellsWhy: spells.why,
