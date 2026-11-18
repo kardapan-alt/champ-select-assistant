@@ -29,6 +29,15 @@ test('Cobalt na Zedzie nie wymaga zakupu, impact pochodzi z faktycznej symulacji
   assert.match(offer(3150,ctx).impact,/Później: Eclipse \(1 → 3\)/);
 });
 
+test('koszt karty odróżnia przedmiot już posiadany od nowego zakupu z maną',()=>{
+  const id=require('../data/mayhem-augments.json').augments.find(c=>c.api==='TrueEternity').id;
+  const ctx={champion:{alias:'Akali'},inventory:inv(),gold:1000};
+  const blocked=offer(id,ctx);
+  assert.match(blocked.label,/poza buildem/);
+  assert.equal(blocked.missing,undefined);
+  assert.equal(offer(id,{...ctx,inventory:inv(773027)}).cost,0);
+  assert.ok(offer(id,{...ctx,champion:{alias:'Ahri'}}).cost>0);
+});
 test('warianty Immolate nie sumują dwóch receptur, Spellblade działa od samego Sheen',()=>{
   const immolate=offer(1319,{inventory:inv(6664,3068),enemy:{apShare:.1},gold:0});
   assert.equal(immolate.cost,0);assert.equal(immolate.label.includes('+'),false);

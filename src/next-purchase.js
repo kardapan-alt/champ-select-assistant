@@ -1,11 +1,11 @@
-const {itemAvailable,itemsCompatible}=require('./itemrules');
+const {itemAvailable,itemFitsResource,itemsCompatible}=require('./itemrules');
 const {isBootItem,SUPPORT_ITEMS}=require('./rolequests');
 const engine=require('./engine');
 
 const purchaseKey=(gameId,alias,mode,owner='')=>`${owner?owner+':':''}${gameId}:${alias}:${mode}`;
 function canBuy(id,game,build){
   const i=game.items.get(id);
-  return Number.isSafeInteger(id)&&!!i&&itemAvailable(id,game,build.mode,build.alias)
+  return Number.isSafeInteger(id)&&!!i&&itemAvailable(id,game,build.mode,build.alias)&&itemFitsResource(id,game,build.alias)
     &&!i.requiredBuffCurrencyName&&!i.requiredAlly&&!SUPPORT_ITEMS.has(id)
     &&!i.categories?.some(c=>['Trinket','Consumable'].includes(c));
 }
@@ -15,7 +15,10 @@ function withPurchaseGoal(alias,state,game,data,base,id){
   if(!id)return {build:base};
   const owned=[...base.items,base.boots].filter(i=>i?.owned);
   if(owned.some(i=>i.id===id))return {build:base,done:true,reason:'Cel jest już w ekwipunku. Przywrócono automatyczny plan.'};
-  if(!canBuy(id,game,base))return {build:base,reason:'Przypięty przedmiot nie jest dostępny w tym trybie. Przywrócono automatyczny plan.'};
+  if(!canBuy(id,game,base)){
+    const reason=itemFitsResource(id,game,alias) ? 'Przypięty przedmiot nie jest dostępny w tym trybie.' : 'Odpięto przedmiot z maną. Ta postać nie używa many.';
+    return {build:base,reason:reason+' Przywrócono automatyczny plan.'};
+  }
   if(base.mayhem?.nextItem?.upgrade&&base.mayhem.nextItem.id===id)return {build:{...base,nextPurchase:{id}},active:true};
   const choices=structuredClone(state.choices||{});
   if(isBootItem(id,game)){

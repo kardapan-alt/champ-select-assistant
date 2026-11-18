@@ -60,7 +60,8 @@ test('Frozen Heart counters attack speed only for champions who can use its mana
     const owned=engine.buildFor('Yasuo',{...yasuo,liveInventory:{owned:[3110]}},game,data);
     assert.ok(owned.items.some(i=>i.id===3110 && i.owned));
     const pinned=engine.buildFor('Yasuo',{...yasuo,choices:{items:[{id:3110,slot:0}]}},game,data);
-    assert.ok(pinned.items.some(i=>i.id===3110 && i.pinned));
+    assert.ok(!pinned.items.some(i=>i.id===3110));
+    assert.ok(pinned.choiceWarnings.length);
   }
 });
 

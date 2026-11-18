@@ -1,0 +1,24 @@
+{
+  "format": "champ-select-assistant/build-report",
+  "schema": 1,
+  "version": "0.6.41",
+  "patch": null,
+  "scenario": {
+    "alias": "Akali",
+    "role": "",
+    "mode": "mayhem",
+    "allies": [],
+    "enemies": [],
+    "choices": {"items": [], "boots": null},
+    "mayhem": {"augments": [3059], "completed": [], "effects": {}, "owned": [], "ownedBoots": null, "headliner": null},
+    "context": {"pool": "KIWI"}
+  },
+  "observed": {
+    "gold": null,
+    "source": "Scenariusz testowy z augmentem No Mana, No Problem",
+    "plan": [{"id": 3003, "name": "Archangel's Staff"}],
+    "questSlot": null,
+    "target": null
+  },
+  "expectation": {"kind": "exclude", "itemId": 3003}
+}

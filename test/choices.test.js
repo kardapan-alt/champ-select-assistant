@@ -74,6 +74,25 @@ test('tester działa na katalogu offline, zachowuje questy i nie zmienia danych 
   assert.throws(()=>lab.preview({...input,allies:['Jinx']},game,data));
   assert.equal(lab.preview({...input,mode:'aram'},game,data).build.items.length,5);
 });
+test('dawne przypięcie many nie blokuje odtworzenia meczu, ale nowego nie da się zapisać', () => {
+  const alias='Akali', s=state(alias,'middle');
+  const build=engine.buildFor(alias,s,game,data), old={items:[{id:3110,slot:0},{id:3157,slot:1}]};
+  const scenario={alias,role:'middle',mode:'classic',allies:[],enemies:[],choices:old,context:{}};
+  assert.throws(()=>validateChoices(old,build,alias,s,game),/manę/);
+  const preview=lab.preview(scenario,game,data);
+  assert.deepEqual(preview.choices.items,[old.items[1]]);
+  assert.ok(!preview.build.items.some(i=>i.id===3110));
+  assert.equal(old.items.length,2);
+  const options=lab.catalog(game,data,{mode:'mayhem'},alias);
+  assert.ok(!options.items.some(i=>i.id===3110));
+  assert.ok(options.ownedItems.some(i=>i.id===3110));
+  assert.ok(lab.inspectionCatalog(game).some(i=>i.id===3110));
+  assert.ok(lab.catalog(game,data,s,'Ornn').items.some(i=>i.id===3110));
+  const legacyBuild={...build,items:[{id:3110},{id:3157}],alternatives:[{id:3003}]};
+  const exported=engine.itemSetFor(legacyBuild,alias,s,game,data).blocks.flatMap(block=>block.items.map(i=>Number(i.id)));
+  assert.ok(exported.includes(3157));
+  assert.ok(!exported.includes(3110) && !exported.includes(3003));
+});
 test('kolejka zapisów zachowuje kolejność i działa dalej po błędzie', async () => {
   const queue=serialQueue(),seen=[];
   await Promise.all([queue(async()=>{await new Promise(r=>setTimeout(r,10));seen.push(1);}),queue(()=>{seen.push(2);throw Error('fail');}).catch(()=>{}),queue(()=>seen.push(3))]);

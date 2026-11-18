@@ -3,7 +3,8 @@ const rules=require('./mayhem-rules');
 const catalog=require('../data/mayhem-augments.json').augments;
 const byId=new Map(catalog.map(a=>[a.id,a]));
 const {synergies}=require('./augment-synergies');
-const {itemInteraction}=require('./mayhem-interactions');
+const {itemInteraction,resourceNoteFor}=require('./mayhem-interactions');
+const {itemFitsResource, itemGivesMana}=require('./itemrules');
 const {MAX_AUGMENTS}=require('./headliners');
 const ruleFor=a=>rules[a?.api?.replace(/^ARAM_/,'')];
 
@@ -18,10 +19,20 @@ function evaluateAugments(ids,{champion={},selection={},build={},game,pool='KIWI
   const currentChampion=conversion?{...champion,dmg:conversion,class:conversion==='ap'?'mage':'fighter'}:champion;
   const cards=ids.map((id,index)=>{
     const a=byId.get(id),r=ruleFor(a),reasons=[],warnings=[];
-    const card={id,position:index,name:a.name,english:a.english,summary:r?.summary||'Brak sprawdzonej reguły.',interaction:itemInteraction(a,champion,game),reasons,warnings,score:0,status:'conditional',recommended:false};
+    const resourceNote=resourceNoteFor(r,champion,game);
+    const card={id,position:index,name:a.name,english:a.english,summary:resourceNote||r?.summary||'Brak sprawdzonej reguły.',interaction:itemInteraction(a,champion,game),reasons,warnings,score:0,status:'conditional',recommended:false};
     if(!r){card.status='unknown';reasons.push('Nie mam jeszcze sprawdzonej oceny tego augmentu.');return card;}
     if((selection.augments||[]).includes(id)){card.status='selected';warnings.push('Ten augment jest już zapisany jako wybrany.');return card;}
     if(picked.length>=MAX_AUGMENTS){card.status='conflict';warnings.push('Limit zapisu augmentów. Sprawdź wcześniejsze rozpoznania.');return card;}
+    if(resourceNote){
+      warnings.push(resourceNote);
+      const hasTarget=r.items?.some(item=>owned.has(item));
+      const hasManaItem=r.manaConversion && [...owned].some(item=>itemGivesMana(item,game));
+      if(!hasTarget && !hasManaItem && (r.manaConversion || r.items?.length && r.items.every(item=>!itemFitsResource(item,game,champion.alias)))){
+        card.score=-3;
+        return card;
+      }
+    }
     if(selection.headliner?.id==='heartsteel')warnings.push('HEARTSTEEL: ocena nie obejmuje dodatkowego modyfikatora karty.');
     if(selection.headliner?.id==='pentakill'&&selection.headliner.ability==='R'&&r.noUltimate){warnings.push('Wyłącza R wzmocnione przez Pentakill.');card.score-=8;}
     const noUltimate=active.some(x=>x.noUltimate),noRegen=active.some(x=>x.noRegen),attackConversion=active.map(x=>x.attackConversion).find(Boolean);

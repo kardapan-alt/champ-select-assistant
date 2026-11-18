@@ -60,6 +60,33 @@ test('zakupy respektują mapę, blokady i nieznane receptury',()=>{
   assert.equal(plan(3040,[],9999).status,'unavailable','Transformacja Serapha nie jest zakupem');
 });
 
+test('stary cel, ulepszenie i alternatywa z maną nie wracają do sklepu postaci bez many',()=>{
+  for(const alias of ['Yasuo','Zed','Akali']){
+    const options={alias,items:[{id:3110},{id:3143}],nextPurchase:{id:3110},
+      mayhem:{nextItem:{id:3110,upgrade:true}},alternatives:[{id:3004},{id:3053}]};
+    const p=plan(3110,[],5000,options);
+    assert.equal(p.target.id,3143,alias);
+    assert.deepEqual(p.comparison.map(option=>option.target.id),[3143,3053],alias);
+  }
+  assert.equal(plan(3110,[],5000,{alias:'Ornn'}).purchase.id,3110);
+});
+
+test('zasada zasobu dotyczy także komponentów i celu oszczędzania, a posiadane części pokrywają koszt',()=>{
+  const catalog={...game,items:new Map(game.items)};
+  // Exercise a patch where a resource-neutral item builds from a mana component.
+  catalog.items.set(3143,{...game.items.get(3143),from:[1027,1029]});
+  const quote=(alias,ids,gold)=>shopPlan(build(3143,{alias}),{inventory:inv(ids,alias),gold},catalog,'live');
+  assert.equal(quote('Zed',[],300).purchase.id,1029);
+  assert.equal(quote('Akali',[],100).savingFor.id,1029);
+  assert.equal(quote('Ornn',[],300).purchase.id,1027);
+  assert.equal(quote('Yasuo',[1027],5000).target.credit,300);
+  const mirror=plan(4642,[],200,{alias:'Akali'});
+  assert.equal(mirror.target.id,4642);
+  assert.equal(mirror.status,'save');
+  assert.equal(mirror.savingFor.id,2022);
+  assert.equal(plan(4642,[],200,{alias:'Ahri'}).purchase.id,1004);
+});
+
 test('buty mają własny krok zakupów, quest ADC nie daje miejsca przed ukończeniem',()=>{
   const b=build(3031,{alias:'Ashe',mode:'classic',items:[{id:3031,owned:true},{id:3036}],
     boots:{id:3006},inventory:{bootsSlot:'quest'},quest:{extraSlot:'boots'}});

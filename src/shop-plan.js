@@ -1,4 +1,4 @@
-const { itemAvailable } = require('./itemrules');
+const { itemAvailable, itemFitsResource } = require('./itemrules');
 const { isBootItem } = require('./rolequests');
 
 // Receptura z przypisaniem konkretnych posiadanych sztuk. Jedna różdżka nie
@@ -24,7 +24,7 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
   const gold = Math.floor(snapshot.gold), inventory = snapshot.inventory;
   const exists = id => {
     const item = game.items.get(id);
-    return itemAvailable(id,game,build.mode,build.alias) && !item?.requiredBuffCurrencyName
+    return itemFitsResource(id,game,build.alias) && itemAvailable(id,game,build.mode,build.alias) && !item?.requiredBuffCurrencyName
       && !item?.requiredAlly && !item?.categories?.includes('Trinket');
   };
   const order = [...build.items];

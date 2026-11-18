@@ -1,3 +1,5 @@
+const { usesMana } = require('./champion-identity');
+
 // Klient dostarcza dane bieżącego patcha. Sama obecność ID nie oznacza,
 // że przedmiot jest dostępny w sklepie na danej mapie.
 function itemAvailable(id, game, mode = 'classic', alias = '') {
@@ -15,9 +17,25 @@ function itemAvailable(id, game, mode = 'classic', alias = '') {
 
 const bundledManaItems = new Set(require('../data/catalog.json').items
   .filter(item => item.categories?.includes('Mana')).map(item => item.id));
+// Data Dragon 16.22.1 gives these historical Seraph's Embrace and Muramana
+// variants 1000 mana. The client item categories omit it for both.
+bundledManaItems.add(773040);
+bundledManaItems.add(773042);
 function itemGivesMana(id, game) {
-  const categories = game?.items?.get(id)?.categories;
-  return categories?.length ? categories.includes('Mana') : bundledManaItems.has(id);
+  const item = game?.items?.get(Number(id));
+  if (item?.categories?.includes('Mana') || item?.tags?.includes('Mana')) return true;
+  const mana = item?.stats?.FlatMPPoolMod;
+  if (Number.isFinite(mana)) return mana > 0;
+  return bundledManaItems.has(Number(id));
+}
+function itemNeedsMana(id, game) {
+  // Faerie Charm only regenerates mana. Other ManaRegen-tagged items can
+  // provide healing to manaless users or carry a support quest.
+  return Number(id) === 1004 || Number(id) === 771004 || itemGivesMana(id,game);
+}
+
+function itemFitsResource(id, game, alias) {
+  return usesMana(alias) !== false || !itemNeedsMana(id, game);
 }
 
 // Wzajemnie wykluczające się rodziny przedmiotów. Nie proponujemy dwóch
@@ -43,4 +61,4 @@ function redundantSpellblade(id, selected) {
 const PURCHASE_FORM = {3040:3003,3042:3004,3121:3119,2530:2526};
 const purchaseItem = id => PURCHASE_FORM[Number(id)] || Number(id);
 
-module.exports = { itemAvailable, itemGivesMana, itemsCompatible, redundantSpellblade, purchaseItem };
+module.exports = { itemAvailable, itemGivesMana, itemFitsResource, itemsCompatible, redundantSpellblade, purchaseItem };

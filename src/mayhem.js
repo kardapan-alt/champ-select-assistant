@@ -1,4 +1,4 @@
-const { itemAvailable, itemGivesMana, itemsCompatible } = require('./itemrules');
+const { itemAvailable, itemFitsResource, itemsCompatible } = require('./itemrules');
 const { isBootItem } = require('./rolequests');
 const catalog = require('../data/mayhem-augments.json');
 const byId = new Map(catalog.augments.map(a => [a.id, a]));
@@ -18,7 +18,7 @@ const EFFECTS = {
 const RULES = require('./mayhem-rules');
 const {observedRewards} = require('./mayhem-quest-state');
 const headliners = require('./headliners');
-const { itemInteraction, onHitExamples } = require('./mayhem-interactions');
+const { itemInteraction, onHitExamples, resourceNoteFor } = require('./mayhem-interactions');
 
 const ruleFor = augment => RULES[augment.api.replace(/^ARAM_/, '')];
 function activeQuestItems(selection = {}) {
@@ -113,8 +113,7 @@ function adaptation(selection, champion, context = {}) {
   const tankHaste = enemy.apShare>=.55 ? [3065,2504,3190] : [2502,3110,3190];
   const spellItems = support ? [6617,3107,6620] : tank ? tankHaste : ap ? [4628,8010,6655] : adc ? [6675,3508,3004] : [3071,3161,6692];
   const healthItems = support ? [3107,3190,6617] : tank || durable && !ap ? [3084,2502,3083,3748] : ap ? [4633,3116] : [3071,3181];
-  const required = new Set([...activeRules.flatMap(r=>r.items || []),...(context.pinned || [])]);
-  const fitsResource = id => usesMana !== false || manaConversion || required.has(id) || !itemGivesMana(id,context.game);
+  const fitsResource = id => itemFitsResource(id,context.game,champion.alias);
   let family;
   const add = (ids, amount, why, direct = amount >= 26) => ids.filter(id=>!excluded.has(id) && fitsResource(id)).forEach((id, index) => {
     const prev = bonuses.get(id) || { score: 0, reasons: [], contributions:[] };
@@ -128,8 +127,8 @@ function adaptation(selection, champion, context = {}) {
     const overridden = Object.hasOwn(s.effects || {}, a.id);
     hints.push({ id:a.id, name:a.name, english:a.english, supported:!!r || effects.length > 0, quest:!!r?.quest,
       neutral:!!r?.neutral || disabled, interaction:itemInteraction(a,champion,context.game),
-      completed:(s.completed || []).includes(a.id), itemTargets:overridden?[]:upgradeTargets(r,champion,s,enemy),oneItem:!!r?.anyItem,
-      summary:disabled ? 'Back To Basics wyłącza ultimate, więc pomijam synergię tego augmentu z R.' : overridden ? `Ręcznie wskazany wpływ: ${effects.map(e=>EFFECTS[e]).join(', ') || 'bez dodatkowego priorytetu'}.` : r?.summary || 'Brak sprawdzonej reguły zakupów dla tego augmentu.', effects });
+      completed:(s.completed || []).includes(a.id), itemTargets:overridden?[]:upgradeTargets(r,champion,s,enemy).filter(id=>fitsResource(id)||s.owned?.includes(id)),oneItem:!!r?.anyItem,
+      summary:disabled ? 'Back To Basics wyłącza ultimate, więc pomijam synergię tego augmentu z R.' : overridden ? `Ręcznie wskazany wpływ: ${effects.map(e=>EFFECTS[e]).join(', ') || 'bez dodatkowego priorytetu'}.` : resourceNoteFor(r,champion,context.game) || r?.summary || 'Brak sprawdzonej reguły zakupów dla tego augmentu.', effects });
     const why = `augment ${a.name}`;
     for (const effect of effects) {
       family = ['attacks','onhit'].includes(effect) ? 'attacks' : ['cc','spell','haste'].includes(effect) ? 'spell' : effect;
@@ -156,7 +155,7 @@ function adaptation(selection, champion, context = {}) {
       if (effect === 'haste') add(spellItems, 9, why + ': haste');
       if (effect === 'itemhaste') add(support ? [3107,3190,3222] : tank ? [2502,3190] : ap ? [3157,3102,3152] : durable ? [6610,2502] : adc ? [6673,3026] : [6692,3814,3026], 10, why + ': cooldowny przedmiotów');
       if (effect === 'mana') {
-        if((usesMana !== false || manaConversion) && (!manaConversion || ap || tank || support)) add(support ? [3003,6617] : tank ? [3110] : ap ? [3003,6657,3118] : [3004,3508],manaConversion?14:10,why + ': mana');
+        if(usesMana !== false && (!manaConversion || ap || tank || support)) add(support ? [3003,6617] : tank ? [3110] : ap ? [3003,6657,3118] : [3004,3508],manaConversion?14:10,why + ': mana');
       }
       if (effect === 'healing') { if(support) add([6617,3107,3504,6620],8,why + ': leczenie i tarcze'); else if(durable && (champion.traits||[]).includes('heal')) add([3065],8,why + ': własne leczenie'); }
       if (effect === 'burn') add(tank ? [3068,6664] : ap ? [6653,2503] : durable ? [3068,6664] : [], 7, why + ': obrażenia w czasie');
@@ -175,7 +174,7 @@ function adaptation(selection, champion, context = {}) {
       if (effect === 'bigcrit' && (!ap && attacks || overridden)) { add([3031],16,why + ': pojedyncze kryty'); add([6676,3072],12,why + ': pojedyncze kryty'); }
       if (effect === 'tickle') add([3115,3124,3091,3302],13,why + ': on-hit po konwersji');
       if (effect === 'healthlethality' && !ap) add([3814,3071,3181],10,why + ': HP jako lethality');
-      if (effect === 'ultimate' && !noUltimate) add(support ? [3107,6617] : tank ? tankHaste : ap ? (usesMana===false && !manaConversion ? [4628,8010] : [3118]) : durable ? [3161,6696] : [6696],10,why + ': ultimate');
+      if (effect === 'ultimate' && !noUltimate) add(support ? [3107,6617] : tank ? tankHaste : ap ? (usesMana===false ? [4628,8010] : [3118]) : durable ? [3161,6696] : [6696],10,why + ': ultimate');
       if (effect === 'itemdamage') add(support ? [6620] : tank ? [3068,2502] : ap ? [6653,2503,3100] : durable ? [3748,6692] : attacks ? [3153,3124] : [6692,6698],10,why + ': obrażenia przedmiotów');
       if (effect === 'lethality' && !ap) add([6692,3814,3142],10,why + ': lethality');
       if (effect === 'regen' && !noRegen && !healthConversion) add(support ? [6617,3107] : tank || durable && !ap ? [3083,3065] : ap ? [4633] : [3072],8,why + ': odnawianie HP');
@@ -189,7 +188,7 @@ function adaptation(selection, champion, context = {}) {
     family = null;
     if (r?.consumed && (s.completed || []).includes(a.id)) r.items.forEach(id => excluded.add(id));
     const upgradeFrom = !overridden && r?.replace?.find(id=>(s.owned || []).includes(id));
-    if (upgradeFrom) { upgrades.push({ from:upgradeFrom, to:r.items[0] });excluded.add(r.items[0]); }
+    if (upgradeFrom && fitsResource(r.items[0])) { upgrades.push({ from:upgradeFrom, to:r.items[0] });excluded.add(r.items[0]); }
     if ((r?.items||r?.spellbladeUpgrade) && !overridden && !(s.completed || []).includes(a.id)) {
       const targets=r.upgrade?upgradeTargets(r,champion,s,enemy):r.items;
       const ids = r.anyItem && (s.owned || []).some(id => targets.includes(id)) ? [] : targets;
@@ -197,7 +196,7 @@ function adaptation(selection, champion, context = {}) {
     }
   }
   return { bonuses, hints, unknown, excluded, fitsResource, conversion, repeat, upgrades,
-    transformsBuild:!!(conversion || attackConversion && (attackConversion!=='crit' || attacks && !ap) || healthConversion || attackAP || manaConversion && ap && !tank && !support),
+    transformsBuild:!!(conversion || attackConversion && (attackConversion!=='crit' || attacks && !ap) || healthConversion || attackAP || manaConversion && usesMana!==false && ap && !tank && !support),
     freeBoots:activeRules.some(r=>r.freeBoots), active: bonuses.size > 0, owned:s.owned || [], ownedBoots:s.ownedBoots || null };
 }
 class MayhemSession {

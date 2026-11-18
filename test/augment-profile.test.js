@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const engine=require('../src/engine'),mayhem=require('../src/mayhem'),rules=require('../src/mayhem-rules');
+const engine=require('../src/engine'),mayhem=require('../src/mayhem');
 const data=require('../data/champions.json'),catalog=require('../data/mayhem-augments.json').augments;
 const game=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
 const {buildProfile}=require('../src/mayhem-profile');
-const {itemAvailable,itemsCompatible}=require('../src/itemrules');
+const {itemAvailable,itemFitsResource,itemsCompatible}=require('../src/itemrules');
 const id=name=>catalog.find(a=>a.api.replace(/^ARAM_/,'')===name).id;
 const ids=b=>b.items.map(i=>i.id);
 function build(alias,names,extra={}) {
@@ -33,21 +33,26 @@ test('tank z obrażeniami magicznymi wybiera obronę, a wojownik AP zachowuje AP
   }
 });
 
-test('mana ma pokrycie w zasobie championa; konwersje, zadania i własne zakupy mają jawne wyjątki',()=>{
-  for(const alias of ['Zed','Akali','Katarina','Garen','Riven','Mordekaiser','Shen']) {
+test('konwersje, ulepszenia, zadania i zapamiętane piny respektują zasób championa',()=>{
+  for(const alias of ['Zed','Akali','Kennen','LeeSin','Katarina','Garen','Riven','Mordekaiser','Shen','Yasuo']) {
     assert.equal(buildProfile(engine.champInfo(alias,game,data)).usesMana,false);
-    for(const names of [[],['Overflow'],['BlueBarrier'],['DoubleTime'],['CantTouchThis'],['MightyShield']]) {
+    for(const names of [[],['Overflow'],['BlueBarrier'],['DoubleTime'],['CantTouchThis'],['MightyShield'],['TrueEternity','NoManaNoProblem'],['NoManaNoProblem','ADAPt']]) {
       const b=build(alias,names);
-      assert.ok(!b.items.some(i=>game.items.get(i.id).categories.includes('Mana')),`${alias}: ${names}`);
+      const suggested=[...b.items,...b.alternatives,b.mayhem.nextItem,...b.mayhem.hints.flatMap(h=>h.requiredItems)].filter(Boolean);
+      assert.ok(suggested.every(i=>itemFitsResource(i.id,game,alias)),`${alias}: ${names}`);
     }
   }
   assert.equal(buildProfile({alias:'UnreleasedChampion'}).usesMana,null);
   assert.equal(build('Ahri',['Overflow']).items[0].id,3003);
   assert.deepEqual(ids(build('Zed',['MindtoMatter'])),ids(build('Zed',[])));
-  assert.equal(build('Akali',['NoManaNoProblem']).items[0].id,3003);
-  assert.equal(build('Akali',['TrueEternity']).items[0].id,773027);
+  assert.equal(build('Ahri',['NoManaNoProblem']).items[0].id,3003);
+  assert.equal(build('Ahri',['TrueEternity']).items[0].id,773027);
+  const legacy=build('Akali',['TrueEternity','NoManaNoProblem'],{choices:{items:[{id:773027,slot:0}]}});
+  assert.ok(!ids(legacy).includes(773027));assert.ok(legacy.choiceWarnings.length);
+  const repeat=build('Akali',['TrueEternity'],{mayhem:{owned:[773027]}});
+  assert.equal(repeat.items.filter(i=>i.id===773027).length,1);assert.equal(repeat.items[0].owned,true);
   const owned=build('Zed',['Overflow'],{mayhem:{owned:[3004]}});assert.equal(owned.items[0].id,3004);assert.equal(owned.items[0].owned,true);
-  assert.equal(build('Zed',['Overflow'],{choices:{items:[{id:3004,slot:0}]}}).items[0].id,3004);
+  assert.ok(!ids(build('Zed',['Overflow'],{choices:{items:[{id:3004,slot:0}]}})).includes(3004));
   const fh=mayhem.adaptation({augments:[id('Impassable')]},engine.champInfo('Shen',game,data),{game,enemy:{adShare:1}});
   assert.equal(fh.fitsResource(3110),false);
   assert.ok(!fh.bonuses.has(3110));
@@ -75,18 +80,23 @@ test('kilka podobnych augmentów nie mnoży premii do kolejnych wariantów itemu
   for(const core of [3032,3031,3085])assert.ok(ids(pinned).includes(core));
 });
 
-test('283 augmenty × 18 profili: zgodność, zasoby i brak zamiany AP/AD od samej statystyki',()=>{
-  const aliases=['Ahri','Zed','Akali','Katarina','Garen','Riven','Mordekaiser','Gragas','Gwen','Ornn','Leona','Shen','Zac','Sona','Lulu','Jinx','Xayah','Vayne'];
+test('wszystkie augmenty na każdej postaci bez many oraz jej wariantach Jade zachowują zgodne przedmioty',()=>{
+  const nonMana=[...game.championsByAlias.keys()].filter(alias=>buildProfile({alias}).usesMana===false);
+  assert.equal(nonMana.filter(alias=>!alias.startsWith('Jade_')).length,28);
+  assert.ok(nonMana.some(alias=>alias.startsWith('Jade_')));
+  const aliases=[...nonMana,'Ahri','Gragas','Gwen','Ornn','Leona','Sona','Lulu','Jinx','Xayah','Vayne'];
   for(const a of catalog)for(const alias of aliases) {
-    const b=build(alias,[a.api.replace(/^ARAM_/,'')]),r=rules[a.api.replace(/^ARAM_/,'')],repeat=new Set(b.mayhem.repeat);
+    const b=build(alias,[a.api.replace(/^ARAM_/,'')]),repeat=new Set(b.mayhem.repeat);
     assert.equal(b.items.length,5,`${alias} ${a.api}`);
     b.items.forEach((i,n)=>{
       assert.ok(itemAvailable(i.id,game,'mayhem',alias));
       assert.ok(itemsCompatible(i.id,ids(b).slice(0,n),repeat));
-      if(buildProfile(engine.champInfo(alias,game,data)).usesMana===false&&!r.manaConversion&&!(r.items||[]).includes(i.id)) {
-        assert.ok(!game.items.get(i.id).categories.includes('Mana'),`${alias} ${a.api}: ${i.name}`);
-      }
     });
+    const future=[...b.items,...b.alternatives,b.mayhem.nextItem,...b.mayhem.hints.flatMap(h=>h.requiredItems)].filter(Boolean);
+    for(const i of future){
+      assert.ok(itemFitsResource(i.id,game,alias),`${alias} ${a.api}: ${i.name}`);
+      if(nonMana.includes(alias))assert.ok(!game.items.get(i.id).categories.includes('Mana'),`${alias} ${a.api}: ${i.name}`);
+    }
     assert.ok(ids(b).filter(id=>[3078,6662,3100].includes(id)).length<=1);
     assert.ok(b.mayhem.hints.every(h=>h.supported));
   }

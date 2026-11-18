@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const { initUpdates } = require('./updater');
 const { createDesktop, DEFAULT_SHORTCUT } = require('./desktop');
 const { roleQuestsEnabled } = require('./rolequests');
-const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, validateRunes, serialQueue } = require('./choices');
+const { ChoiceStore, choiceKey, savedRunes, runeSignature, validateChoices, compatibleSavedChoices, validateRunes, serialQueue } = require('./choices');
 const draftlab = require('./draftlab');
 const { createReport, readReport } = require('./build-report');
 const { normalizeExpectation } = require('./build-expectation');
@@ -26,6 +26,7 @@ let replayLibrary;
 const mayhem = require('./mayhem');
 const { LiveClient, componentCredit } = require('./liveclient');
 const { shopPlan } = require('./shop-plan');
+const { itemFitsResource } = require('./itemrules');
 const liveClient = new LiveClient();
 const augmentVision = require('./augment-vision');
 const augmentScreen = require('./augment-screen');
@@ -591,7 +592,8 @@ function finalWithEnemies(me,lane) {
       : loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)>=6000 ? 'stale' : loading.liveStatus || 'waiting';
     const goal=purchaseGoal.ensure(purchaseKey(loading.gameId||loading.sessionId,alias,currentMode,ownerKey(me.puuid)));
     const result=withPurchaseGoal(alias,withChoices(alias,s),game,data,natural,goal.id);
-    if(goal.id&&!result.active&&liveStatus==='live')purchaseGoal.set(goal.key,goal.revision,null,result.reason);
+    if(goal.id && !result.active && (liveStatus==='live' || !itemFitsResource(goal.id,game,alias)))
+      purchaseGoal.set(goal.key,goal.revision,null,result.reason);
     const build={...result.build,provisional:false};
     const naturalShop=shopPlan(natural,loading.liveSnapshot,game,liveStatus);
     if(result.active&&naturalShop.target?.id!==goal.id)build.purchaseAlternative=naturalShop.target;
@@ -1019,12 +1021,12 @@ function refreshChoices(alias, state) {
 }
 ipcMain.handle('get-choices', wrap((alias) => {
   const state = choiceContext(alias);
-  return { ok: true, choices: choicesStore.get(alias, state), scope: choiceKey(alias, state), catalog: draftlab.catalog(game, data, state, alias) };
+  return { ok: true, choices: compatibleSavedChoices(choicesStore.get(alias,state),alias,game), scope: choiceKey(alias, state), catalog: draftlab.catalog(game, data, state, alias) };
 }));
 ipcMain.handle('edit-choices', wrap((input) => choiceWrites(async () => {
   const state = choiceContext(input.alias, input.scope);
   if (state.mode === 'mayhem' && ['runes','client-runes','unpin-runes'].includes(input.action)) throw new Error('W Mayhem runy są wyłączone.');
-  let own = choicesStore.get(input.alias, state);
+  let own = compatibleSavedChoices(choicesStore.get(input.alias,state),input.alias,game);
   if (input.action === 'item') {
     if (input.slot === 'boots') own.boots = own.boots === Number(input.id) ? null : Number(input.id);
     else {

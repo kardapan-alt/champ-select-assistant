@@ -3,8 +3,8 @@ const {compareAugments,selectedAugmentGrades}=require('../src/mayhem-compare');
 const game=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
 const data=require('../data/champions.json'),catalog=require('../data/mayhem-augments.json').augments;
 const id=name=>{const a=catalog.find(a=>a.english===name||a.api.replace(/^ARAM_/,'')===name);assert.ok(a,name);return a.id;};
-const compare=(names,champion,selection={},items=[])=>compareAugments(names.map(id),{champion:{alias:champion,...data.champions[champion]},
-  selection:{augments:[],completed:[],owned:[],effects:{},...selection},build:{items:items.map(id=>({id}))},game});
+const compare=(names,champion,selection={},items=[],pool='KIWI')=>compareAugments(names.map(id),{champion:{alias:champion,...data.champions[champion]},
+  selection:{augments:[],completed:[],owned:[],effects:{},...selection},build:{items:items.map(id=>({id}))},game,pool});
 test('różne postacie otrzymują różne wyróżnienie, kolejność kart pozostaje jak w grze',()=>{
   const names=['Deft','FirstAidKit','Goliath'];
   for(const [champion,best] of [['Ashe','Deft'],['Soraka','FirstAidKit'],['Leona','Goliath']]){
@@ -24,6 +24,18 @@ test('zadanie pokazuje brakujące zakupy i nie udaje gotowej nagrody',()=>{
   const r=compare(['Quest_WoogletsWitchcap','Deft','Goliath'],'Ahri',{owned:[3157]},[3089]);
   assert.ok(r.cards[0].warnings.some(w=>w.includes(game.items.get(3089).name)));
   assert.ok(!r.cards[0].recommended);
+});
+test('karta z maną wyjaśnia dopasowanie do zasobu także po wyborze',()=>{
+  const names=['TrueEternity','HexCore','Upgrade_InnervatingLocket'];
+  const {cards}=compare(names,'Akali',{},[],'KIWI_JADE');
+  assert.ok(cards.every(c=>!c.recommended && c.warnings.some(w=>w.includes('man'))));
+  const conversion=compare(['NoManaNoProblem','Donation','Deft'],'Akali').cards[0];
+  assert.ok(!conversion.recommended && conversion.warnings.some(w=>w.includes('man')));
+  const owned=compare(names,'Akali',{owned:[773084]},[],'KIWI_JADE').cards[2];
+  assert.ok(owned.reasons.some(r=>r.includes('posiadasz')));
+  const picked=selectedAugmentGrades({champion:{alias:'Zed'},selection:{augments:[id('TrueEternity')]},game,pool:'KIWI_JADE'});
+  assert.match(picked[0].reason,/manę/);
+  assert.ok(!compare(names,'Ahri',{},[],'KIWI_JADE').cards.some(c=>c.summary.includes('pomija')));
 });
 test('wyłączone R oraz konflikty konwersji nie dostają rekomendacji',()=>{
   const r=compare(['GoH_PentakillAug_R','Apex Inventor','Goliath'],'Ahri',{augments:[id('Back To Basics')]});

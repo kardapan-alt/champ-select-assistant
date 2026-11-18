@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const game=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
 const data=require('../data/champions.json'),engine=require('../src/engine');
 const {inventoryOf}=require('../src/liveclient'),{shopPlan}=require('../src/shop-plan');
-const {PurchaseGoal,withPurchaseGoal,purchaseKey}=require('../src/next-purchase');
+const {PurchaseGoal,withPurchaseGoal,purchaseKey,canBuy}=require('../src/next-purchase');
 const {patchOf,patchStatus,dataFreshness}=require('../src/data-freshness');
 function fixture(mode='mayhem',owned=[6655,3020]){
   const inventory=inventoryOf(owned.map((itemID,slot)=>({itemID,slot})),game,'Ahri',mode);
@@ -48,6 +48,17 @@ test('augment wykluczający przedmiot jest respektowany także przez przypięcie
   const f=fixture();f.state.mayhem.augments=[a.id];
   const base=engine.buildFor('Ahri',f.state,game,data);
   assert.equal(withPurchaseGoal('Ahri',f.state,game,data,base,3031).active,undefined);
+});
+test('cel zakupu z maną zapisany przez starszą wersję wraca do planu zgodnego z zasobem',()=>{
+  for(const alias of ['Zed','Yasuo']){
+    const f=fixture('mayhem',[]);
+    f.state.me.championId=game.championsByAlias.get(alias).id;
+    const base=engine.buildFor(alias,f.state,game,data);
+    const goal=new PurchaseGoal({key:purchaseKey(1,alias,'mayhem'),revision:1,id:3110});
+    assert.equal(canBuy(3110,game,base),false);
+    const result=withPurchaseGoal(alias,f.state,game,data,base,goal.value.id);
+    assert.equal(result.active,undefined);assert.equal(result.build,base);assert.match(result.reason,/many/);
+  }
 });
 test('zapis celu przetrwa ponowne otwarcie; stary formularz i inny mecz nie nadpisują nowego celu',()=>{
   assert.notEqual(purchaseKey(1,'Ahri','mayhem','owner-a'),purchaseKey(1,'Ahri','mayhem','owner-b'));

@@ -1,7 +1,7 @@
 // Czysta symulacja. Bez klienta, importów, zapisów preferencji i kont graczy.
 const engine = require('./engine');
-const { validateChoices } = require('./choices');
-const { itemAvailable } = require('./itemrules');
+const { validateChoices, compatibleSavedChoices } = require('./choices');
+const { itemAvailable, itemFitsResource } = require('./itemrules');
 const { isBootItem, baseBoots, SUPPORT_ITEMS } = require('./rolequests');
 const mayhem = require('./mayhem');
 const { replayContext } = require('./build-report');
@@ -13,7 +13,7 @@ const ROLES = ['top', 'jungle', 'middle', 'bottom', 'utility'];
 
 function catalog(game, data, state = { mode: 'classic' }, alias = '') {
   const known = new Set([...Object.values(data.itemPools).flat().map(i => i.id), ...Object.values(data.champions).flatMap(c => c.items || [])]);
-  const items = [...game.items.values()].filter(i => itemAvailable(i.id, game, state.mode, alias) && !SUPPORT_ITEMS.has(i.id));
+  const items = [...game.items.values()].filter(i => itemAvailable(i.id, game, state.mode, alias) && itemFitsResource(i.id,game,alias) && !SUPPORT_ITEMS.has(i.id));
   return {
     champions: [...game.championsById.values()].filter(c => !c.alias.startsWith('Jade_')).map(c => ({ alias: c.alias, name: c.name, id: c.id })).sort((a,b) => a.name.localeCompare(b.name)),
     items: items.filter(i => !isBootItem(i.id, game) && (known.has(i.id) || i.priceTotal >= 1800)
@@ -56,7 +56,8 @@ function preview(input, game, data, {buildOnly=false,inspectItem=null} = {}) {
     if (state.liveInventory) Object.assign(state.mayhem,{owned:state.liveInventory.owned,ownedBoots:state.liveInventory.ownedBoots});
   }
   const base = engine.buildFor(input.alias, state, game, data);
-  state.choices = validateChoices(input.choices || {}, base, input.alias, state, game);
+  const choices = input.context || buildOnly ? compatibleSavedChoices(input.choices, input.alias, game) : input.choices;
+  state.choices = validateChoices(choices || {}, base, input.alias, state, game);
   if (inspectItem != null) {
     if (!Number.isSafeInteger(inspectItem) || !game.items.has(inspectItem)) throw Error('Wybierz przedmiot z katalogu.');
     state.inspectItem = inspectItem;

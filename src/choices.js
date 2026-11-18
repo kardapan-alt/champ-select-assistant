@@ -1,4 +1,4 @@
-const { itemAvailable, itemsCompatible } = require('./itemrules');
+const { itemAvailable, itemFitsResource, itemsCompatible } = require('./itemrules');
 const { isBootItem, baseBoots, SUPPORT_ITEMS } = require('./rolequests');
 
 const choiceKey = (alias, state) => `${alias}:${state?.mode || 'classic'}:${state?.me?.position || 'unknown'}`;
@@ -33,8 +33,16 @@ function normalizePins(choices, slots, valid, repeat = new Set()) {
   return { pins: pins.sort((a, b) => a.slot - b.slot), warnings };
 }
 
+// Old saved choices can be opened after the resource rule changes.
+function compatibleSavedChoices(choices, alias, game) {
+  if (!Array.isArray(choices?.items)) return choices;
+  return { ...choices, items:choices.items.filter(pin=>itemFitsResource(Number(pin.id),game,alias)) };
+}
+
 function validateChoices(choices, build, alias, state, game) {
   if (choices.items !== undefined && !Array.isArray(choices.items)) throw new Error('Nieprawidłowa lista przypiętych przedmiotów.');
+  const blocked = choices.items?.find(pin=>!itemFitsResource(Number(pin.id),game,alias));
+  if (blocked) throw new Error(`Ten przedmiot daje manę lub jej regenerację. Wybierz inny zakup dla ${alias}.`);
   const valid = (id) => itemAvailable(id, game, state.mode, alias) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(id)
     && !(game.items.get(id)?.categories || []).some(c => ['Consumable', 'Trinket'].includes(c));
   const { pins, warnings } = normalizePins(choices, build.inventory.itemSlots, valid, new Set(build.mayhem?.repeat || []));
@@ -61,4 +69,4 @@ function serialQueue() {
   let tail = Promise.resolve();
   return (job) => { const next = tail.then(job); tail = next.catch(() => {}); return next; };
 }
-module.exports = { ChoiceStore, choiceKey, savedRunes, runeSignature, validateRunes, validateChoices, normalizePins, serialQueue };
+module.exports = { ChoiceStore, choiceKey, savedRunes, runeSignature, validateRunes, validateChoices, compatibleSavedChoices, normalizePins, serialQueue };

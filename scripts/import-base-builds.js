@@ -4,9 +4,8 @@
 // sample counts and hashes. Never imports player profiles or executes source text.
 const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const {interpretAnalysis,parsePayload}=require('../src/opgg');
-const {itemAvailable,itemGivesMana,itemsCompatible,redundantSpellblade}=require('../src/itemrules');
+const {itemAvailable,itemFitsResource,itemsCompatible,redundantSpellblade}=require('../src/itemrules');
 const {baseBoots}=require('../src/rolequests');
-const {usesMana}=require('../src/champion-identity');
 const engine=require('../src/engine');
 const game=require('../src/gamedata').buildGameData(require('../data/catalog.json'));
 const file=path.join(__dirname,'../data/champions.json'),original=fs.readFileSync(file,'utf8'),data=JSON.parse(original);
@@ -16,13 +15,12 @@ const evidence={fetched,source:endpoint,tool:'lol_get_champion_analysis',champio
 const roster=[...game.championsByAlias.values()].filter(c=>!c.alias.startsWith('Jade_')).sort((a,b)=>a.alias.localeCompare(b.alias));
 for(const c of roster) {
   const current=engine.champInfo(c.alias,game,data),modes={};
-  const nativeMana=usesMana(c.alias);
   evidence.champions[c.alias]={};
   for(const mode of ['classic','aram']) {
     const input=JSON.parse(fs.readFileSync(path.join(folder,`${mode}-${c.alias}.json`),'utf8'));
     const raw=parsePayload(input.raw),a=interpretAnalysis(input.raw,game),patch=raw.data?.trends?.win?.version;
     if(!a?.items?.length || !patch)throw Error(`Incomplete source: ${c.alias} ${mode}`);
-    const fit=id=>itemAvailable(id,game,mode,c.alias)&&(nativeMana!==false||!itemGivesMana(id,game));
+    const fit=id=>itemAvailable(id,game,mode,c.alias)&&itemFitsResource(id,game,c.alias);
     // Mejai is conditional on stacks; a default build cannot assume them.
     const pool=[...a.items,...(a.lateItems||[]).map(i=>i.id)].filter(id=>id!==3041&&fit(id));
     const items=[];

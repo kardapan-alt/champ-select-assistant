@@ -3,7 +3,7 @@
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
 const { liveSituations, mergeSituations } = require('./live-build');
-const { itemAvailable, itemGivesMana, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
+const { itemAvailable, itemFitsResource, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
 const { canonicalAlias, usesMana, resourceFor } = require('./champion-identity');
 const runeContext = require('../data/rune-context.json').champions;
 const { buildIdentity, isSupportCore } = require('./base-build');
@@ -776,7 +776,7 @@ function buildFor(alias, state, game, data) {
   const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
   const enemy = teamProfile(enemyInfos);
   const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ, {
-    enemy,game,core:defaultTemplate(champ,data).items,pinned:(state.choices?.items || []).map(p=>p.id),
+    enemy,game,core:defaultTemplate(champ,data).items,
   }) : null;
   const compatible = (id,ids) => itemsCompatible(id,ids,augmentation?.repeat) && !redundantSpellblade(id,ids);
   if (augmentation?.conversion) {
@@ -791,23 +791,23 @@ function buildFor(alias, state, game, data) {
   const owned = state.liveInventory?.owned || augmentation?.owned || [];
   const ownedBoots = state.liveInventory?.ownedBoots || augmentation?.ownedBoots;
   const skipped = new Set(augmentation ? state.skippedItems || [] : []);
-  const questItems = augmentation ? mayhem.activeQuestItems(state.mayhem) : new Set();
+  const fitsResource = id => itemFitsResource(id,game,alias);
+  const questItems = new Set(augmentation ? [...mayhem.activeQuestItems(state.mayhem)].filter(fitsResource) : []);
   for (const id of [...owned,ownedBoots,...questItems,state.choices?.boots,...(state.choices?.items || []).map(p=>p.id)]) skipped.delete(id);
-  const exists = id => !skipped.has(id) && itemAvailable(id,game,state.mode,alias);
+  const exists = id => !skipped.has(id) && itemAvailable(id,game,state.mode,alias) && fitsResource(id);
   const soldBoots = !!state.liveInventory && owned.length === 6 && !ownedBoots;
   const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
-  const explicit = id => owned.includes(id) || (state.choices?.items || []).some(p=>p.id===id);
-  const nativeMana = usesMana(alias);
-  const fitsResource = id => explicit(id) || (augmentation ? augmentation.fitsResource(id) : nativeMana !== false || !itemGivesMana(id,game));
-  const isBuildItem = (id) => (exists(id) || (owned.includes(id) && mayhem.ownedAvailable(id,game,alias,state.mode))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || owned.includes(id)) && fitsResource(id);
-  const purchased = owned.filter(isBuildItem);
+  const mainSlot = id => !isBootItem(id,game) && !SUPPORT_ITEMS.has(Number(id));
+  const isBuildItem = id => mainSlot(id) && exists(id) && !augmentation?.excluded.has(id);
+  // Inventory is observed state; the purchase filter applies only to future slots.
+  const purchased = owned.filter(id => mainSlot(id) && (itemAvailable(id,game,state.mode,alias) || mayhem.ownedAvailable(id,game,alias,state.mode)));
   const ownChoices = purchased.length ? { ...state.choices, items: [
     ...purchased.map((id, slot) => ({ id, slot })),
     ...(state.choices?.items || []).filter(p => p.slot >= purchased.length && !purchased.includes(p.id)),
   ] } : state.choices;
   const ownedRepeats = state.liveInventory ? purchased.filter((id,i)=>purchased.indexOf(id)!==i) : [];
   const pinRepeats = new Set([...(augmentation?.repeat || []),...ownedRepeats]);
-  const { pins, warnings } = normalizePins(ownChoices, fullBuild, isBuildItem, pinRepeats);
+  const { pins, warnings } = normalizePins(ownChoices, fullBuild, id => purchased.includes(id) || isBuildItem(id), pinRepeats);
   const pinIds = pins.map(p => p.id);
 
   // Buty
@@ -840,7 +840,7 @@ function buildFor(alias, state, game, data) {
     return a ? { alias: a, championId: e.championId, name: nameOf(a, game), traits: champInfo(a, game, data).traits || [] } : null;
   }).filter(Boolean);
   // Na ARAM-ie nie ma wardów ani Oracle Lens, więc niewidzialność nie ma odpowiedzi w sklepie.
-  const counterAvailable = id => exists(id) && fitsResource(id) && (!augmentation?.excluded.has(id) || owned.includes(id));
+  const counterAvailable = id => exists(id) && (!augmentation?.excluded.has(id) || owned.includes(id));
   const live = liveSituations(state.liveEnemies,itemPoolKey(champ),game,counterAvailable);
   const situations = mergeSituations(detectSituations(enemyList, itemPoolKey(champ), counterAvailable),live).filter((s) => !(isAram(state.mode) && s.vision));
   // Mortal Reminder odpowiada równocześnie na leczenie i pancerz. Nie dodajemy
@@ -879,7 +879,7 @@ function buildFor(alias, state, game, data) {
   const coreRest = core.filter(id => !fixed.includes(id) && compatible(id, pinIds));
   const coreWeight = augmentation?.active ? 1.6 : 4;
   const fitsDamage = id => {
-    if(core.includes(id)||explicit(id)||augmentation?.bonuses.has(id))return true;
+    if(core.includes(id)||pinIds.includes(id)||augmentation?.bonuses.has(id))return true;
     const tags=game.items.get(id)?.categories || [];
     if(champ.dmg==='ap'&&tags.includes('Damage')&&!tags.includes('SpellDamage'))return false;
     if(champ.dmg==='ad'&&tags.includes('SpellDamage')&&!tags.includes('Damage')&&!tags.some(t=>['Armor','SpellBlock','MagicResist'].includes(t)))
@@ -889,7 +889,7 @@ function buildFor(alias, state, game, data) {
   // Late-item statistics pool different builds. Keep the chosen style; explicit
   // purchases, augment effects and concrete defensive responses remain eligible.
   const fitsLateStyle = id => {
-    if(core.includes(id)||explicit(id)||augmentation?.bonuses.has(id)||situational.has(id))return true;
+    if(core.includes(id)||pinIds.includes(id)||augmentation?.bonuses.has(id)||situational.has(id))return true;
     const tags=game.items.get(id)?.categories || [];
     if(!tags.length)return true; // unavailable client metadata is not evidence of another style
     if(itemPoolKey(champ)==='mage' && champ.class!=='fighter' && !tags.includes('SpellDamage'))return false;
@@ -1002,13 +1002,14 @@ function buildFor(alias, state, game, data) {
   if (bootsUpgrade) notes.push(`Po queście mida: ${item(boots).name} → ${bootsUpgrade.name}, za darmo w tym samym slocie.`);
   const priorityItems = chosen.filter((c) => c.priority);
   if (priorityItems.length) notes.push(`Wcześniejszy zakup: ${priorityItems.map((c) => `${item(c.id).name} (${c.why})`).join('; ')}.`);
+  const nextUpgrade = augmentation?.upgrades.find(u=>exists(u.to));
 
   const build = {
     alias,
     mode: state.mode || 'classic',
     mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats], questItems:[...questItems], skipped:[...skipped],
       headliner:require('./headliners').headlinerView(state.mayhem?.headliner,state.mayhem),synergies:require('./augment-synergies').synergies(state.mayhem),
-      nextItem:augmentation.upgrades.find(u=>exists(u.to)) ? { ...item(augmentation.upgrades.find(u=>exists(u.to)).to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
+      nextItem:nextUpgrade ? { ...item(nextUpgrade.to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
     liveAdaptation:live.map(s=>({ text:s.text, item:s.myItem, evidence:s.evidence })),
     inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: soldBoots ? 'none' : bootsInQuest ? 'quest' : 'inventory' },
@@ -1035,7 +1036,7 @@ function buildFor(alias, state, game, data) {
     const ratings=require('./mayhem-compare').selectedAugmentGrades({champion:champ,selection:state.mayhem||{},build,game,pool:state.mayhemPool||'KIWI',enemy});
     build.mayhem.hints=build.mayhem.hints.map(h=>{
       const required=[...augmentation.bonuses].filter(([,b])=>b.contributions.some(c=>c.direct&&(c.group===`augment ${h.name}`||c.group.startsWith(`augment ${h.name}:`)))).map(([id])=>id);
-      let targets=[...new Set([...(h.itemTargets||[]),...required])];
+      let targets=[...new Set([...(h.itemTargets||[]),...required])].filter(id=>purchased.includes(id)||fitsResource(id));
       if(h.oneItem){const present=targets.filter(id=>purchased.includes(id)||finalItems.some(i=>i.id===id));targets=present.length?present:targets.slice(0,1);}
       const items=targets.map(id=>({...item(id),status:purchased.includes(id)?'owned':finalItems.some(i=>i.id===id)?'planned':'outside'}));
       return {...h,rating:ratings.find(r=>r.id===h.id)||null,requiredItems:items};
@@ -1070,7 +1071,7 @@ const shortTitle = (t) => { const x = String(t).replace(/\s+/g, ' ').trim(); ret
 // Zestaw przedmiotów do sklepu w grze (format /lol-item-sets). Nazwy bloków tłumaczą, skąd wziął się item.
 function itemSetFor(build, alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
-  const exists = (id) => itemAvailable(id, game, state.mode, alias);
+  const exists = (id) => itemAvailable(id, game, state.mode, alias) && itemFitsResource(id,game,alias);
   const repeat = new Set(build.mayhem?.repeat || []);
   const list = (ids) => [...new Set(ids)].filter(exists).map((id) => ({ id: String(id), count: repeat.has(id) ? ids.filter(x=>x===id).length : 1 }));
   const laneName = ctx.lane ? nameOf(ctx.lane.alias, game) : '';

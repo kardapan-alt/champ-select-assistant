@@ -1,5 +1,5 @@
 const {recipeFor} = require('./shop-plan');
-const {itemAvailable} = require('./itemrules');
+const {itemAvailable,itemFitsResource} = require('./itemrules');
 const {comparePlans} = require('./plan-diff');
 const {questFor} = require('./mayhem-quest-state');
 const rules = require('./mayhem-rules');
@@ -72,6 +72,11 @@ function activationFor(card,context) {
     const held=[3157,228002,2420].find(id=>owned.includes(id));
     targets=[held||2420];targetNote='Ruch w stazie · pełny efekt z Zhonyą';
   }else if(rule.anyItem)targets=targets.slice(0,1);
+  const blocked=targets?.filter(id=>!owned.includes(id) && !itemFitsResource(id,game,champion.alias)) || [];
+  if(blocked.length){
+    const names=blocked.map(id=>game.items.get(id)?.name||String(id));
+    return {label:'Zakup poza buildem tej postaci',details:[names.join(', ')+' · przedmiot z maną'],impact};
+  }
   if(!targets?.length){
     const needsItem=['KingMe','WeaponOfDestiny','DoransBiggestFan'].includes(key);
     const label=needsItem?'Zależne od wybranego przedmiotu':rule.quest?'Zadanie bez zakupu':key==='HexCore'?'Pierwszy Hex Core z karty':key==='CrimsonCobalt'?'Bez wymaganego zakupu':'Bez wskazanego przedmiotu';

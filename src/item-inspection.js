@@ -80,10 +80,14 @@ function explainItem(id,state,build,game,data) {
     if (t.fixed && t.why && t.why !== 'rdzeń championa') result.reasons.push(t.why);
     return result;
   }
+  if (!t.resource) {
+    const base = purchaseItem(id);
+    const form = base !== id ? `To automatyczna przemiana przedmiotu ${game.items.get(base)?.name || base}. ` : '';
+    return {...result,reason:`${form}${build.name} nie używa many. Ten przedmiot jest pomijany przy planowaniu zakupów.`};
+  }
   const restriction = purchaseRestriction(id,build,game);
   if (restriction) return {...result,reason:restriction};
   if (isBootItem(id,game)) result.reason=`Reguła butów wybrała ${build.boots?.name || 'inny wariant'} (${build.boots?.why || 'slot butów'}).`;
-  else if (!t.resource) result.reason='Ten przedmiot daje manę, której Twój champion nie wykorzystuje.';
   else if (t.inPool && !t.damage) result.reason='Kandydat odpadł przy dopasowaniu typu obrażeń postaci do statystyk przedmiotu.';
   else if (t.inPool && !t.crit) result.reason='Filtr stylu odrzucił zakup pod kryty przy obecnym rdzeniu i augmentach.';
   else if (t.conflict) result.reason=`W planie jest ${game.items.get(t.conflict)?.name || t.conflict}. Silnik rozdziela te przedmioty ze względu na wspólną rodzinę lub efekt Spellblade.`;

@@ -1,5 +1,7 @@
 const evidence = require('../data/mayhem-rule-evidence.json');
 const { patchOf } = require('./data-freshness');
+const { usesMana } = require('./champion-identity');
+const { itemFitsResource } = require('./itemrules');
 
 // Polish paraphrases checked against the Riot card descriptions indexed in
 // mayhem-rule-evidence.json. Item passive names/effects are from Data Dragon
@@ -70,4 +72,14 @@ function itemInteraction(augment, champion, game) {
     descriptionKey: source.description,
   };
 }
-module.exports = { itemInteraction, onHitExamples };
+function resourceNoteFor(rule, champion, game) {
+  if (!rule || usesMana(champion?.alias) !== false) return null;
+  if (rule.items?.length && rule.items.every(id=>!itemFitsResource(id,game,champion.alias))) {
+    const names=rule.items.map(id=>game?.items?.get(id)?.name).filter(Boolean);
+    return `Przedmiot powiązany z kartą${names.length?' ('+names.join(', ')+')':''} daje manę. Plan tej postaci pomija jego zakup.`;
+  }
+  if (rule.manaConversion) return 'Karta zamienia manę z przedmiotów w AP. Plan tej postaci pomija nowe zakupy z maną.';
+  if (rule.effects?.includes('mana')) return 'Efekt karty zależy od many. Ta postać korzysta z innego zasobu, więc jej plan pomija zakupy z maną.';
+  return null;
+}
+module.exports = { itemInteraction, onHitExamples, resourceNoteFor };
