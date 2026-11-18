@@ -4,7 +4,7 @@ const { EventEmitter } = require('node:events');
 const { createDesktop, createDraftWatcher } = require('../src/desktop');
 
 function fixture({ background = true, packaged = true, portable = false, trayFails = false, launchAtLogin = false,
-  keyboardShortcut, bookmarkShortcut, onBookmark=()=>{}, occupied = [] } = {}) {
+  keyboardShortcut, bookmarkShortcut, onBookmark=()=>{}, onShortcutChange=()=>{}, occupied = [] } = {}) {
   const app = new EventEmitter();
   const win = new EventEmitter();
   const calls = { shown: 0, saved: 0, restored: 0, quit: 0, login: [] };
@@ -50,8 +50,8 @@ function fixture({ background = true, packaged = true, portable = false, trayFai
   }
   const settings = { autoPopup: true, launchAtLogin, keyboardShortcut, bookmarkShortcut };
   const desktop = createDesktop({ app, win, Tray, globalShortcut, notify: message => notices.push(message), Menu: { buildFromTemplate: (items) => items },
-    nativeImage: { createFromPath: () => ({ isEmpty: () => false }) }, settings, onBookmark,
-    saveSettings: () => calls.saved++, argv: background ? ['app.exe', '--background'] : ['app.exe'],
+    nativeImage: { createFromPath: () => ({ isEmpty: () => false }) }, settings, onBookmark, onShortcutChange,
+    saveSettings: () => {calls.saved++; calls.savedSettings={...settings};}, argv: background ? ['app.exe', '--background'] : ['app.exe'],
     platform: 'win32', executable: 'C:\\App\\Champ Select Assistant.exe', portable });
   return { desktop, app, win, settings, calls, tray, shortcuts, notices, visible: () => visible,
     toggle: (label, checked) => tray.menu.find((item) => item.label?.startsWith(label)).click({ checked }) };
@@ -163,10 +163,10 @@ test('awaria zasobnika pokazuje okno zamiast zostawiać ukryty proces bez możli
   assert.equal(f.win.close(), false);
 });
 
-test('Ctrl+X pokazuje i chowa okno; widoczne pod inną aplikacją wraca na wierzch', () => {
+test('Ctrl+Z pokazuje i chowa okno; widoczne pod inną aplikacją wraca na wierzch', () => {
   const f = fixture();
   f.win.emit('ready-to-show');
-  const press = () => f.shortcuts.get('Control+X')();
+  const press = () => f.shortcuts.get('Control+Z')();
   assert.equal(f.visible(), false);
   press(); assert.equal(f.visible(), true);
   assert.equal(f.desktop.isCompact(),true);assert.equal(f.win.getBounds().width,520);
@@ -182,18 +182,18 @@ test('Ctrl+X pokazuje i chowa okno; widoczne pod inną aplikacją wraca na wierz
 test('pełny widok wraca do poprzedniego rozmiaru; skrót z pełnego widoku otwiera mały',()=>{
   const f=fixture();f.win.emit('ready-to-show');f.desktop.show();
   f.win.setBounds({x:120,y:90,width:1250,height:800});
-  f.shortcuts.get('Control+X')();assert.equal(f.desktop.isCompact(),true);assert.equal(f.visible(),true);
+  f.shortcuts.get('Control+Z')();assert.equal(f.desktop.isCompact(),true);assert.equal(f.visible(),true);
   f.desktop.setCompact(false);assert.deepEqual(f.win.getBounds(),{x:120,y:90,width:1250,height:800});
-  f.shortcuts.get('Control+X')();f.desktop.show();assert.equal(f.desktop.isCompact(),false);
+  f.shortcuts.get('Control+Z')();f.desktop.show();assert.equal(f.desktop.isCompact(),false);
 });
 
 test('skrót przed gotowością okna pamięta pokazanie i pozwala je anulować', () => {
   const f = fixture();
-  f.shortcuts.get('Control+X')();
+  f.shortcuts.get('Control+Z')();
   f.win.emit('ready-to-show');
   assert.equal(f.visible(), true);
   const g = fixture();
-  g.shortcuts.get('Control+X')(); g.shortcuts.get('Control+X')();
+  g.shortcuts.get('Control+Z')(); g.shortcuts.get('Control+Z')();
   g.win.emit('ready-to-show');
   assert.equal(g.visible(), false);
 });
@@ -212,14 +212,48 @@ test('menu zmienia skrót, zwalnia poprzedni i zachowuje wyłączenie po restarc
   assert.equal(g.shortcuts.size, 0);
 });
 
+test('aktualizacja zapisuje Ctrl+Z raz i zachowuje niestandardowe skróty oraz wyłączenie', () => {
+  const f=fixture({keyboardShortcut:'Control+X'});
+  assert.deepEqual([...f.shortcuts.keys()],['Control+Z']);
+  const undoNotice=fixture=>fixture.tray.menu.find(item=>item.submenu).submenu.some(item=>item.label?.includes('Cofnij'));
+  assert.ok(undoNotice(f));
+  assert.equal(f.desktop.shortcutLabel(),'Ctrl+Z');
+  assert.equal(f.calls.saved,1);
+  assert.equal(f.calls.savedSettings.keyboardShortcut,'Control+Z');
+  for(const value of [f.calls.savedSettings.keyboardShortcut,'Control+Shift+X','Control+Alt+X','']){
+    const next=fixture({keyboardShortcut:value});
+    assert.equal(next.calls.saved,0);
+    assert.deepEqual([...next.shortcuts.keys()],value?[value]:[]);
+  }
+  const blocked=fixture({keyboardShortcut:'Control+X',occupied:['Control+Z']});
+  assert.equal(undoNotice(blocked),false);
+  assert.equal(blocked.calls.savedSettings.keyboardShortcut,'Control+Z');
+  assert.equal(blocked.desktop.shortcutLabel(),null);
+  assert.equal(blocked.shortcuts.size,0);
+});
+
+test('etykieta i odświeżenie widoku odpowiadają aktywnemu skrótowi',()=>{
+  let changes=0;
+  const f=fixture({keyboardShortcut:'',occupied:['Control+Alt+X'],onShortcutChange:()=>changes++});
+  assert.equal(f.desktop.shortcutLabel(),null);
+  assert.equal(f.desktop.setShortcut('Control+Shift+X'),true);
+  assert.equal(f.desktop.shortcutLabel(),'Ctrl+Shift+X');
+  assert.equal(f.desktop.setShortcut('Control+Alt+X'),false);
+  assert.equal(f.desktop.shortcutLabel(),'Ctrl+Shift+X');
+  assert.equal(changes,1);
+  assert.equal(f.desktop.setShortcut(''),true);
+  assert.equal(f.desktop.shortcutLabel(),null);
+  assert.equal(changes,2);
+});
+
 test('zajęty skrót nie usuwa działającego; awaria przy starcie jest widoczna w menu', () => {
   const f = fixture({ occupied: ['Control+Shift+X'] });
   assert.equal(f.desktop.setShortcut('Control+Shift+X'), false);
-  assert.deepEqual([...f.shortcuts.keys()], ['Control+X']);
-  assert.equal(f.settings.keyboardShortcut, 'Control+X');
+  assert.deepEqual([...f.shortcuts.keys()], ['Control+Z']);
+  assert.equal(f.settings.keyboardShortcut, 'Control+Z');
   assert.equal(f.calls.saved, 0);
   assert.equal(f.notices.length, 1);
-  const g = fixture({ occupied: ['Control+X'] });
+  const g = fixture({ occupied: ['Control+Z'] });
   assert.equal(g.shortcuts.size, 0);
   assert.ok(g.tray.menu.find(item => item.submenu).submenu.some(item => item.label?.includes('niedostępny')));
   assert.equal(g.notices.length, 0, 'Cichy start nie pokazuje dialogu');
@@ -229,14 +263,14 @@ test('błąd zapisu ustawień przywraca dotychczasowy skrót', () => {
   const f = fixture();
   Object.defineProperty(f.calls, 'saved', { get: () => 0, set: () => { throw new Error('Dysk niedostępny'); } });
   assert.equal(f.desktop.setShortcut('Control+Alt+X'), false);
-  assert.equal(f.settings.keyboardShortcut, 'Control+X');
-  assert.deepEqual([...f.shortcuts.keys()], ['Control+X']);
+  assert.equal(f.settings.keyboardShortcut, 'Control+Z');
+  assert.deepEqual([...f.shortcuts.keys()], ['Control+Z']);
 });
 
 test('zakończenie zwalnia skrót i nie pozwala ponownie pokazać okna', () => {
   const f = fixture();
   f.win.emit('ready-to-show');
-  const press = f.shortcuts.get('Control+X');
+  const press = f.shortcuts.get('Control+Z');
   f.app.quit();
   assert.equal(f.shortcuts.size, 0);
   press();
@@ -246,7 +280,7 @@ test('zakończenie zwalnia skrót i nie pozwala ponownie pokazać okna', () => {
 test('skrót zakładek jest aktywny wyłącznie dla wskazanej gry i nie otwiera okna',()=>{
   const marks=[], f=fixture({onBookmark:id=>marks.push(id)});
   f.win.emit('ready-to-show');
-  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  assert.deepEqual([...f.shortcuts.keys()],['Control+Z']);
   f.desktop.setBookmarkGame('77');
   const old=f.shortcuts.get('Control+Alt+B');
   old();old();
@@ -256,14 +290,14 @@ test('skrót zakładek jest aktywny wyłącznie dla wskazanej gry i nie otwiera 
   old();f.shortcuts.get('Control+Alt+B')();
   assert.deepEqual(marks,['77','78']);
   f.desktop.setBookmarkGame(null);
-  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  assert.deepEqual([...f.shortcuts.keys()],['Control+Z']);
 });
 
-test('zajęty skrót zakładki, jego zmiana i wyłączenie zachowują Ctrl+X',()=>{
+test('zajęty skrót zakładki, jego zmiana i wyłączenie zachowują Ctrl+Z',()=>{
   const f=fixture({occupied:['Control+Alt+B']});
   const menu=()=>f.tray.menu.find(row=>row.label?.startsWith('Zakładka powtórki')).submenu;
   f.desktop.setBookmarkGame('55');assert.match(f.desktop.bookmarkStatus().error,/zajęty/);
-  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  assert.deepEqual([...f.shortcuts.keys()],['Control+Z']);
   menu().find(row=>row.label==='Ctrl+Shift+B').click();
   assert.equal(f.desktop.bookmarkStatus().active,true);
   menu().find(row=>row.label==='Ctrl+Alt+B').click();
@@ -271,7 +305,7 @@ test('zajęty skrót zakładki, jego zmiana i wyłączenie zachowują Ctrl+X',()
   assert.equal(f.notices.length,1);
   menu().find(row=>row.label==='Wyłączony').click();
   assert.equal(f.settings.bookmarkShortcut,'');
-  assert.deepEqual([...f.shortcuts.keys()],['Control+X']);
+  assert.deepEqual([...f.shortcuts.keys()],['Control+Z']);
   f.desktop.setBookmarkGame(null);f.desktop.setBookmarkGame('56');
   assert.equal(f.desktop.bookmarkStatus().active,false);
 });

@@ -1,4 +1,7 @@
 let compactMode=false;
+function compactViewHint(shortcut) {
+  return shortcut ? `w małym widoku (${shortcut})` : 'w małym widoku';
+}
 function skipButton(model,item,restore=false,short=false) {
   const action=restore?'restore':'skip';
   const label=restore?'Cofnij pominięcie':short?'Pomiń':'Pomiń '+item.name;
@@ -84,7 +87,7 @@ function compactScreen(s){
     ${alt?`<article class="compact-alternative"><b>Alternatywa: ${esc(alt.target.name)}</b><p>${esc(alt.benefit)}</p><p>Do ukończenia: ${alt.target.cost} złota${alt.purchase?' · teraz '+esc(alt.purchase.name)+' za '+alt.purchase.cost:''}</p><button data-pin-next="${alt.target.id}">Zbieram na ten przedmiot</button></article>`:''}
     ${tip?`<aside class="compact-tip"><b>Najważniejsze teraz</b><p>${esc(tip)}</p></aside>`:''}
     ${otherSkipChoices(b)}
-    ${dataFreshnessBadge()} <button data-build-report>Zgłoś dziwny build</button><p class="compact-help">Ctrl+X chowa to okno. „Pełny widok” otwiera szczegóły.</p>${mayhemOfferDock(b.mayhem,true)}</section>`;
+    ${dataFreshnessBadge()} <button data-build-report>Zgłoś dziwny build</button><p class="compact-help">${s.compactShortcutLabel ? esc(s.compactShortcutLabel)+' chowa to okno. ' : ''}„Pełny widok” otwiera szczegóły.</p>${mayhemOfferDock(b.mayhem,true)}</section>`;
 }
 function setCompactView(value){
   compactMode=!!value;document.body.classList.toggle('compact-mode',compactMode);

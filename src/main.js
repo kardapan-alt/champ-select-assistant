@@ -276,6 +276,7 @@ function requestNeeded(state, picks) {
 const shownBuildReports = new Map();
 let reportSession = '';
 function send(state) {
+  state.compactShortcutLabel = desktop?.shortcutLabel() || null;
   const b=state.final?.build||state.build,analysisKey=b?.fromStats?stats.analyses[b.alias]?._key:null;
   const [analysisAlias,analysisRole,analysisMode]=(analysisKey||'').split(':');
   state.dataStatus=dataFreshness(game||offlineGame,{connected:!!lcu&&!['no-client','error'].includes(state.status),mode:state.mode||currentMode,
@@ -1350,7 +1351,7 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>{
     if(loading?.offerDisplay!==display)return;
     // The watcher emits focus heartbeats every 250 ms. A heartbeat must not
-    // invalidate the new card geometry just verified under Ctrl+X.
+    // invalidate new card geometry just verified in compact view.
     if(event.type==='focus'&&!event.focused&&offerTracker.paused)return;
     if(event.type==='down'){
       const visible=display.presented||display.candidate;
@@ -1718,6 +1719,7 @@ app.whenReady().then(() => {
   });
   desktop = createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen:require('electron').screen,settings,
     onBookmark:markReplayMoment,
+    onShortcutChange:()=>{if(lastState && desktop)send(lastState);},
     onViewMode:compact=>win.webContents.send('view-mode',compact),
     saveSettings: () => writeJson(userFile('settings.json'), settings), log,
     notify: message => { dialog.showMessageBox({ type: 'info', title: 'Skrót klawiaturowy', message }).catch(err => log(err.message)); } });

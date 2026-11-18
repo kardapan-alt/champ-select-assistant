@@ -2,6 +2,14 @@
 
 Asystent wyboru postaci i buildu do League of Legends, z obsługą ARAM: Mayhem w trakcie meczu.
 
+## Wersja 0.6.43
+
+**Ctrl+Z otwiera kompaktowy widok asystenta.** Naciśnij skrót ponownie, gdy okno jest aktywne, aby je schować. Po aktualizacji dotychczasowe Ctrl+X automatycznie zmieni się na Ctrl+Z. Jeśli masz ustawiony inny skrót lub skróty są wyłączone, aplikacja zachowa Twój wybór.
+
+Gdy asystent ma zarejestrowany globalny Ctrl+Z, przejmuje standardowe „Cofnij” także w innych programach. Skrót możesz zmienić lub wyłączyć w menu ikony asystenta obok zegara Windows.
+
+Wersja z instalatora pobiera wydanie w tle. Gdy aktualizacja będzie gotowa, po meczu wybierz „Uruchom ponownie”. Wersja portable udostępnia odsyłacz do pobrania.
+
 ## Wersja 0.6.42
 
 - **Build uwzględnia zasób postaci.** U bohaterów bez many, w tym grających na energii, filtr działa także po wyborze augmentu, przerzucie kart i wczytaniu dawnego przypięcia. Yasuo pomija Frozen Heart przeciw autoatakom. Akali pomija Archangel’s Staff po „No Mana, No Problem” oraz Rod of Ages po „True Eternity”.
@@ -366,7 +374,7 @@ Kroki scenariusza w symulatorze: `http://127.0.0.1:2999/__step?n=0` … `n=3`.
 
 ## ARAM: Mayhem (od 0.6.16)
 - Osobne wykrywanie `KIWI` i `KIWI_JADE`; zwykły ARAM pozostaje osobnym trybem. Runy i ich import są wyłączone w Mayhem, a Exhaust nie jest sugerowany.
-- Po rozpoczęciu meczu przycisk **Augmenty i ekwipunek** otwiera wyszukiwarkę nazw polskich i angielskich. Możesz wybrać do 5 augmentów, zaznaczyć ukończenie zadania i podać kupione przedmioty oraz buty. Otwórz asystenta swoim skrótem (domyślnie Ctrl+X).
+- Po rozpoczęciu meczu przycisk **Augmenty i ekwipunek** otwiera wyszukiwarkę nazw polskich i angielskich. Możesz wybrać do 5 augmentów, zaznaczyć ukończenie zadania i podać kupione przedmioty oraz buty. Otwórz asystenta swoim skrótem (domyślnie Ctrl+Z).
 - Zmiana augmentu od razu przelicza dalsze zakupy z uwzględnieniem składu wroga. Posiadane przedmioty zostają w buildzie. Aplikacja pokazuje następny zakup i uzasadnienie zmian. Questy itemowe mają osobną obsługę składników oraz ukończenia.
 - Od **0.6.17 każdy z 283 augmentów** katalogu ma jawną, automatyczną regułę (241 w KIWI, 188 w KIWI_JADE; część wspólna). Wybierasz nazwę augmentu, bez przypisywania efektu. Dla KIWI 191 reguł może zmieniać priorytety przedmiotów, a 50 objaśnia brak wymuszonej zmiany zakupów — np. złoto, losowa nagroda czy zmiana Flasha. Opcjonalne własne korekty są schowane w szczegółach. To heurystyki synergii, bez deklarowania winrate lub optymalnego buildu dla każdej kombinacji.
 - Reguły uwzględniają m.in. krytyczne czary, on-hit, AP/AD, manę, leczenie, odporności, ruch, spowolnienia, ulepszenia itemów i questy. Sprzeczne mechaniki są rozstrzygane razem: Back To Basics wyłącza zakupy pod R, Vampirism wyklucza Warmoga, a konwersja HP nie jest traktowana jako dodatkowa obrona.

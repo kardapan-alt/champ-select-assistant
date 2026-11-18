@@ -138,7 +138,7 @@ function observePartial(previous,cards,at,freshness){
 function filledCards(partial){
   return partial?.stable && partial.filled ? partial.cards.map(c=>c.id?c:{...c,id:partial.filled}) : null;
 }
-// A readable game window can offer new cards while Ctrl+X has keyboard focus.
+// A readable game window can offer new cards while the compact assistant has keyboard focus.
 // This state drives presentation only. Click validation uses OfferTracker.
 const OFFER_HOLD_MS=8000;
 class OfferDisplay {

@@ -166,7 +166,7 @@ server.once('listening',async()=>{
     await new Promise(r=>setTimeout(r,200));
     fs.writeFileSync(path.join(out,'skip-window.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
     await evaluate("document.querySelector('.compact-content [data-match-skip=restore]').click()");
-    await waitFor(async()=> (await state()).final.build.shop.target?.id===skipId,'Cofnięcie w Ctrl+X nie przywróciło zakupu');
+    await waitFor(async()=> (await state()).final.build.shop.target?.id===skipId,'Cofnięcie w widoku kompaktowym nie przywróciło zakupu');
     await evaluate('window.assist.setViewMode(false)');
     await waitFor(()=>evaluate('!document.body.classList.contains("compact-mode")'),'Brak pełnego widoku po teście pominięcia');
     await evaluate('openMayhemEditor()');

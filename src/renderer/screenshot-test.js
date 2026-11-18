@@ -34,7 +34,7 @@ function openOfferScreenshotTest(){
       if(!result.ok)throw Error(result.error);
       const messages={
         offer:'Odczyt gry potwierdza trzy karty na tej klatce. Do sprawdzenia kliknięcia potrzebny jest przebieg wyboru w grze.',
-        incomplete:result.confirmedPair?'Rozpoznano dwie karty i pozycję trzeciej. W meczu możesz uzupełnić jej nazwę pod Ctrl+X.':'Odczyt gry nie potwierdził układu kart. Porównaj wycinki tytułów z tekstem odczytanym przez Windows.',
+        incomplete:result.confirmedPair?`Rozpoznano dwie karty i pozycję trzeciej. W meczu możesz uzupełnić jej nazwę ${compactViewHint(lastState?.compactShortcutLabel)}.`:'Odczyt gry nie potwierdził układu kart. Porównaj wycinki tytułów z tekstem odczytanym przez Windows.',
         empty:'Obraz jest zbyt ciemny lub jednolity. Użyj zrzutu bezpośrednio z okna gry.',
         language:'Dodaj polski lub angielski pakiet OCR w ustawieniach języka Windows i spróbuj ponownie.',
         error:'Windows OCR nie odpowiedział. Wczytaj zrzut ponownie.'

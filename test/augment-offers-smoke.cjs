@@ -3,7 +3,12 @@ const fs=require('fs'),path=require('path'),assert=require('node:assert/strict')
 const profile=path.resolve(__dirname,'../../offers-preview/profile');fs.mkdirSync(profile,{recursive:true});
 app.setPath('userData',profile);app.disableHardwareAcceleration();
 let pressCompactShortcut;
-globalShortcut.register=(key,handler)=>{if(key==='Control+X')pressCompactShortcut=handler;return true;};
+const registeredKeys=[];
+globalShortcut.register=(key,handler)=>{
+  registeredKeys.push(key);
+  if(key==='Control+Z')pressCompactShortcut=handler;
+  return true;
+};
 for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:'Control+X'},'mayhem-session.json':null,'augment-screen.json':null,'match-review.json':{matches:[],active:null}}))
   fs.writeFileSync(path.join(profile,name),JSON.stringify(value));
 process.argv.push('--background');process.env.PORT='0';process.env.STEP='8';
@@ -68,7 +73,10 @@ server.once('listening',async()=>{
     const pending=await evaluate('lastState.final.build.mayhem.partialOffer');
     assert.deepEqual(pending.cards.map(c=>c?.english||null),['Apex Inventor',null,'Ice Cold']);
     pressCompactShortcut();
-    await waitFor(()=>evaluate('!!document.querySelector(".compact-content [data-fill-offer-slot]")'),'Brak 2/3 pod Ctrl+X');
+    await waitFor(()=>evaluate('!!document.querySelector(".compact-content [data-fill-offer-slot]")'),'Brak 2/3 pod Ctrl+Z');
+    assert.ok(!registeredKeys.includes('Control+X'),'Dawny skrót nie powinien przejmować wycinania po migracji');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(profile,'settings.json'),'utf8')).keyboardShortcut,'Control+Z');
+    assert.ok(await evaluate('document.querySelector(".compact-help").textContent.includes("Ctrl+Z")'));
     await evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     await new Promise(resolve=>setTimeout(resolve,220));
     fs.writeFileSync(path.resolve(__dirname,'../../039-partial-window.png'),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
@@ -138,11 +146,11 @@ server.once('listening',async()=>{
     await evaluate('window.assist.setViewMode(true)');
     await waitFor(()=>evaluate('document.querySelectorAll(".compact-content [data-offer-id]").length===3'),'Brak 3 kart w małym widoku');
     const dockInView=()=>evaluate('(()=>{const dock=document.querySelector(".mayhem-dock");if(!dock)return false;const r=dock.getBoundingClientRect();return r.top>0 && r.bottom<=innerHeight+1 && r.bottom>=innerHeight-28;})()');
-    assert.ok(await dockInView(),'Trzy karty mają być przy dolnej krawędzi po otwarciu Ctrl+X');
+    assert.ok(await dockInView(),'Trzy karty mają być przy dolnej krawędzi po otwarciu Ctrl+Z');
     await evaluate('window.scrollTo(0,document.documentElement.scrollHeight);void 0');
     assert.ok(await dockInView(),'Trzy karty mają pozostać przy dolnej krawędzi po przewinięciu buildu');
     assert.ok(await evaluate('[...document.querySelectorAll(".compact-content [data-offer-id]")].every(e=>e.getBoundingClientRect().bottom<innerHeight)'));
-    await waitFor(()=>evaluate('document.querySelector(".mayhem-dock .offer-heading")?.innerText.includes("Ostatnia oferta")'),'Brak opisu odczytanej oferty pod Ctrl+X');
+    await waitFor(()=>evaluate('document.querySelector(".mayhem-dock .offer-heading")?.innerText.includes("Ostatnia oferta")'),'Brak opisu odczytanej oferty pod Ctrl+Z');
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
     fs.writeFileSync(path.resolve(profile,'../comparison-compact.png'),(await win.webContents.capturePage()).toPNG());
     await evaluate('window.assist.setViewMode(false)');
@@ -158,7 +166,7 @@ server.once('listening',async()=>{
       await evaluate('drawOffer(["Eureka","Back To Basics","Ice Cold"])');rerolled=true;
     };
     await waitFor(()=>rerolled,'Przerzut podczas OCR');
-    await waitFor(()=>evaluate('document.querySelector(".compact-content .augment-offer")?.innerText.includes("Eureka")'),'Pierwszy przerzut musi odczytać nową kartę także pod Ctrl+X');
+    await waitFor(()=>evaluate('document.querySelector(".compact-content .augment-offer")?.innerText.includes("Eureka")'),'Pierwszy przerzut musi odczytać nową kartę także pod Ctrl+Z');
     assert.ok(await evaluate('!offerHistory.includes(1002)'),'Spóźniony OCR przywrócił stare karty');
     await evaluate('window.trackOffers=false');
     assert.equal(await evaluate('lastState.final.build.mayhem.selection.augments.length'),0);
@@ -226,7 +234,7 @@ server.once('listening',async()=>{
     await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards[0].id===3150'),'Brak karty Stormsurge');
     assert.equal(await evaluate('document.querySelectorAll("[data-activation-cost]").length'),3);
     pressCompactShortcut();
-    await waitFor(()=>evaluate('document.querySelectorAll(".compact-content [data-activation-cost]").length===3'),'Ctrl+X: trzy koszty ofert');
+    await waitFor(()=>evaluate('document.querySelectorAll(".compact-content [data-activation-cost]").length===3'),'Ctrl+Z: trzy koszty ofert');
     const quoted=await evaluate("document.querySelector('.compact-content [data-offer-id=\"3150\"] [data-activation-cost]').innerText");
     assert.match(quoted,/1700 zł/);assert.match(quoted,/850 zł/);assert.match(quoted,/1100 zł/);
     assert.match(quoted,/plan|Później/i);
@@ -258,7 +266,7 @@ server.once('listening',async()=>{
     heldItems=[{id:1058,name:'Needlessly Large Rod',kind:'component',slot:0,count:1}];
     await waitFor(()=>evaluate('document.querySelector("[data-quest-progress]")?.innerText.includes("Needlessly Large Rod")'),'Brak składnika w postępie zadania');
     pressCompactShortcut();
-    await waitFor(()=>evaluate('document.querySelector(".compact-content [data-quest-progress]")?.innerText.includes("Czekam na nagrodę")'),'Ctrl+X: brak postępu zadania');
+    await waitFor(()=>evaluate('document.querySelector(".compact-content [data-quest-progress]")?.innerText.includes("Czekam na nagrodę")'),'Ctrl+Z: brak postępu zadania');
     heldItems=[{id:228002,name:"Wooglet's Witchcap",kind:'finished',slot:0,count:1}];
     await waitFor(()=>evaluate('document.querySelector(".compact-content [data-quest-progress]")?.innerText.includes("Nagroda wykryta")'),'Nagroda po połączeniu przedmiotów');
     assert.ok(await evaluate('!lastState.final.build.items.some(i=>[3157,3089].includes(i.id))'));

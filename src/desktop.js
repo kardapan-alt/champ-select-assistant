@@ -1,9 +1,9 @@
 // Obsługa okna i zasobnika. Zależności przekazywane jawnie, żeby testy nie
 // dotykały prawdziwego autostartu ani klienta League of Legends.
 const path = require('path');
-const DEFAULT_SHORTCUT = 'Control+X';
+const DEFAULT_SHORTCUT = 'Control+Z';
 const SHORTCUTS = [
-  { value: 'Control+X', label: 'Ctrl+X' },
+  { value: DEFAULT_SHORTCUT, label: 'Ctrl+Z' },
   { value: 'Control+Shift+X', label: 'Ctrl+Shift+X' },
   { value: 'Control+Alt+X', label: 'Ctrl+Alt+X' },
   { value: '', label: 'Wyłączony' },
@@ -26,7 +26,7 @@ function createDraftWatcher(show, enabled) {
   };
 }
 
-function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen, settings, saveSettings, log = () => {}, notify = () => {}, onViewMode=()=>{}, onBookmark=()=>{},
+function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, screen, settings, saveSettings, log = () => {}, notify = () => {}, onViewMode=()=>{}, onBookmark=()=>{}, onShortcutChange=()=>{},
   argv = process.argv, platform = process.platform, executable = process.execPath,
   portable = !!process.env.PORTABLE_EXECUTABLE_DIR }) {
   let tray = null;
@@ -38,7 +38,14 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
   let bookmarkGame = null, activeBookmark = '', bookmarkError = '', lastBookmarkPress = -Infinity;
   if (!BOOKMARK_SHORTCUTS.some(s=>s.value===settings.bookmarkShortcut)) settings.bookmarkShortcut=BOOKMARK_SHORTCUTS[0].value;
   let compact=false,fullBounds=null,compactBounds=null,wasMaximized=false;
-  if (!SHORTCUTS.some(s => s.value === settings.keyboardShortcut)) settings.keyboardShortcut = DEFAULT_SHORTCUT;
+  if (!SHORTCUTS.some(s => s.value === settings.keyboardShortcut)) {
+    const migrate = settings.keyboardShortcut === 'Control+X';
+    settings.keyboardShortcut = DEFAULT_SHORTCUT;
+    if (migrate) {
+      try { saveSettings(); } catch (err) { log(`zapis nowego skrótu: ${err.message}`); }
+    }
+  }
+  const shortcutLabel = () => activeShortcut ? SHORTCUTS.find(s => s.value === activeShortcut).label : null;
   const canAutoStart = platform === 'win32' && app.isPackaged && !portable;
   // Electron 33 łączy ścieżkę i argumenty bez dodawania cudzysłowów.
   const loginOptions = { path: `"${executable}"`, args: ['--background'], name: 'Champ Select Assistant' };
@@ -95,7 +102,6 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
       activeShortcut = value;
       shortcutError = '';
       menu();
-      return true;
     } catch (err) {
       if (registeredNew) globalShortcut.unregister(value);
       settings.keyboardShortcut = previousSetting;
@@ -105,6 +111,8 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
       if (persist) notify(`Nie udało się zmienić skrótu. ${err.message}`);
       return false;
     }
+    if (value !== previous) onShortcutChange();
+    return true;
   }
 
   function setAutoStart(enabled) {
@@ -177,12 +185,12 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
     if (!tray) return;
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'Pokaż aplikację', click: show },
-      { label: `Skrót klawiaturowy: ${SHORTCUTS.find(s => s.value === activeShortcut)?.label || 'Wyłączony'}`,
+      { label: `Skrót klawiaturowy: ${shortcutLabel() || 'Wyłączony'}`,
         submenu: [
           ...SHORTCUTS.map(s => ({ label: s.label, type: 'radio', checked: settings.keyboardShortcut === s.value,
             click: () => setShortcut(s.value) })),
-          { type: 'separator' },
-          { label: 'Ctrl+X zastępuje standardowe Wytnij', enabled: false },
+          ...(activeShortcut===DEFAULT_SHORTCUT || shortcutError ? [{type:'separator'}] : []),
+          ...(activeShortcut===DEFAULT_SHORTCUT ? [{label:'Globalny Ctrl+Z przejmuje systemowy skrót Cofnij',enabled:false}] : []),
           ...(shortcutError ? [{ label: 'Skrót niedostępny — wybierz inny lub spróbuj ponownie', enabled: false }] : []),
         ] },
       { type: 'separator' },
@@ -239,7 +247,7 @@ function createDesktop({ app, win, Tray, Menu, nativeImage, globalShortcut, scre
   app.on('activate', show);
 
   const observePhase = createDraftWatcher(show, () => settings.autoPopup);
-  return { show, observePhase, toggleWindow, setShortcut,setCompact,isCompact:()=>compact,
+  return { show, observePhase, toggleWindow, setShortcut,shortcutLabel,setCompact,isCompact:()=>compact,
     setBookmarkGame,bookmarkStatus,canBookmark:id=>!quitting && !!activeBookmark && bookmarkGame===id };
 }
 

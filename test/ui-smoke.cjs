@@ -69,6 +69,20 @@ app.whenReady().then(async () => {
     await new Promise(r => requestAnimationFrame(r));
   })()`);
   await settled();
+  const mayhemBuild=engine.buildFor('Leona',{...s,mode:'mayhem',mayhem:{}},game,data);
+  const mayhemFixture={...fixture,mode:'mayhem',final:{...fixture.final,build:mayhemBuild}};
+  for(const label of ['Ctrl+Z','Ctrl+Shift+X',null]){
+    win.webContents.send('state',{...mayhemFixture,compactShortcutLabel:label});
+    await settled();
+    const full=await evaluate("document.querySelector('.build-panel [data-itemset] + .note').textContent");
+    assert.equal(full,label ? `Kolejne zakupy sprawdzaj w małym widoku (${label}).` : 'Kolejne zakupy sprawdzaj w małym widoku.');
+    win.webContents.send('view-mode',true);
+    await settled();
+    const compact=await evaluate("document.querySelector('.compact-help').textContent");
+    assert.equal(compact,(label ? label+' chowa to okno. ' : '')+'„Pełny widok” otwiera szczegóły.');
+    win.webContents.send('view-mode',false);
+  }
+  win.webContents.send('state',fixture);await settled();
   const reports = [];
   for (const [width, height] of [[1100, 720], [820, 600]]) {
     win.setContentSize(width, height); await settled();

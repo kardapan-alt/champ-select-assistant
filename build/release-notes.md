@@ -1,6 +1,7 @@
-## Wersja 0.6.42
+## Wersja 0.6.43
 
-- **Build uwzględnia zasób postaci.** U bohaterów bez many, w tym grających na energii, filtr działa także po wyborze augmentu, przerzucie kart i wczytaniu dawnego przypięcia. Yasuo pomija Frozen Heart przeciw autoatakom. Akali pomija Archangel’s Staff po „No Mana, No Problem” oraz Rod of Ages po „True Eternity”.
-- **Zakupy i podgląd kart.** „Kup teraz”, porównanie ścieżek i zestaw w sklepie stosują tę samą zasadę również do komponentów. Opis karty wyjaśnia, gdy powiązany z nią przedmiot daje manę. Faktycznie kupiony lub otrzymany przedmiot pozostaje w ekwipunku.
+**Ctrl+Z otwiera kompaktowy widok asystenta.** Naciśnij skrót ponownie, gdy okno jest aktywne, aby je schować. Po aktualizacji dotychczasowe Ctrl+X automatycznie zmieni się na Ctrl+Z. Jeśli masz ustawiony inny skrót lub skróty są wyłączone, aplikacja zachowa Twój wybór.
+
+Gdy asystent ma zarejestrowany globalny Ctrl+Z, przejmuje standardowe „Cofnij” także w innych programach. Skrót możesz zmienić lub wyłączyć w menu ikony asystenta obok zegara Windows.
 
 Wersja z instalatora pobiera wydanie w tle. Gdy aktualizacja będzie gotowa, po meczu wybierz „Uruchom ponownie”. Wersja portable udostępnia odsyłacz do pobrania.
