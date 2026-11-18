@@ -17,17 +17,27 @@ function questProgressView(quests){
   if(!quests?.length)return '';
   return `<section class="mayhem-quests" aria-label="Postęp zadań Mayhem"><b>Zadania Mayhem</b>${quests.map(q=>`<article data-quest-progress="${q.id}"><strong>${esc(q.name)}</strong> · ${esc(q.status)}${q.rows.map(row=>`<small>${esc(row.name)} · ${row.held?'posiadasz':!q.known?'brak odczytu':q.exact&&row.cost!==null?`pozostało ${row.cost} zł`:'do zdobycia'}${row.components?.length?' · masz '+row.components.map(esc).join(', '):''}</small>`).join('')}</article>`).join('')}</section>`;
 }
+function offerOrderLabel(comparison){
+  if(comparison.held)return 'Ostatni odczyt · czekam na potwierdzenie kart';
+  return comparison.paused?'Ostatnia oferta z okna gry':'Kolejność jak w grze';
+}
 function mayhemChoiceView(m,compact=false){
   if(!m||labActive||!m.matchKey)return '';
   const comparison=m.comparison;
   let cards=m.partialOffer?partialOfferView(m.partialOffer):'';
   if(comparison){
     if(compact){
-      cards=`<section class="augment-comparison" aria-label="Trzy karty augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${comparison.paused?'Ostatnia oferta z gry':'Kolejność jak w grze'}</span></div>
+      cards=`<section class="augment-comparison" aria-label="Trzy karty augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${offerOrderLabel(comparison)}</span></div>
         <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer" data-offer-id="${c.id}"><div class="offer-position">${['Lewa','Środkowa','Prawa'][i]}</div><b>${esc(c.name)}</b>${c.english&&c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}${activationView(c.activation)}</article>`).join('')}</div></section>`;
     }else cards=augmentComparison(comparison);
   }
-  const saved=m.undo?`<div class="augment-receipt"><span>Ostatnio zapisano <b>${m.undo.names.map(esc).join(', ')}</b></span><button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Cofa ostatni zapis w asystencie">Cofnij odczyt</button></div>`:'';
+  const undo=m.undo?`<button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Cofnij ostatni odczyt: ${m.undo.names.map(esc).join(', ')}">Cofnij odczyt</button>`:'';
+  let saved=m.undo?`<div class="augment-receipt"><span>Ostatnio zapisano <b>${m.undo.names.map(esc).join(', ')}</b></span>${undo}</div>`:'';
+  if(compact && m.hints?.length){
+    const entries=m.hints.map(a=>`<li data-picked-augment="${a.id}" title="${esc(a.english || a.name)}"><span>${esc(a.name)}</span>
+      ${a.rating?.grade?`<b aria-label="Ocena dopasowania ${esc(a.rating.grade)}">${esc(a.rating.grade)}</b>`:''}</li>`).join('');
+    saved=`<section class="augment-receipt compact-augments" aria-label="Twoje augmenty"><div class="compact-augments-heading"><strong>Twoje augmenty (${m.hints.length})</strong>${undo}</div><ul>${entries}</ul></section>`;
+  }
   const missed=m.missedOffer?missedOfferView(m.missedOffer):m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
   return cards+missed+saved+questProgressView(m.quests);
 }
@@ -37,7 +47,7 @@ function mayhemPanel(b) {
   const selected = m.hints || [];
   const live = m.live;
   const liveText = { live:'Ekwipunek wykrywany automatycznie', waiting:'Czekam na dane ekwipunku z gry', stale:'Brak połączenia z grą — ostatni odczyt ekwipunku', manual:'Ekwipunek ustawiany ręcznie' };
-  const screenText={off:'Odczyt augmentów wyłączony',waiting:'Czekam na czytelny obraz gry',paused:'Odczyt ruszy po powrocie do okna gry',scanning:'Automatyczne augmenty · czekam na karty wyboru',offers:'Karty rozpoznane · wybierz augment w grze',confirming:'Potwierdzam wybrany augment',detected:'Augment rozpoznany · build przeliczony',reading:'Czytam nazwę · zapis po 3 zgodnych odczytach',ambiguous:'Kilka nazw w obszarze — popraw ustawienie OCR',unreadable:'Najedź na własny augment na około 3 sekundy',layout:'Rozdzielczość się zmieniła — ustaw OCR ponownie',conflict:'Niejednoznaczny zestaw — sprawdź augmenty ręcznie',language:'Brak polskiego lub angielskiego OCR w Windows'};
+  const screenText={off:'Odczyt augmentów wyłączony',waiting:'Czekam na czytelny obraz gry',paused:'Czekam na karty w oknie gry',scanning:'Automatyczne augmenty · czekam na karty wyboru',offers:'Karty rozpoznane · wybierz augment w grze',confirming:'Potwierdzam wybrany augment',detected:'Augment rozpoznany · build przeliczony',reading:'Czytam nazwę · zapis po 3 zgodnych odczytach',ambiguous:'Kilka nazw w obszarze — popraw ustawienie OCR',unreadable:'Najedź na własny augment na około 3 sekundy',layout:'Rozdzielczość się zmieniła — ustaw OCR ponownie',conflict:'Niejednoznaczny zestaw — sprawdź augmenty ręcznie',language:'Brak polskiego lub angielskiego OCR w Windows'};
   screenText.undone='Rozpoznanie cofnięte · możesz wskazać poprawny augment w edytorze';
   screenText['capture-error']=m.screen?.error||'Nie udało się przechwycić obrazu gry';
   screenText['ocr-error']='OCR nie odpowiada · ponawiam odczyt';
@@ -45,6 +55,8 @@ function mayhemPanel(b) {
   screenText['partial']='Czytam nazwy, ale jeszcze nie potwierdziłem trzech kart';
   screenText['partial-offer']='Rozpoznano 2 z 3 kart. Możesz uzupełnić brakującą nazwę.';
   screenText['reading-offers']='Trzy karty odczytane · potwierdzam obraz';
+  screenText['held-offer']='Ostatni odczyt · potwierdzam karty w oknie gry';
+  screenText.rerolling='Przerzut · czekam na nową kartę';
   screenText.missed='Ostatni wybór wymaga potwierdzenia';
   return `<section class="mayhem-summary"><div class="panel-head"><b>ARAM: Mayhem</b><button data-mayhem-editor ${canEdit ? '' : 'disabled'}>Augmenty i ekwipunek</button></div>
     ${m.headliner?`<div class="headliner-tip"><b>Headliner ${m.headlinerDetection?.source==='screen'?'· wykryty automatycznie':''}: ${esc(m.headliner.name)}${m.headliner.ability?' · '+esc(m.headliner.ability):''}</b><p>${esc(m.headliner.tip)}</p>${m.headliner.warning?`<p class="bad">${esc(m.headliner.warning)}</p>`:''}</div>`:`<p class="note">${m.headlinerDetection?.auto ? m.headlinerDetection.available ? 'Headliner: czekam na nazwę i opis wydarzenia w obrazie gry.' : 'Headliner: włącz automatyczny OCR, aby wykrywać go z ekranu.' : 'Headlinera ustawisz w „Augmenty i ekwipunek”.'}</p>`}
@@ -62,7 +74,7 @@ function mayhemPanel(b) {
 
 function augmentComparison(comparison){
   const status={strong:'Dużo synergii',fit:'Pasuje do buildu',conditional:'Warunkowe',independent:'Efekt niezależny od buildu',unknown:'Brak oceny',conflict:'Konflikt',selected:'Już wybrany'};
-  return `<section class="augment-comparison" aria-label="Porównanie oferowanych augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${comparison.paused?'Ostatni odczyt · wróć do gry, aby odświeżyć':'Kolejność jak w grze'}</span></div>
+  return `<section class="augment-comparison" aria-label="Porównanie oferowanych augmentów"><div class="offer-heading"><b>Trzy karty do wyboru</b><span>${offerOrderLabel(comparison)}</span></div>
     <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer ${c.recommended?'recommended':''}" data-offer-id="${c.id}">
       <div class="offer-position">${['Lewa','Środkowa','Prawa'][i]} · ${esc(c.recommended?'Najwięcej synergii':status[c.status]||status.unknown)}</div>
       <b title="${esc(c.english)}">${esc(c.name)}</b>

@@ -15,7 +15,7 @@ class AugmentClicks {
       this.lastSeen=Date.now();if(event.type==='focus')this.focused=event.focused===true;
       onInput(event);
     });
-    const ended=()=>{if(this.child===child){this.stop();onInput({type:'cancel',at:Date.now()});}};
+    const ended=()=>{if(this.child===child){this.stop();onInput({type:'cancel',sourceEnded:true,at:Date.now()});}};
     child.on('error',ended);child.on('exit',ended);child.stdin.on('error',ended);child.stdin.end(handle+'\n');
   }
   active(){return this.focused && Date.now()-this.lastSeen<1200;}

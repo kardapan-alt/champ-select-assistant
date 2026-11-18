@@ -43,17 +43,25 @@ function snapshotOffer(ids, state, alias, goal, game, data, inventory) {
   return snapshot;
 }
 
-// The game's reroll control sits centered just below each card. Keep the
-// hit area narrower than the button and require press and release in it.
+// The detector can pick up the inner rim of an ornamented card. Allow for
+// that offset when mapping a click below the card to its reroll button.
+function rerollSlot(rects,event,aspect) {
+  if (!rects?.length || !(event.width>0 && event.height>0) || !Number.isFinite(aspect)
+    || Math.abs(event.width/event.height-aspect)>=.025) return -1;
+  const x=event.x/event.width, y=event.y/event.height;
+  return rects.findIndex(r=>Math.abs(x-(r.x+r.w/2))<r.w*.18 && y>r.y+r.h*1.055 && y<r.y+r.h*1.19);
+}
+
 function rerollInput(frame,event) {
   if (!frame || event.type==='focus' && event.focused) return;
   if (event.type==='focus' || event.type==='cancel') {
-    frame.press=null; frame.reroll=null; frame.visible=false; return;
+    frame.press=null;
+    if (event.type==='cancel') frame.reroll=null;
+    frame.visible=false;
+    return;
   }
   if (!['down','up'].includes(event.type)) return;
-  const x=event.x/event.width,y=event.y/event.height;
-  const slot=event.width>0 && event.height>0 && Math.abs(event.width/event.height-frame.aspect)<.025 ?
-    (frame.rects||[]).findIndex(r=>Math.abs(x-(r.x+r.w/2))<r.w*.09 && y>r.y+r.h*1.055 && y<r.y+r.h*1.13) : -1;
+  const slot=rerollSlot(frame.rects,event,frame.aspect);
   if (event.type==='down') {
     frame.reroll=null;
     frame.press=slot>=0 && frame.visible && frame.recordId && event.at>=frame.seenAt && event.at-frame.seenAt<=3500 ?
@@ -143,4 +151,4 @@ function correctOffer(match, offerId, cardId) {
   else { delete offer.picked; delete offer.source; }
 }
 
-module.exports = {validOffer,sameCards,snapshotOffer,rerollInput,newFrame,recordOffer,withdrawPicks,correctOffer};
+module.exports = {validOffer,sameCards,snapshotOffer,rerollSlot,rerollInput,newFrame,recordOffer,withdrawPicks,correctOffer};

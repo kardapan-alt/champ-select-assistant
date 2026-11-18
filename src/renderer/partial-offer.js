@@ -1,10 +1,10 @@
 function partialOfferView(offer){
   const positions=['Lewa','Środkowa','Prawa'];
   return `<section class="augment-comparison" data-partial-offer aria-label="Częściowy odczyt kart">
-    <div class="offer-heading"><b>Rozpoznano 2 z 3 kart</b></div>
+    <div class="offer-heading"><b>Rozpoznano 2 z 3 kart</b>${offer.held?'<span>Ostatni odczyt · czekam na potwierdzenie kart</span>':''}</div>
     <div class="augment-offer-grid">${offer.cards.map((card,i)=>`<article class="augment-offer"><div class="offer-position">${positions[i]}</div>
       ${card?`<b>${esc(card.name)}</b>${card.english!==card.name?`<small>${esc(card.english)}</small>`:''}`:
-        `<b>Nieczytelna nazwa</b><button type="button" data-fill-offer-slot="${offer.token}">Uzupełnij kartę</button>`}</article>`).join('')}</div></section>`;
+        `<b>Nieczytelna nazwa</b><button type="button" data-fill-offer-slot="${offer.token}" ${offer.held?'disabled':''}>Uzupełnij kartę</button>`}</article>`).join('')}</div></section>`;
 }
 function missedOfferView(offer){
   return `<section class="augment-comparison"><div class="offer-heading"><b>Którą kartę wybrałeś w grze?</b></div>

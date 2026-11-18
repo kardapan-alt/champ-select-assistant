@@ -2,16 +2,16 @@
 // Windows OCR trafia obraz gry lub wskazany tytuł. Bez plików i sieci.
 let augmentStream=null,augmentVideo=null,augmentCaptureKey='',augmentReaderBusy=false,augmentCalibrationOpen=false;
 let augmentScreenContext=null,augmentFrame=0,augmentGeneration=0,augmentStarting=null,augmentRetryAt=0;
-function stopAugmentCapture(){
+function stopAugmentCapture(retryMatch){
   augmentGeneration++;augmentStream?.getTracks().forEach(t=>t.stop());augmentStream=null;
   if(augmentVideo){augmentVideo.srcObject=null;augmentVideo.remove();augmentVideo=null;}
   augmentCaptureKey='';augmentScreenContext=null;augmentStarting=null;
-  window.assist.stopAugmentCapture().catch(()=>{});
+  window.assist.stopAugmentCapture(retryMatch).catch(()=>{});
 }
 async function startAugmentCapture(matchKey){
   if(augmentStream?.active && augmentCaptureKey===matchKey)return augmentScreenContext;
   if(augmentStarting)return augmentStarting;
-  stopAugmentCapture();const generation=augmentGeneration;
+  stopAugmentCapture(matchKey);const generation=augmentGeneration;
   augmentStarting=(async()=>{
     const context=await window.assist.augmentScreenSource(matchKey);
     if(!context.ok)throw Error(context.error);
@@ -53,7 +53,7 @@ async function pollAugmentScreen(){
     augmentRetryAt=0;
   }catch(err){
     augmentRetryAt=Date.now()+4000;
-    stopAugmentCapture();await window.assist.augmentScreenProblem({matchKey:m.matchKey,error:err.message}).catch(()=>{});
+    stopAugmentCapture(m.matchKey);await window.assist.augmentScreenProblem({matchKey:m.matchKey,error:err.message}).catch(()=>{});
   }finally{augmentReaderBusy=false;}
 }
 function augmentOfferFrame(frame){

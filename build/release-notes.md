@@ -1,7 +1,7 @@
-## Wersja 0.6.39
+## Wersja 0.6.40
 
-- **Mayhem pod Ctrl+X.** Gdy odczyt rozpozna dwie karty i położenie trzeciej, zobaczysz je w kolejności z gry. Kliknij „Uzupełnij kartę” i wpisz fragment polskiej lub angielskiej nazwy, aby porównać całą trójkę. Jeśli aplikacja przeoczy wybór z rozpoznanej oferty, możesz wskazać wybraną kartę bezpośrednio pod Ctrl+X.
-- **Pomiń przedmiot na ten mecz.** Przy sugerowanym zakupie w Mayhem możesz wybrać „Pomiń”. Plan przeliczy kolejne zakupy i pokaże zamiennik, gdy jest dostępny. „Cofnij pominięcie” przywraca przedmiot do rozważenia. W „Zgłoś dziwny build” wybierzesz plan sprzed pominięcia z zaznaczonym przedmiotem albo aktualny build.
-- **Zakładki do powtórek Solo/Duo.** W trakcie gry naciśnij **Ctrl+Alt+B**, aby zapisać czas akcji bez otwierania okna asystenta. Otwórz „Po meczu” z klientem LoL zalogowanym na to samo konto. Możesz tam opisać akcję i dodać wskazówkę do notesu matchupu. Skrót można zmienić lub wyłączyć w menu ikony asystenta obok zegara Windows.
+- **Przerzuty augmentów w Mayhem.** Po przerzuceniu jednej karty porównanie pod Ctrl+X aktualizuje zmienione miejsce. Działa też przy kolejnych przerzutach. Przy odczycie dwóch tytułów zobaczysz je na właściwych miejscach, a trzeci możesz uzupełnić ręcznie. Zapisane wybory znajdziesz poniżej w sekcji „Twoje augmenty”.
+- **Wspólny ban dla dwóch picków.** W swojej turze banowania w Solo/Duo wybierz dwie postacie z puli dla swojej roli. Zobaczysz, kto jest trudny dla obu postaci i z kim drugi pick ma korzystny matchup. Przy każdej parze znajdziesz źródło oceny. Asystent uwzględnia już zbanowane postacie i deklaracje sojuszników.
+- **Pierwsze zakupy po meczu Solo/Duo.** W „Po meczu” zobaczysz pierwszą zaobserwowaną serię zakupów po 1:30 i złoto odczytane tuż przed nią. Jeśli ówczesny plan zawierał inną opcję w tym budżecie, zobaczysz jej koszt po uwzględnieniu posiadanych komponentów. Podsumowanie sygnalizuje przerwy w odczycie.
 
 Wersja z instalatora pobiera wydanie w tle. Gdy aktualizacja będzie gotowa, po meczu wybierz „Uruchom ponownie”. Wersja portable udostępnia odsyłacz do pobrania.

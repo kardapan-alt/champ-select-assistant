@@ -532,8 +532,7 @@ function render(s) {
 
   const meLocked = s.myChampion && s.myChampion.locked;
   const center = [
-    bansPanel(s),
-    pickPoolPanel(s.pickPool),
+    ...(s.pickPool?.bans ? [pickPoolPanel(s.pickPool), bansPanel(s)] : [bansPanel(s), pickPoolPanel(s.pickPool)]),
     isAramView(s.mode) ? aramPanel(s) : !meLocked ? suggestionsPanel(s) : '',
     botPlanPanel(s.botPlan),
     s.laneVariants ? '<div class="actions"><button data-lane-variants>Porównaj warianty linii</button></div>' : '',

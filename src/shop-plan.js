@@ -104,4 +104,4 @@ function shopPlan(build,snapshot,game,status='waiting'){
   }
   return {...main,comparison:options};
 }
-module.exports = { recipeFor, shopPlan };
+module.exports = { recipeFor, shopPlan, singlePlan };

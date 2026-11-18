@@ -1,6 +1,28 @@
+function poolBanResults(pool) {
+  const { bans, cards } = pool;
+  if (bans.blocked) return `<p class="note">Zmień niedostępny pick w porównaniu · ${esc(bans.blocked.join(', '))}.</p>`;
+  const verdict = { bad:'trudny', good:'korzystny', even:'wyrównany', unknown:'brak danych' };
+  const matchup = (p, i) => {
+    const source = p.games ? ` · ${p.winRate.toLocaleString('pl', { maximumFractionDigits:1 })}% wygranych · ${p.games} gier · OP.GG` :
+      p.source ? ' · ' + p.source : p.conflict ? ' · sprzeczne wpisy w profilu' : '';
+    return `<span>${esc(cards[i].name)} · ${verdict[p.result]}${esc(source)}</span>`;
+  };
+  const row = r => `<div class="pool-ban-row" data-pool-foe="${esc(r.alias)}"><strong>${esc(r.name)}</strong><div>${r.pairs.map(matchup).join('')}</div></div>`;
+  const more = (rows, key, title) => rows.length ? disclosure('pool-bans-' + key, `${title} (${rows.length})`, rows.map(row).join('')) : '';
+  const missing = cards.filter((c,i) => !bans.counts[i]).map(c => c.name);
+  return `<div class="pool-ban-results" data-pool-bans>
+    ${bans.common.length ? `<h4>Trudni dla obu picków</h4>${bans.common.slice(0, 2).map(row).join('')}` :
+        '<p>Brak potwierdzonego wspólnego bana dla tej pary.</p>'}
+    ${missing.length ? `<p class="note">${esc(missing.join(', '))} · brak danych o dostępnych matchupach na tej pozycji.</p>` : ''}
+    ${more(bans.common.slice(2), 'common', 'Pozostałe wspólne bany')}
+    ${more(bans.covered, 'covered', 'Drugi pick ma korzystny matchup')}
+    ${more(bans.other, 'other', 'Trudny dla jednego picku')}
+    </div>`;
+}
+
 function pickPoolPanel(pool) {
   if (!pool) return '';
-  const heading = `<div class="panel-head"><h3>Porównaj moje picki · ${esc(roleNames[pool.role])}</h3><button data-pool-edit>Edytuj pulę</button></div>`;
+  const heading = `<div class="panel-head"><h3>${pool.bans ? 'Wspólny ban dla moich picków' : 'Porównaj moje picki'} · ${esc(roleNames[pool.role])}</h3><button data-pool-edit>Edytuj pulę</button></div>`;
   if (pool.options.length < 2) return `<section class="panel" data-pick-pool>${heading}<p class="note">Dodaj ${pool.options.length ? 'jeszcze jedną postać' : 'dwie postacie'} do puli tej roli, aby porównać je w drafcie.</p></section>`;
   const cards = pool.cards.map((c,i) => {
     const options = pool.options.map(o => {
@@ -9,8 +31,10 @@ function pickPoolPanel(pool) {
     }).join('');
     return `<article data-pool-card="${esc(c.alias)}"><select aria-label="${i ? 'Drugi' : 'Pierwszy'} pick" data-pool-side="${i}">${options}</select>
       <small class="${c.availability === 'Dostępny' ? 'good' : 'muted'}">${esc(c.availability)}</small>
-      <h4>Co wnosi</h4><p>${esc(c.advantage)}</p><h4>Koszt wyboru</h4><p>${esc(c.cost)}</p></article>`;
+      ${pool.bans ? '' : `<h4>Co wnosi</h4><p>${esc(c.advantage)}</p><h4>Koszt wyboru</h4><p>${esc(c.cost)}</p>`}</article>`;
   }).join('');
+  if (pool.bans) return `<section class="panel" data-pick-pool data-pool-position="${esc(pool.role)}">${heading}
+    <div class="pool-cards">${cards}</div>${poolBanResults(pool)}</section>`;
   const names = team => esc(team.join(', ') || 'brak');
   return `<section class="panel" data-pick-pool data-pool-position="${esc(pool.role)}">${heading}
     <p class="note">Zablokowani sojusznicy · ${names(pool.allies)}<br>Ujawnieni rywale · ${names(pool.enemies)}</p>

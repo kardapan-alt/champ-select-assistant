@@ -43,6 +43,9 @@ test('two visible variants, repeated frames and a restart preserve order without
   click('down',2700); click('up',2800);
   assert.ok(!newFrame(first,[choices[0],id('ApexInventor'),choices[2]],3500,()=>capture(choices)).replaces);
   rerollInput(first,{type:'focus',focused:false,at:2840});
+  assert.equal(newFrame(first,rerolled,3500,()=>capture(rerolled)).replaces,first.recordId);
+  assert.ok(!newFrame(first,rerolled,9000,()=>capture(rerolled)).replaces);
+  rerollInput(first,{type:'cancel',at:2900});
   assert.ok(!newFrame(first,rerolled,3500,()=>capture(rerolled)).replaces);
   first.visible=true;
   click('down',3000); click('up',3120,576,550);
@@ -104,4 +107,17 @@ test('a finished OCR-only game supports missing picks, manual corrections and un
   assert.deepEqual(saved.augments.map(a=>a.id),[other[0]]);
   assert.equal(history.ensureActive(meta),null);
   assert.throws(()=>correctOffer({augments:[]},123,choices[0]));
+});
+test('przerzuty trzech kart na 1440p korzystają z obszaru poniżej ozdobnej ramki',()=>{
+  const {rerollSlot}=require('../src/offer-history');
+  const rects=[.221875,.4125,.6046875].map(x=>({x,y:.17222,w:.15625,h:.46944}));
+  const click=(x,y)=>rerollSlot(rects,{x,y,width:2560,height:1440},16/9);
+  for(const [slot,x] of [795,1285,1775].entries()){
+    assert.equal(click(x,1019),slot);
+    assert.equal(click(x+22,1037),slot);
+    assert.equal(click(x,720),-1);
+    assert.equal(click(x,1147),-1);
+  }
+  assert.equal(click(1044,1019),-1);
+  assert.equal(rerollSlot(rects,{x:1285,y:1019,width:1920,height:1200},16/9),-1);
 });

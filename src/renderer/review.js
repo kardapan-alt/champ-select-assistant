@@ -1,4 +1,24 @@
 const reviewTime=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+async function loadFirstShop(panel,key) {
+  const result=await window.assist.firstShopReview(key);
+  if (!panel.isConnected || !result.ok || !result.trip) return;
+  const trip=result.trip;
+  const title='<h4>Pierwsze zakupy po starcie</h4>';
+  if (trip.status!=='recorded') {
+    panel.innerHTML=title+'<p>'+ (trip.status==='unavailable'?'Brak porównania zakupów w tym zapisie.':'Brak potwierdzonego zakupu po 1:30 z odczytem złota i ekwipunku przed transakcją.') +'</p>';
+    return;
+  }
+  const list=trip.items.map(i=>(i.count>1?i.count+' × ':'')+esc(i.name)).join(', ');
+  const alt=trip.alternative;
+  panel.innerHTML=title+`<p>Pierwsze zaobserwowane zakupy po 1:30 · <b>${reviewTime(trip.start)}${trip.end!==trip.start?' – '+reviewTime(trip.end):''}</b></p>
+    <p>Budżet tuż przed zakupem · <b>${trip.budget} zł</b> przy ${reviewTime(trip.budgetAt)}</p>
+    <div class="first-shop-options"><section><strong>Twój zakup</strong><p>${list}</p>
+      <small>${trip.cost===null?'Zmiana ekwipunku nie pozwala wycenić całego zakupu.':'Koszt według receptur · '+trip.cost+' zł'}</small></section>
+    <section><strong>Alternatywa za ten budżet</strong>${alt?`<p>${esc(alt.name)} · ${alt.cost} zł</p><small>${alt.name!==alt.target?'Do '+esc(alt.target)+'. ':''}${esc(alt.reason || '')}</small>
+      <p>Zostałoby ${trip.budget-alt.cost} zł${alt.credit?' · uwzględnione komponenty za '+alt.credit+' zł':''}.</p>`:'<p>W zapisanym planie brak innego zakupu za tę kwotę.</p>'}</section></div>
+    ${trip.late||trip.gap?'<p class="note">Zapis rozpoczął się później lub miał przerwę. Wcześniejszy zakup mógł zostać pominięty.</p>':''}
+    ${trip.cutShort?'<p class="note">Odczyt zakończył się w trakcie tej serii zakupów.</p>':''}`;
+}
 async function loadReplayBookmarks(panel,match) {
   const result=await window.assist.replayBookmarks(match.key);
   if (!panel.isConnected) return;
@@ -82,7 +102,7 @@ async function openMatchReviews(){
       ${m.mode==='mayhem' && (m.augments?.length || m.items?.length) ? `<button data-save-favorite="${esc(m.key)}">Dodaj do ulubionych</button>` : ''}
       <p id="review-outcome" class="review-result" aria-live="polite">${esc(reviewOutcome(m))}</p>
       ${trainingResultPanel(m)}
-      ${m.mode==='classic'?'<section data-replay-bookmarks></section>':''}
+      ${m.mode==='classic'?'<section data-first-shop></section><section data-replay-bookmarks></section>':''}
       <p class="note">${m.firstRead==null?'Brak odczytu ekwipunku.':`Zapis od ${reviewTime(m.firstRead)} do ${reviewTime(m.duration)}.`} ${m.reason==='ended'?'Klient potwierdził koniec gry.':'Zakończono zapis; nie potwierdzono momentu końca gry.'} Zmiany ekwipunku mogą oznaczać zakupy, sprzedaż, łączenie części lub nagrody. ${m.trimmed?'Pokazuję ostatnie 200 zdarzeń.':''} ${m.gap?'Końcowy odczyt był niedostępny.':''}</p>
       ${m.headliner?`<p><b>Headliner:</b> ${esc(m.headliner.name)} ${esc(m.headliner.ability)}</p>`:''}
       <h4>Ostatnio zapisane augmenty</h4><p>${names(m.augments)||'Brak zapisanych augmentów'}</p>
@@ -100,6 +120,8 @@ async function openMatchReviews(){
     notesButton.onclick = () => openMatchupNotes(m?.key);
     dialog.querySelector('[data-close-review]').before(notesButton);
     if(!m){refreshOpenReview=null;return;}
+    const firstShop=dialog.querySelector('[data-first-shop]');
+    if(firstShop)loadFirstShop(firstShop,m.key).catch(err=>toast(err.message,true));
     const bookmarks=dialog.querySelector('[data-replay-bookmarks]');
     if(bookmarks)loadReplayBookmarks(bookmarks,m).catch(err=>toast(err.message,true));
     bindOfferHistory(dialog,m,renderReview);

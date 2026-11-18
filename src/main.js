@@ -10,6 +10,7 @@ const { lanePlan } = require('./laneplan');
 const { laneVariantOptions, compareLaneVariants } = require('./lane-variants');
 const { botLanePlan, rememberAllyRoles } = require('./bot-plan');
 const { PickPools, comparison: comparePoolPicks } = require('./pick-pool');
+const { poolBans } = require('./pool-bans');
 let pickPools;
 const { gamePlan } = require('./gameplan');
 const crypto = require('crypto');
@@ -248,6 +249,16 @@ function pump() {
 
 const roleOf = (alias) => ((data.champions[alias] || {}).roles || [])[0] || '';
 const dataRole = (pos) => (pos === 'utility' ? 'support' : pos);
+
+function draftPickPool(state) {
+  const pool = comparePoolPicks(state, currentQueueId, game, data, pickPools);
+  if (!pool || !state.banPhase || !state.myBanTurn) return pool;
+  const bans = poolBans(state, pool, game, baseData, settings.stats ? stats.analyses : {});
+  if (pool.cards.length === 2 && !bans.blocked) {
+    for (const card of pool.cards) requestAnalysis(card.alias, dataRole(pool.role), 'classic');
+  }
+  return { ...pool, bans };
+}
 
 // Które analizy są potrzebne teraz: Twój champion, widoczni przeciwnicy, aktualne sugestie.
 function requestNeeded(state, picks) {
@@ -557,7 +568,7 @@ function buildLoadingView() {
       currentQueueId, game, data, botDraft),
     gamePlan: teamPlan,
     mode: currentMode,
-    final: finalWithEnemies(me),
+    final: finalWithEnemies(me,plan),
     allies: loading.allies.map(card),
     enemies,
     statsEnabled: settings.stats,
@@ -586,7 +597,7 @@ function loadingSelectState(me) {
     liveEnemies:loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)<6000 ? loading.liveSnapshot?.enemies : null,
     mayhemKey:session?.key, mayhemPool:currentMayhemPool };
 }
-function finalWithEnemies(me) {
+function finalWithEnemies(me,lane) {
   const s = loadingSelectState(me);
   if (!s) return lastFinal;
   const alias = game.championsById.get(me.championId)?.alias;
@@ -635,17 +646,19 @@ function finalWithEnemies(me) {
         inventory:liveStatus==='live'?loading.liveSnapshot?.inventory:null,
         gold:liveStatus==='live'?loading.liveSnapshot?.gold:null};
       build.mayhem.quests=questProgress(costs,mayhemSession.value.questReceipts);
-      const offer=loading.visionOffer;
-      const partial=loading.partialOffer;
-      if(partial?.stable&&!partial.filled&&Date.now()-partial.at<30000){
-        build.mayhem.partialOffer={token:partial.token,cards:partial.cards.map(c=>{
+      const display=loading.offerDisplay;
+      const current=display?.current;
+      const visible=current && Date.now()-current.at<augmentOffers.OFFER_HOLD_MS;
+      const offer=visible && display.cards && {ids:display.cards.map(c=>c.id)};
+      if(visible&&!offer){
+        build.mayhem.partialOffer={token:current.token,held:current.held,cards:current.cards.map(c=>{
           const card=visionCatalog.find(a=>a.id===c.id);
           return card?{id:card.id,name:card.name,english:card.english}:null;
         })};
       }
       const recovery=loading.visionMissed && recoverableOffer();
       if(recovery)build.mayhem.missedOffer={token:recovery.id,cards:recovery.cards.map(({id,name,english})=>({id,name,english}))};
-      if(offer&&Date.now()-offer.at<30000){
+      if(offer){
         const enemy=engine.teamProfile(s.enemies.filter(e=>e.championId).map(e=>engine.champInfo(game.championsById.get(e.championId)?.alias,game,data)));
         const champion=engine.champInfo(alias,game,data);
         const comparison=compareAugments(offer.ids,{champion,selection:s.mayhem,build,game,pool:s.mayhemPool,enemy});
@@ -660,7 +673,7 @@ function finalWithEnemies(me) {
           } else offerSnapshot=loading.offerPreview.snapshot;
         }
         if(comparison)for(const card of comparison.cards)card.activation=activationFor(card,{...costs,enemy,champion,offerSnapshot});
-        build.mayhem.comparison=comparison?{...comparison,paused:!augmentClicks.active()}:null;
+        build.mayhem.comparison=comparison?{...comparison,held:current.held,paused:!augmentClicks.active()}:null;
       }
     }
     const insightContext={key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,status:liveStatus,
@@ -675,7 +688,8 @@ function finalWithEnemies(me) {
       replayReport:()=>createReport(withChoices(alias,s),build,game,{
         version:app.getVersion(),patch:patchOf(game.provenance?.version),gold:build.shop?.gold
       }),
-      gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid)});
+      gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid),
+      shopGame:Number(currentQueueId)===420 && currentMode==='classic' && loading.gameId ? game : null,lane});
     return { myChampion: { ...champView(me.championId,me.skinId), locked:true, runes:runesFor(alias,s) }, build };
   } catch (err) { log(`build na ekranie ładowania: ${err.message}`); return lastFinal; }
 }
@@ -689,12 +703,13 @@ function buildView(session, gameId) {
   const aram = isAram(state.mode);
   // Na ARAM-ie nie ma wyboru z całej puli: zamiast sugestii ranking championów z ławki.
   const picks = aram ? { list: [], blind: false, laneOpponent: null } : engine.suggestPicks(state, game, data);
+  const pickPool = draftPickPool(state);
   requestNeeded(state, picks);
   const view = {
     status: 'champselect',
     mode: state.mode,
     botPlan: botLanePlan(state, currentQueueId, game, data),
-    pickPool: comparePoolPicks(state, currentQueueId, game, data, pickPools),
+    pickPool,
     laneVariants: laneVariantOptions(state,currentQueueId,game,data),
     aramChoices: aram ? engine.aramChoices(state, game, data).map((c) => ({ ...c, icon: champView(c.championId).icon })) : [],
     phase: state.phase,
@@ -1055,7 +1070,7 @@ ipcMain.handle('get-pick-pools', wrap(() => {
 ipcMain.handle('edit-pick-pool', wrap(input => {
   pickPools.edit(input, game || offlineGame);
   if (lastState?.status === 'champselect' && lastSelectState && game)
-    send({ ...lastState, pickPool: comparePoolPicks(lastSelectState, currentQueueId, game, data, pickPools) });
+    send({ ...lastState, pickPool: draftPickPool(lastSelectState) });
   return { ok: true, roles: pickPools.roles };
 }));
 let buildReportDraft = null;
@@ -1108,6 +1123,7 @@ async function noteAccount() {
   return owner;
 }
 ipcMain.handle('replay-bookmarks',wrap(async key=>({ok:true,...matchReview.bookmarks(key,await noteAccount())})));
+ipcMain.handle('first-shop-review',wrap(async key=>({ok:true,trip:matchReview.firstShopReview(key,await noteAccount())})));
 ipcMain.handle('edit-replay-bookmark',wrap(async input=>({ok:true,
   mark:matchReview.editBookmark(input?.key,await noteAccount(),input?.time,input?.text)})));
 ipcMain.handle('matchup-notes',wrap(async key => ({ok:true,
@@ -1211,18 +1227,6 @@ ipcMain.handle('undo-augment-recognition',wrap(input=>choiceWrites(async()=>{
   loading.visionMissed=false;offerTracker.reset();visionConsensus.reset();loadingDirty=true;visionStatus('undone');
   return {ok:true};
 })));
-function updateVisionOffer(value,invalidatedAt){
-  if(!loading)return;
-  if(invalidatedAt)loading.visionOfferAfter=invalidatedAt;
-  if(value&&value.at<=(loading.visionOfferAfter||0))return;
-  if(JSON.stringify(loading.visionOffer?.ids||null)!==JSON.stringify(value?.ids||null))loadingDirty=true;
-  loading.visionOffer=value;
-}
-function setPartialOffer(value){
-  const old=loading.partialOffer;
-  if(old?.token!==value?.token || old?.stable!==value?.stable || old?.filled!==value?.filled)loadingDirty=true;
-  loading.partialOffer=value;
-}
 function recoverableOffer(){
   const last=matchReview.value.active?.offers?.at(-1);
   return last && last.id===loading?.recoveryOffer && last.id===loading.historyFrame?.recordId
@@ -1276,16 +1280,15 @@ ipcMain.handle('edit-live-offer',wrap(input=>choiceWrites(()=>{
   const state=mayhemContext(input.matchKey);
   if(!visionConfig?.enabled || visionConfig.mode!=='auto')throw Error('Włącz automatyczny odczyt kart.');
   if(input.action==='fill'){
-    const p=loading.partialOffer;
-    if(!p?.stable || p.token!==input.token || p.filled || Date.now()-p.at>=30000)
+    const p=loading.offerDisplay?.current;
+    if(!p || loading.offerDisplay.cards || p.token!==input.token || p.held || Date.now()-p.at>=augmentOffers.OFFER_HOLD_MS)
       throw Error('Oferta uległa zmianie. Otwórz aktualne karty.');
     const ids=p.cards.map(c=>c.id||input.id);
     if(!offerHistory.validOffer(ids,state.mayhemPool))throw Error('Wybierz inną kartę z puli tego meczu.');
     const frame=rememberOfferFrame(ids,p.at,state);
     frame.rects=p.cards.map(c=>c.rect);frame.visible=true;frame.aspect=p.aspect;
     saveOfferFrame(frame);
-    setPartialOffer({...p,filled:input.id});
-    updateVisionOffer({ids,at:p.at});
+    p.filled=input.id;
     loading.visionMissed=false;
   }else if(input.action==='confirm'){
     const offer=loading.visionMissed&&recoverableOffer();
@@ -1298,7 +1301,7 @@ ipcMain.handle('edit-live-offer',wrap(input=>choiceWrites(()=>{
       game,state.mayhemPool,{token:receipt,at:Date.now()});
     mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots,screenHistory:next.screenHistory,screenIgnored});
     saveOfferFrame(loading.historyFrame,input.id,receipt,'confirmed');
-    offerTracker.reset();loading.visionMissed=false;setPartialOffer(null);updateVisionOffer(null,Date.now());
+    offerTracker.reset();loading.visionMissed=false;loading.offerDisplay?.clear(Date.now());
   }else throw Error('Nieznana operacja na kartach.');
   loadingDirty=true;visionStatus(input.action==='fill'?'offers':'detected');
   return {ok:true};
@@ -1330,28 +1333,53 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   if(!source)throw Error('Nie mogę odczytać okna gry. Użyj trybu okna bez ramek.');
   visionToken=crypto.randomUUID();visionLastFrame=0;visionConsensus.reset();headlinerConsensus.reset();
   offerTracker.reset();
+  const display=loading.offerDisplay ||= new augmentOffers.OfferDisplay();
   if(visionConfig?.mode==='auto')augmentClicks.start(handle,event=>{
+    if(loading?.offerDisplay!==display)return;
+    // The watcher emits focus heartbeats every 250 ms. A heartbeat must not
+    // invalidate the new card geometry just verified under Ctrl+X.
+    if(event.type==='focus'&&!event.focused&&offerTracker.paused)return;
     offerHistory.rerollInput(loading?.historyFrame,event);
-    if(loading && (event.type==='down'||event.type==='cancel'))setPartialOffer(null);
-    if(loading && (loading.historyFrame?.reroll || event.type==='cancel')){loading.recoveryOffer=null;loading.visionMissed=false;}
-    if(loading&&event.type==='focus'&&!event.focused&&offerTracker.hasChoiceInput())loading.visionMissed=true;
+    if(event.type==='down'){
+      const visible=display.current||display.candidate;
+      const slot=visible && event.at>=visible.at && event.at-visible.at<augmentOffers.OFFER_HOLD_MS
+        ?offerHistory.rerollSlot(visible.cards.map(c=>c.rect),event,visible.aspect):-1;
+      if(slot>=0){
+        display.invalidateReroll(slot,event.at);
+        offerTracker.reset();loading.offerWasOnScreen=false;loading.recoveryOffer=null;loading.visionMissed=false;loadingDirty=true;
+      }
+    }
+    if(event.type==='cancel'){
+      if(event.sourceEnded)display.hold(event.at);
+      else{display.clear(event.at);loading.recoveryOffer=null;loading.offerWasOnScreen=false;loading.visionMissed=false;}
+      loadingDirty=true;
+    }
+    if(event.type==='focus'&&!event.focused){
+      if(offerTracker.hasChoiceInput())loading.visionMissed=true;
+      headlinerConsensus.reset();loadingDirty=true;
+    }
     offerTracker.input(event);
-    if(event.type==='down'||event.type==='cancel')updateVisionOffer(null,event.at);
-    if(event.type==='focus'&&!event.focused){headlinerConsensus.reset();visionStatus('paused');}
+    if(event.type==='focus'&&!event.focused && !display.current)visionStatus('paused');
     else if(loadingDirty)visionStatus(loading?.visionStatus||'scanning');
   });
   win.webContents.setBackgroundThrottling(false);
   return {ok:true,sourceId:source.id,token:visionToken,pool:state.mayhemPool};
 }));
-function stopVisionWorkers(){
-  offerHistory.rerollInput(loading?.historyFrame,{type:'cancel'});
-  updateVisionOffer(null);
-  if(loading){setPartialOffer(null);loading.recoveryOffer=null;}
+function stopVisionWorkers(keepDisplay=false){
+  if(keepDisplay===true){
+    const display=loading?.offerDisplay,key=display?.uiKey;
+    display?.hold(Date.now());
+    if(display?.uiKey!==key)loadingDirty=true;
+  }else if(loading){
+    offerHistory.rerollInput(loading.historyFrame,{type:'cancel'});
+    loading.offerDisplay?.clear();loading.recoveryOffer=null;loading.offerWasOnScreen=false;loading.visionMissed=false;
+  }
   visionToken='';visionConsensus.reset();headlinerConsensus.reset();
   windowsOcr.stop();augmentClicks.stop();offerTracker.reset();
   if(win&&!win.isDestroyed())win.webContents.setBackgroundThrottling(true);
 }
-ipcMain.handle('stop-augment-capture',stopVisionWorkers);
+ipcMain.handle('stop-augment-capture',(_event,retryMatch)=>stopVisionWorkers(
+  !!retryMatch && retryMatch===lastState?.final?.build?.mayhem?.matchKey && visionConfig?.enabled && visionConfig.mode==='auto'));
 ipcMain.handle('set-augment-screen',wrap(input=>choiceWrites(async()=>{
   const state=mayhemContext(input?.matchKey);
   const config=augmentVision.validateConfig(input.config);
@@ -1412,106 +1440,64 @@ ipcMain.handle('augment-screen-frame',wrap(async input=>{
   });
 }));
 async function readAutomaticAugment(input,state){
-  if(loading?.visionOffer&&Date.now()-loading.visionOffer.at>=30000)updateVisionOffer(null);
-  if(loading.partialOffer && Date.now()-loading.partialOffer.at>=30000)setPartialOffer(null);
-  if(!augmentClicks.child)return {ok:false,error:'Ponawiam odczyt okna gry.'};
+  const display=loading.offerDisplay;
+  if(!augmentClicks.child || !display)return {ok:false,error:'Ponawiam odczyt okna gry.'};
   const active=augmentClicks.active();
   if(!active&&!offerTracker.paused)offerTracker.input({type:'focus',focused:false,at:Date.now()});
   const focusedAtCapture=active&&input.at>=offerTracker.resumedAt;
-  if(!focusedAtCapture&&!loading.visionOffer&&!loading.partialOffer?.stable){headlinerConsensus.reset();visionStatus('paused');return {ok:true};}
   const grid=augmentOffers.readGrid(input.grid);
   loading.visionDiagnostics={...(loading.visionDiagnostics||{}),width:input.width,height:input.height,
     frame:input.frame,frameValid:!!grid?.valid,receivedAt:Date.now()};
+  function unavailable(status){
+    const key=display.uiKey;
+    display.hold(Date.now());
+    if(key!==display.uiKey)loadingDirty=true;
+    offerTracker.reset();headlinerConsensus.reset();visionStatus(status);
+    return {ok:true};
+  }
   if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
-    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid){
-    if(!focusedAtCapture){offerTracker.preview(null,null,input.at);visionStatus('paused');return {ok:true};}
-    offerTracker.reset();headlinerConsensus.reset();setPartialOffer(null);updateVisionOffer(null);visionStatus('unreadable-frame');return {ok:true};}
+    ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid)return unavailable('unreadable-frame');
   const started=Date.now(),result=await windowsOcr.read(input.png),readMs=Date.now()-started;
   return choiceWrites(async()=>{
-    mayhemContext(input.matchKey);
+    const currentState=mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
-    // Losing focus invalidates an unfinished gesture, including OCR results that
-    // return after a focus change. The last verified offer remains visible.
-    if(input.at<=offerTracker.cancelledAt)return {ok:true};
-    const focusedNow=augmentClicks.active();
-    if(!focusedAtCapture&&focusedNow)return {ok:true};
-    if(focusedAtCapture&&!focusedNow){visionStatus('paused');return {ok:true};}
-    const detected=result?.layouts&&augmentOffers.detectOffer({...result,crop:augmentVision.offerCrop(input.width,input.height)},grid,visionCatalog,state.mayhemPool);
-    if(!focusedNow){
-      const ids=loading.visionOffer?.ids;
-      const previous=loading.partialOffer;
-      if(previous && detected){
-        const refreshed=augmentOffers.observePartial(previous,detected.partial,input.at,30000);
-        if(refreshed?.stable){
-          setPartialOffer(refreshed);
-          if(refreshed.filled&&ids)loading.visionOffer.at=input.at;
-        }else if(detected.cards && detected.cards.every((c,i)=>!previous.cards[i].id || c.id===previous.cards[i].id)){
-          // Finish the already confirmed partial offer while Ctrl+X has focus.
-          const full=detected.cards.map(c=>c.id);
-          const frame=rememberOfferFrame(full,input.at,state,previous);
-          frame.rects=detected.cards.map(c=>c.rect);frame.aspect=input.width/input.height;frame.visible=true;
-          if(!previous.full || !offerHistory.sameCards(previous.full,full))setPartialOffer({...previous,full});
-          else {saveOfferFrame(frame);setPartialOffer(null);updateVisionOffer({ids:full,at:input.at});}
-        }else if(detected.partial||detected.cards){setPartialOffer(null);updateVisionOffer(null);loading.recoveryOffer=null;}
-        else if(augmentOffers.oldCardsVisible(grid,previous.cards)){previous.absent=0;previous.full=null;}
-        else{
-          previous.full=null;
-          previous.absent=(previous.absent||0)+1;
-          if(previous.absent>=2){
-            setPartialOffer(null);updateVisionOffer(null);
-            if(ids&&recoverableOffer()){loading.visionMissed=true;loading.offerWasOnScreen=false;}
-          }
-        }
-      }
-      const visible=detected?.cards && detected.cards.map(c=>c.id);
-      if(offerTracker.preview(detected?.cards,loading.visionOffer?.ids,input.at))loading.visionOffer.at=input.at;
-      else if(visible&&ids&&!offerHistory.sameCards(visible,ids)&&!previous){updateVisionOffer(null);loading.recoveryOffer=null;}
-      else if(!previous && detected && !detected.partial && !visible && ids && recoverableOffer()
-        && !augmentOffers.oldCardsVisible(grid,loading.historyFrame.rects.map(rect=>({rect})))){
-        loading.visionMissed=true;loadingDirty=true;loading.historyFrame.visible=false;setPartialOffer(null);updateVisionOffer(null);
-      }
-      visionStatus('paused');
-      return {ok:true};
-    }
-    if(!result?.layouts){offerTracker.reset();headlinerConsensus.reset();setPartialOffer(null);updateVisionOffer(null);visionStatus(result?.error==='language'?'language':'ocr-error');return {ok:true};}
+    // Reject pre-reroll pixels everywhere, including the offer history and the click tracker.
+    if(input.at<=display.after)return {ok:true};
+    if(!result?.layouts)return unavailable(result?.error==='language'?'language':'ocr-error');
     noteVisionRead();
-    if(automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
+    const focusedNow=augmentClicks.active();
+    const canTrack=focusedAtCapture && focusedNow && input.at>offerTracker.cancelledAt && input.at>=offerTracker.resumedAt;
+    if(canTrack && automaticHeadliner(mayhemSession.value)&&!mayhemSession.value.selection.headliner){
       const headliner=headlinerConsensus.observe(`${state.mayhemKey}:${visionToken}:${visionRevision}`,result,input.at);
       const patch=headliner&&applyHeadliner(mayhemSession.value,headliner);
       if(patch){mayhemSession.patch(state.mayhemKey,patch);loadingDirty=true;}
     }
+    const detected=augmentOffers.detectOffer({...result,crop:augmentVision.offerCrop(input.width,input.height)},grid,visionCatalog,state.mayhemPool);
+    const cards=detected.cards||detected.partial;
     loading.visionDiagnostics={...loading.visionDiagnostics,readMs,
       titles:detected.candidates.length,cards:detected.cards?.length||0,
       recognizedIds:detected.candidates.map(c=>c.id)};
-    const previousOffer=offerTracker.offer;
+    if(display.waitingForReroll(cards,input.at)){visionStatus('rerolling');return {ok:true};}
+    const prior=display.current,uiKey=display.uiKey,aspect=input.width/input.height;
     const gesture=offerTracker.pending?.cards;
-    const id=offerTracker.observe({...detected,grid,at:input.at,aspect:input.width/input.height,active:true,readMs});
-    const previousPartial=loading.partialOffer;
-    if(input.at>(loading.visionOfferAfter||0)){
-      const partial=augmentOffers.observePartial(loading.partialOffer,detected.partial,input.at,offerTracker.freshness);
-      if(partial)partial.aspect=input.width/input.height;
-      setPartialOffer(partial);
-      if((detected.partial||detected.cards)?.some((c,i)=>c.id&&c.id!==loading.historyFrame?.ids?.[i])){
-        loading.recoveryOffer=null;loading.visionMissed=false;
-      }
+    const id=canTrack?offerTracker.observe({...detected,grid,at:input.at,aspect,active:true,readMs}):null;
+    display.observe(cards,input.at,aspect,grid);
+    if(display.uiKey!==uiKey)loadingDirty=true;
+    if(!focusedNow)offerTracker.preview(detected.cards,display.cards?.map(c=>c.id),input.at);
+    if(cards?.some((c,i)=>c.id&&c.id!==loading.historyFrame?.ids?.[i])){
+      loading.recoveryOffer=null;loading.visionMissed=false;
     }
     if(detected.cards){
-      const current=mayhemContext(input.matchKey);
-      const frame=rememberOfferFrame(detected.cards.map(c=>c.id),input.at,current,previousPartial);
-      if (frame) {
-        frame.rects=detected.cards.map(c=>c.rect);
-        frame.visible=input.at>(loading.visionOfferAfter||0);
-        frame.aspect=input.width/input.height;
+      const frame=rememberOfferFrame(detected.cards.map(c=>c.id),input.at,currentState,prior);
+      if(frame){
+        frame.rects=detected.cards.map(c=>c.rect);frame.aspect=aspect;frame.visible=true;
+        if(display.current && !display.current.held && display.cards)saveOfferFrame(frame);
       }
-      if(offerTracker.streak>=2)saveOfferFrame(frame);
-    } else if (loading.historyFrame) loading.historyFrame.visible=!!loading.partialOffer?.filled;
-    if(detected.cards||detected.partial||id)loading.visionMissed=false;
-    else if(!offerTracker.pending&&!offerTracker.down && (previousOffer&&!augmentOffers.oldCardsVisible(grid,previousOffer)
-      ||loading.offerWasOnScreen&&recoverableOffer()&&!augmentOffers.oldCardsVisible(grid,loading.historyFrame.rects.map(rect=>({rect}))))){
-        loading.visionMissed=true;loading.offerWasOnScreen=false;
-      }
-    const publish=detected.cards&&offerTracker.streak>=2?detected.cards:augmentOffers.filledCards(loading.partialOffer);
-    updateVisionOffer(publish?{ids:publish.map(c=>c.id),at:input.at}:null);
+    }else if(loading.historyFrame)loading.historyFrame.visible=!!display.current?.filled && !display.current.held;
+    if(cards||id)loading.visionMissed=false;
+    else if(!display.current && !offerTracker.pending && !offerTracker.down && loading.offerWasOnScreen && recoverableOffer()){
+      loading.visionMissed=true;loading.offerWasOnScreen=false;loadingDirty=true;
+    }
     let saved=false;
     if(id){
       try{
@@ -1525,9 +1511,13 @@ async function readAutomaticAugment(input,state){
         if(next.selection.augments.includes(id) && offerHistory.sameCards(gesture?.map(c=>c.id),loading.historyFrame?.ids)) {
           saveOfferFrame(loading.historyFrame,id,receipt);
         }
+        display.clear(input.at);loading.visionMissed=false;loading.offerWasOnScreen=false;loadingDirty=true;
       }catch{visionStatus('conflict');return {ok:true};}
     }
-    visionStatus(saved?'detected':offerTracker.pending?'confirming':publish?'offers':detected.cards?'reading-offers':loading.partialOffer?.stable?'partial-offer':loading.visionMissed?'missed':detected.candidates.length?'partial':'scanning');
+    const status=saved?'detected':offerTracker.pending?'confirming':display.current?.held?'held-offer':
+      display.cards?'offers':display.current?'partial-offer':detected.cards?'reading-offers':
+      loading.visionMissed?'missed':display.reroll?'rerolling':detected.candidates.length?'partial':focusedNow?'scanning':'paused';
+    visionStatus(status);
     if(loadingDirty){loadingDirty=false;send(buildLoadingView());}
     return {ok:true};
   });

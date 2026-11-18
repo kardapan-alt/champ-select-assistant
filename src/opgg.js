@@ -891,6 +891,7 @@ function mergeStats(base, { meta, analyses = {} } = {}, game) {
 }
 
 module.exports = {
+  COUNTER_EDGE, MIN_GAMES,
   interpretSummoner,
   OpggProvider, McpClient, mergeStats, interpretAnalysis, interpretMeta, parsePayload, parseRepr, buildArgs, parseRpcResponse,
 };

@@ -1,14 +1,15 @@
 const clone=value=>JSON.parse(JSON.stringify(value));
 // Bookmark notes have a separate account-checked IPC entry point.
 function publicReview(match) {
-  const {bookmarks,...summary}=match;
+  const {bookmarks,firstShop,...summary}=match;
   return clone(summary);
 }
 const counts=items=>{const out={};for(const i of items||[])out[i.id]=(out[i.id]||0)+(i.count||1);return out;};
 const item=i=>({id:i.id,name:i.name,icon:i.icon||'',count:i.count||1});
 const {rememberReplay}=require('./replay-checks');
+const {FirstShopTracker}=require('./first-shop');
 class MatchReview {
-  constructor(value={},save=()=>{}){this.value=value&&Array.isArray(value.matches)?value:{matches:[],active:null};this.save=save;}
+  constructor(value={},save=()=>{}){this.value=value&&Array.isArray(value.matches)?value:{matches:[],active:null};this.save=save;this.shopTracker=new FirstShopTracker();}
   persist(){this.save(clone(this.value));}
   ensureActive({key,alias,name,mode,gameId,championId,owner}, time=null){
     if(!key||this.value.matches.some(m=>m.key===key))return null;
@@ -18,13 +19,14 @@ class MatchReview {
     }
     return this.value.active;
   }
-  observe({key,alias,name,mode,snapshot,build,gameId,championId,owner,compareAugment,replayReport}){
+  observe({key,alias,name,mode,snapshot,build,gameId,championId,owner,compareAugment,replayReport,shopGame,lane}){
     if(!key||snapshot?.status!=='live'||!snapshot.inventory||!Number.isFinite(snapshot.gameTime))return;
     const a=this.ensureActive({key,alias,name,mode,gameId,championId,owner},snapshot.gameTime);
     if(!a)return;
     if(a.firstRead==null)a.firstRead=snapshot.gameTime;
     const time=Math.floor(snapshot.gameTime);
     if(time<a.duration)return; // Delayed snapshots cannot rewrite the timeline.
+    const shopChanged=shopGame && mode==='classic' && owner && a.owner===owner && this.shopTracker.observe(a,snapshot,build,shopGame,lane);
     const events=[],before=counts(a.items),after=counts(snapshot.inventory.items);
     const added=snapshot.inventory.items.filter((i,n,list)=>list.findIndex(x=>x.id===i.id)===n&&after[i.id]>(before[i.id]||0)).map(i=>({...item(i),count:after[i.id]-(before[i.id]||0)}));
     const removed=a.items.filter((i,n,list)=>list.findIndex(x=>x.id===i.id)===n&&before[i.id]>(after[i.id]||0)).map(i=>({...item(i),count:before[i.id]-(after[i.id]||0)}));
@@ -49,7 +51,7 @@ class MatchReview {
     const target=build.shop?.target?{id:build.shop.target.id,name:build.shop.target.name,why:build.shop.target.why}:null;
     if(JSON.stringify(target)!==JSON.stringify(a.target||null))events.push({type:'plan',time,target});
     const hasOutcome=require('./match-result').gameId(a.gameId)&&['win','loss'].includes(snapshot.outcome)&&!a.outcome;
-    const dirty=events.length||time-a.duration>=15||a.gap||hasOutcome;
+    const dirty=events.length||time-a.duration>=15||a.gap||hasOutcome||shopChanged;
     if(!dirty)return;
     if (events.length || !a.replays?.first) rememberReplay(a,time,build,replayReport);
     if(a.gap){events.unshift({type:'gap',time});a.gap=false;}
@@ -59,9 +61,10 @@ class MatchReview {
     if(hasOutcome)a.outcome={result:snapshot.outcome,source:'live',gameId:String(a.gameId),detectedAt:Date.now()};
     this.persist();
   }
-  gap(){if(this.value.active&&!this.value.active.gap){this.value.active.gap=true;this.persist();}}
+  gap(){if(this.value.active&&!this.value.active.gap){this.shopTracker.gap(this.value.active);this.value.active.gap=true;this.persist();}}
   finish(reason='ended'){
     const a=this.value.active;if(!a)return;
+    if(a.firstShop?.collecting)this.shopTracker.gap(a);
     require('./training').rememberTraining(this.value,a);
     for (const offer of a.offers || []) {
       const picked=offer.cards.find(c=>c.id===offer.picked);
@@ -91,6 +94,11 @@ class MatchReview {
     const match=this.value.matches.find(m=>m.key===key && m.owner===owner && m.mode==='classic');
     if (!match || !owner) return {marks:[],canCopy:false};
     return {marks:clone(match.bookmarks || []),canCopy:!!match.noteContexts?.length};
+  }
+  firstShopReview(key,owner) {
+    const match=this.value.matches.find(m=>m.key===key && m.owner===owner && m.mode==='classic');
+    if (!owner || !match) return null;
+    return match.firstShop ? clone(match.firstShop) : match.training || match.noteContexts ? {status:'unavailable'} : null;
   }
   editBookmark(key,owner,time,text){
     const m=this.value.matches.find(m=>m.key===key && m.owner===owner && m.mode==='classic');

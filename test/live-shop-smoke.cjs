@@ -177,6 +177,12 @@ server.once('listening',async()=>{
     const set=await evaluate(`(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({matchKey:c.matchKey,selection:{...c.selection,augments:${JSON.stringify(augmentIds)}},autoInventory:true,knownScreenAugments:c.screenAugments,screenUndoRevision:c.screenUndoRevision});})()`);
     assert.ok(set.ok);assert.equal((await state()).final.build.mayhem.hints.length,6);assert.ok((await state()).final.build.mayhem.synergies.length);
     assert.equal((await state()).final.build.readout.screen.count,6);assert.equal((await state()).final.build.readout.headliner.source,'manual');
+    await evaluate('window.assist.setViewMode(true)');
+    await waitFor(()=>evaluate("document.querySelectorAll('.compact-content [data-picked-augment]').length===6"),'Zapisane augmenty zniknęły z kompaktu po zamknięciu oferty');
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('[data-picked-augment]')].map(el=>Number(el.dataset.pickedAugment))"),augmentIds);
+    assert.ok(await evaluate("!document.querySelector('[data-offer-id]') && !document.querySelector('[data-augment-undo]')"));
+    await evaluate('window.assist.setViewMode(false)');
+    await waitFor(()=>evaluate('!document.body.classList.contains("compact-mode")'),'Brak pełnego widoku po odczycie augmentów');
     // Restore the starting build for existing recipe assertions.
     await evaluate(`(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({matchKey:c.matchKey,selection:{...c.selection,augments:[]},autoInventory:true,knownScreenAugments:c.screenAugments,screenUndoRevision:c.screenUndoRevision});})()`);
     for(const [width,height] of [[1100,760],[820,640]]){
@@ -184,7 +190,8 @@ server.once('listening',async()=>{
       await evaluate('window.scrollTo(0,0);document.getElementById("toast").hidden=true;void 0');
       assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'),'Overflow poziomy');
       assert.ok(await evaluate('document.querySelector(".live-shop").getBoundingClientRect().bottom<innerHeight'),'Kup teraz poza ekranem');
-      assert.ok(await evaluate('document.querySelector(".inventory-items").getBoundingClientRect().bottom<innerHeight'),'Build poza ekranem');
+      const viewport=await evaluate('({bottom:Math.ceil(document.querySelector(".inventory-items").getBoundingClientRect().bottom),w:innerWidth,h:innerHeight})');
+      assert.ok(viewport.bottom<viewport.h,`Build poza ekranem ${viewport.w}×${viewport.h}, dolna krawędź ${viewport.bottom}`);
       fs.writeFileSync(path.join(out,`shop-${width}.png`),(await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true})).toPNG());
     }
     gold=2200;

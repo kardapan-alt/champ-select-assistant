@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {detectOffer,readGrid,OfferTracker,oldCardsVisible,observePartial,filledCards}=require('../src/augment-offers');
+const {detectOffer,readGrid,OfferTracker,OfferDisplay,oldCardsVisible,observePartial,filledCards}=require('../src/augment-offers');
 const {migrateConfig}=require('../src/augment-vision');
 const catalog=require('../data/mayhem-augments.json').augments;
 const names=['Apex Inventor','Back To Basics','Ice Cold'];
@@ -61,6 +61,38 @@ function trackerFixture(){
   const input=(type,at,x=195,y=160)=>t.input({type,at,x,y,width:640,height:360});
   return {t,cards,grid,observe,input};
 }
+test('porównanie przetrzymuje lukę w OCR, wygasa i usuwa ofertę po dwóch klatkach bez ramek',()=>{
+  const display=new OfferDisplay(),{cards,grid}=trackerFixture();
+  const frame=(at,offer,g=grid)=>display.observe(offer,at,16/9,g);
+  frame(1000,cards);frame(1900,cards);
+  assert.deepEqual(display.cards.map(c=>c.id),ids);
+  const token=display.current.token;
+  frame(2600,null,cleanGrid());
+  assert.equal(display.current.held,true);
+  frame(3500,cards);
+  assert.equal(display.current.token,token);assert.equal(display.current.held,false);
+  display.hold(7800);
+  assert.equal(display.current.held,true);
+  display.hold(11600);
+  assert.equal(display.current,null);
+  frame(12000,cards);frame(13000,cards);frame(13700,null,cleanGrid());frame(14400,null,cleanGrid());
+  assert.equal(display.current,null);
+});
+test('dwa przerzuty nie publikują starych wyników i dopuszczają nieczytelny tytuł we właściwym miejscu',()=>{
+  const display=new OfferDisplay(),{cards,grid}=trackerFixture();
+  const frame=(at,set)=>{if(!display.waitingForReroll(set,at))display.observe(set,at,16/9,grid);};
+  frame(1000,cards);frame(1800,cards);display.invalidateReroll(1,2000);
+  frame(1900,cards);frame(2200,cards);
+  assert.equal(display.current,null);
+  const changed=cards.map((c,i)=>i===1?{...c,id:3150}:c);
+  frame(2700,changed);frame(3700,changed);
+  assert.equal(display.cards[1].id,3150);
+  display.invalidateReroll(2,4000);
+  const partial=changed.map((c,i)=>i===2?{...c,id:null}:c);
+  frame(4400,partial);frame(5400,partial);
+  assert.equal(display.cards,null);
+  assert.deepEqual(display.current.cards.map(c=>c.id),[ids[0],3150,null]);
+});
 test('test ze zrzutu zwraca trzy wycinki, rzeczywisty tekst OCR i wynik detektora gry',async()=>{
   const {testOfferScreenshot}=require('../src/augment-screenshot');
   async function check(titles,frameWidth,pool='KIWI',entries=catalog){

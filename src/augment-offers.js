@@ -138,6 +138,63 @@ function observePartial(previous,cards,at,freshness){
 function filledCards(partial){
   return partial?.stable && partial.filled ? partial.cards.map(c=>c.id?c:{...c,id:partial.filled}) : null;
 }
+// A readable game window can offer new cards while Ctrl+X has keyboard focus.
+// This state drives presentation only. Click validation uses OfferTracker.
+const OFFER_HOLD_MS=8000;
+class OfferDisplay {
+  constructor(){this.after=0;this.clear();}
+  clear(at=0){
+    this.after=Math.max(this.after,at);
+    this.current=null;this.candidate=null;this.absent=0;this.reroll=null;
+  }
+  invalidateReroll(slot,at){
+    const old=this.current || this.candidate;
+    this.clear(at);
+    if(old?.cards[slot]?.id)this.reroll={slot,id:old.cards[slot].id,at};
+  }
+  waitingForReroll(cards,at){
+    const r=this.reroll;
+    if(!r)return false;
+    if(at-r.at<5000 && cards?.[r.slot]?.id===r.id)return true;
+    if(cards?.[r.slot]?.id || at-r.at>=5000)this.reroll=null;
+    return false;
+  }
+  hold(at){
+    if(this.current){
+      if(at-this.current.at>=OFFER_HOLD_MS)this.current=null;
+      else this.current.held=true;
+    }
+  }
+  observe(cards,at,aspect,grid){
+    if(at<=this.after)return;
+    this.hold(at);
+    if(!cards){
+      if(this.current && grid?.valid){
+        this.absent=oldCardsVisible(grid,this.current.cards)?0:this.absent+1;
+        if(this.absent>=2){this.clear(at);return;}
+      }
+      if(this.candidate && (at-this.candidate.at>=OFFER_HOLD_MS ||
+        !this.current && grid?.valid && !oldCardsVisible(grid,this.candidate.cards)))this.candidate=null;
+      return;
+    }
+    this.absent=0;
+    if(this.current && cards.some((card,i)=>card.id && this.current.cards[i].id && card.id!==this.current.cards[i].id))this.current=null;
+    const next=observePartial(this.candidate,cards,at,OFFER_HOLD_MS);
+    next.aspect=aspect;this.candidate=next;
+    if(next.stable){
+      if(this.current?.token===next.token)next.filled=this.current.filled;
+      this.current=Object.assign(next,{held:false});
+    }
+  }
+  get cards(){
+    const current=this.current;
+    return current?.cards.every(c=>c.id)?current.cards:filledCards(current);
+  }
+  get uiKey(){
+    const c=this.current;
+    return c?[c.token,c.held,c.filled].join(':'):'';
+  }
+}
 function oldCardsVisible(grid,cards){
   return cards.some(({rect:r})=>{
     const top=(r.y+r.h*.1)*grid.height,bottom=(r.y+r.h*.9)*grid.height;
@@ -222,4 +279,4 @@ class OfferTracker {
     this.at=at;this.offer=null;this.streak=0;return null;
   }
 }
-module.exports={titleCandidates,readGrid,detectOffer,cardBounds,oldCardsVisible,observePartial,filledCards,OfferTracker};
+module.exports={titleCandidates,readGrid,detectOffer,cardBounds,oldCardsVisible,observePartial,filledCards,OfferTracker,OfferDisplay,OFFER_HOLD_MS};
