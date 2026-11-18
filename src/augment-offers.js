@@ -160,6 +160,7 @@ class OfferDisplay {
     return false;
   }
   hold(at){
+    if(this.candidate)this.candidate.fresh=false;
     if(this.current){
       if(at-this.current.at>=OFFER_HOLD_MS)this.current=null;
       else this.current.held=true;
@@ -180,7 +181,7 @@ class OfferDisplay {
     this.absent=0;
     if(this.current && cards.some((card,i)=>card.id && this.current.cards[i].id && card.id!==this.current.cards[i].id))this.current=null;
     const next=observePartial(this.candidate,cards,at,OFFER_HOLD_MS);
-    next.aspect=aspect;this.candidate=next;
+    next.aspect=aspect;next.fresh=true;this.candidate=next;
     if(next.stable){
       if(this.current?.token===next.token)next.filled=this.current.filled;
       this.current=Object.assign(next,{held:false});
@@ -190,9 +191,15 @@ class OfferDisplay {
     const current=this.current;
     return current?.cards.every(c=>c.id)?current.cards:filledCards(current);
   }
+  // One independently bounded trio is enough to show its names. History and
+  // manual edits continue to use the separately confirmed current offer.
+  get presented(){
+    const c=this.candidate;
+    return c?.fresh && !c.stable && c.cards.every(card=>card.id) ? c : this.current;
+  }
   get uiKey(){
-    const c=this.current;
-    return c?[c.token,c.held,c.filled].join(':'):'';
+    const c=this.presented;
+    return c?[c.token,c.stable,c.held,c.filled].join(':'):'';
   }
 }
 function oldCardsVisible(grid,cards){
@@ -203,6 +210,21 @@ function oldCardsVisible(grid,cards){
     // Pojedyncza krawędź mapy lub HUD nie oznacza, że karta nadal jest otwarta.
     return sides.every(score=>score>.55)&&rim;
   });
+}
+
+function clickPoint(e,aspect){
+  if(!Number.isFinite(e.x)||!Number.isFinite(e.y)||!(e.width>0&&e.height>0)
+    ||Math.abs(e.width/e.height-aspect)>.025)return null;
+  return {x:e.x/e.width,y:e.y/e.height};
+}
+function outsideOffer(point,cards){
+  // Include the control strip below the cards. A reroll or the hide button
+  // cannot corroborate a choice, even if the next game frame is clear.
+  return point.x<cards[0].rect.x || point.x>cards.at(-1).rect.x+cards.at(-1).rect.w ||
+    cards.every(({rect})=>point.y<rect.y) || cards.every(({rect})=>point.y>rect.y+rect.h*1.45);
+}
+function changedCards(before,after){
+  return before.some((c,i)=>c.id && after[i].id && c.id!==after[i].id);
 }
 
 class OfferTracker {
@@ -230,31 +252,36 @@ class OfferTracker {
   }
   hasChoiceInput(){
     return !!(this.pending||this.down||this.offer&&this.events.some(e=>e.type==='down'&&e.width>0&&e.height>0&&
-      this.offer.some(c=>inside({x:e.x/e.width,y:e.y/e.height},c.rect))));
+      this.offer.some(c=>c.id && inside({x:e.x/e.width,y:e.y/e.height},c.rect))));
   }
   click(e,aspect){
-    // The first clean game frame proves the offer has closed. Ordinary clicks on
-    // the map between that frame and the second confirmation belong to gameplay.
-    if(this.pending?.absent>0){
-      if(e.type==='down')this.pending.laterClick=true;
-      return;
+    const point=clickPoint(e,aspect);
+    if(this.pending){
+      if(e.type!=='down')return;
+      if(point && (this.pending.absent>0 || outsideOffer(point,this.pending.cards))){
+        this.pending.laterClick=true;
+        return;
+      }
+      // Two competing card clicks with no intervening image are ambiguous.
+      // A double-click inside the same card still identifies just one choice.
+      if(point && this.at<this.pending.at && inside(point,this.pending.rect))return;
+      if(!point || this.at<this.pending.at){this.offer=null;this.streak=0;}
+      this.pending=null;
     }
     // Some game buttons dismiss on mouse-down, before the next frame / mouse-up.
     // Retain that exact card until release, while still rejecting a drag outside it.
     if(e.type==='up'&&this.down){
       const down=this.down;this.down=null;
-      if(e.at>=down.at&&e.at-down.at<1200&&Number.isFinite(e.x)&&Number.isFinite(e.y)&&e.width>0&&e.height>0
-        &&Math.abs(e.width/e.height-aspect)<=.025&&inside({x:e.x/e.width,y:e.y/e.height},down.rect))
-        this.pending={id:down.id,at:e.at,absent:0,cards:down.cards};
+      if(e.at>=down.at&&e.at-down.at<1200&&point&&inside(point,down.rect))
+        this.pending={id:down.id,rect:down.rect,at:e.at,absent:0,cards:down.cards};
       return;
     }
-    if(!this.offer||e.at-this.at>this.freshness||e.at<this.at||!Number.isFinite(e.width)||!Number.isFinite(e.height)
-      ||Math.abs(e.width/e.height-aspect)>.025||!Number.isFinite(e.x)||!Number.isFinite(e.y)){this.down=null;this.pending=null;return;}
-    const p={x:e.x/e.width,y:e.y/e.height},card=this.offer.find(c=>inside(p,c.rect));
+    if(!point||!this.offer||e.at-this.at>this.freshness||e.at<this.at){this.down=null;return;}
+    const card=this.offer.find(c=>c.id && inside(point,c.rect));
     if(e.type==='down'){this.pending=null;this.down=card?{id:card.id,rect:card.rect,cards:this.offer,at:e.at}:null;if(!card){this.offer=null;this.streak=0;}return;}
     this.down=null;
   }
-  observe({at,aspect,cards,candidates=[],grid,active,readMs=0}){
+  observe({at,aspect,cards,partial,candidates=[],grid,active,readMs=0}){
     // A complete three-title OCR with three independently bounded cards can
     // identify a fast click. Publishing an offer still requires two sightings,
     // and saving a click always requires release and two clean game frames.
@@ -264,16 +291,20 @@ class OfferTracker {
     const events=this.events.filter(e=>e.at<=at);this.events=this.events.filter(e=>e.at>at);
     for(const e of events)this.click(e,aspect);
     if(this.pending&&at-this.pending.at>Math.max(4000,this.freshness*2+1000))this.pending=null;
-    if(cards){
-      if(this.pending&&(this.pending.laterClick||signature(cards)!==signature(this.pending.cards)))this.pending=null;
+    const visible=cards || partial;
+    if(visible){
+      if(this.pending&&(this.pending.laterClick||changedCards(this.pending.cards,visible)))this.pending=null;
       if(this.pending)this.pending.absent=0;
-      if(this.down&&signature(cards)!==signature(this.down.cards))this.down=null;
-      this.streak=this.offer&&signature(cards)===signature(this.offer)&&at-this.at<this.freshness?this.streak+1:1;
-      this.offer=cards;this.at=at;return null;
+      if(this.down&&changedCards(this.down.cards,visible))this.down=null;
+      this.streak=this.offer&&signature(visible)===signature(this.offer)&&at-this.at<this.freshness?this.streak+1:1;
+      this.offer=visible;this.at=at;return null;
     }
     if(this.pending){
       const titleInCard=candidates.some(title=>this.pending.cards.some(({id,rect})=>title.id===id&&inside({x:title.x+title.w/2,y:title.y+title.h/2},rect)));
-      if(titleInCard||oldCardsVisible(grid,this.pending.cards)){this.pending.absent=0;}
+      if(titleInCard||oldCardsVisible(grid,this.pending.cards)){
+        if(this.pending.laterClick)this.pending=null;
+        else this.pending.absent=0;
+      }
       else if(++this.pending.absent>=2 && at-this.pending.at>=250){const id=this.pending.id;this.pending=null;this.offer=null;this.streak=0;this.at=at;return id;}
     }
     this.at=at;this.offer=null;this.streak=0;return null;

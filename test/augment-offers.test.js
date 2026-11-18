@@ -78,6 +78,23 @@ test('porównanie przetrzymuje lukę w OCR, wygasa i usuwa ofertę po dwóch kla
   frame(12000,cards);frame(13000,cards);frame(13700,null,cleanGrid());frame(14400,null,cleanGrid());
   assert.equal(display.current,null);
 });
+
+test('pierwsza kompletna klatka wyświetla karty przed potwierdzeniem, a przerzut wycofuje podgląd',()=>{
+  const {cards,grid}=trackerFixture(),display=new OfferDisplay();
+  display.observe(cards,1000,16/9,grid);
+  assert.deepEqual(display.presented.cards.map(c=>c.id),ids);
+  assert.equal(display.presented.stable,false);
+  assert.equal(display.current,null);
+  display.invalidateReroll(1,1050);
+  assert.equal(display.presented,null);
+  assert.equal(display.waitingForReroll(cards,1150),true);
+  const rerolled=cards.map((c,i)=>i===1?{...c,id:3150}:c);
+  assert.equal(display.waitingForReroll(rerolled,1300),false);
+  display.observe(rerolled,1300,16/9,grid);
+  assert.equal(display.presented.cards[1].id,3150);
+  display.observe(rerolled,2000,16/9,grid);
+  assert.equal(display.presented.stable,true);
+});
 test('dwa przerzuty nie publikują starych wyników i dopuszczają nieczytelny tytuł we właściwym miejscu',()=>{
   const display=new OfferDisplay(),{cards,grid}=trackerFixture();
   const frame=(at,set)=>{if(!display.waitingForReroll(set,at))display.observe(set,at,16/9,grid);};
@@ -240,4 +257,28 @@ test('kolejne kliknięcie przy ponownym pojawieniu się kart unieważnia stary w
   observe(2750);
   assert.equal(observe(3300,null,cleanGrid()),null);
   assert.equal(observe(4000,null,cleanGrid()),null);
+});
+
+test('klik na mapie przed pierwszym odczytem po wyborze nie usuwa potwierdzonego gestu',()=>{
+  for(const next of ['map','offer-still-open','second-card','offer-controls']){
+    const {observe,input}=trackerFixture();
+    input('down',1800);input('up',1860);
+    const [x,y]=next==='second-card'?[320,160]:next==='offer-controls'?[320,302]:[70,40];
+    input('down',2080,x,y);input('up',2140,x,y);
+    if(next==='offer-still-open')observe(2200);
+    assert.equal(observe(2400,null,cleanGrid()),null,next);
+    assert.equal(observe(3100,null,cleanGrid()),next==='map'?ids[0]:null,next);
+    assert.equal(observe(3800,null,cleanGrid()),null);
+  }
+});
+
+test('odczyt 2/3 zapisuje kliknięcie tylko w rozpoznaną kartę',()=>{
+  for(const slot of [0,1,2]){
+    const {t,cards,grid,observe,input}=trackerFixture();
+    const partial=cards.map((c,i)=>i===1?{...c,id:null}:c);
+    t.observe({at:2000,aspect:16/9,cards:null,partial,grid,active:true});
+    input('down',2150,195+125*slot);input('up',2200,195+125*slot);
+    assert.equal(observe(2400,null,cleanGrid()),null);
+    assert.equal(observe(3100,null,cleanGrid()),slot===1?null:ids[slot]);
+  }
 });

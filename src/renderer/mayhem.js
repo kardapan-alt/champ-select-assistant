@@ -18,10 +18,11 @@ function questProgressView(quests){
   return `<section class="mayhem-quests" aria-label="Postęp zadań Mayhem"><b>Zadania Mayhem</b>${quests.map(q=>`<article data-quest-progress="${q.id}"><strong>${esc(q.name)}</strong> · ${esc(q.status)}${q.rows.map(row=>`<small>${esc(row.name)} · ${row.held?'posiadasz':!q.known?'brak odczytu':q.exact&&row.cost!==null?`pozostało ${row.cost} zł`:'do zdobycia'}${row.components?.length?' · masz '+row.components.map(esc).join(', '):''}</small>`).join('')}</article>`).join('')}</section>`;
 }
 function offerOrderLabel(comparison){
+  if(comparison.provisional)return 'Pierwszy odczyt · sprawdzam karty';
   if(comparison.held)return 'Ostatni odczyt · czekam na potwierdzenie kart';
   return comparison.paused?'Ostatnia oferta z okna gry':'Kolejność jak w grze';
 }
-function mayhemChoiceView(m,compact=false){
+function mayhemOfferDock(m,compact=false){
   if(!m||labActive||!m.matchKey)return '';
   const comparison=m.comparison;
   let cards=m.partialOffer?partialOfferView(m.partialOffer):'';
@@ -31,15 +32,21 @@ function mayhemChoiceView(m,compact=false){
         <div class="augment-offer-grid">${comparison.cards.map((c,i)=>`<article class="augment-offer" data-offer-id="${c.id}"><div class="offer-position">${['Lewa','Środkowa','Prawa'][i]}</div><b>${esc(c.name)}</b>${c.english&&c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${augmentGrade({grade:c.grade,reason:c.warnings[0]||c.reasons[0]})}${activationView(c.activation)}</article>`).join('')}</div></section>`;
     }else cards=augmentComparison(comparison);
   }
+  if(!cards && m.missedOffer)cards=missedOfferView(m.missedOffer);
+  if(!cards && m.lastOffer)cards=missedOfferView(m.lastOffer,true);
   const undo=m.undo?`<button class="augment-undo" data-augment-undo="${esc(m.undo.token)}" title="Cofnij ostatni odczyt: ${m.undo.names.map(esc).join(', ')}">Cofnij odczyt</button>`:'';
   let saved=m.undo?`<div class="augment-receipt"><span>Ostatnio zapisano <b>${m.undo.names.map(esc).join(', ')}</b></span>${undo}</div>`:'';
-  if(compact && m.hints?.length){
+  if(m.hints?.length){
     const entries=m.hints.map(a=>`<li data-picked-augment="${a.id}" title="${esc(a.english || a.name)}"><span>${esc(a.name)}</span>
       ${a.rating?.grade?`<b aria-label="Ocena dopasowania ${esc(a.rating.grade)}">${esc(a.rating.grade)}</b>`:''}</li>`).join('');
     saved=`<section class="augment-receipt compact-augments" aria-label="Twoje augmenty"><div class="compact-augments-heading"><strong>Twoje augmenty (${m.hints.length})</strong>${undo}</div><ul>${entries}</ul></section>`;
   }
-  const missed=m.missedOffer?missedOfferView(m.missedOffer):m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
-  return cards+missed+saved+questProgressView(m.quests);
+  return cards||saved?`<aside class="mayhem-dock" aria-label="Karty augmentów">${cards}${saved}</aside>`:'';
+}
+function mayhemChoiceView(m){
+  if(!m||labActive||!m.matchKey)return '';
+  const missed=!m.missedOffer&&!m.lastOffer&&m.screen?.missed?'<div class="augment-receipt offer-warning"><span>Jeśli wybrałeś już kartę, uzupełnij jej zapis.</span><button data-mayhem-editor>Uzupełnij wybór</button></div>':'';
+  return missed+earlierOffersView(m)+questProgressView(m.quests);
 }
 function mayhemPanel(b) {
   if (!b?.mayhem) return '';

@@ -75,6 +75,50 @@ test('historia gier: limit z maksimum schematu', () => {
   assert.deepEqual(opgg.buildArgs(tool, { gameName: 'Gracz', tagLine: 'TEST' }), { game_name: 'Gracz', tag_line: 'TEST', limit: 20 });
 });
 
+test('puste dane OP.GG można pobrać ponownie, historia sama nie nadaje graczowi rangi', async()=>{
+  const provider=new opgg.OpggProvider();
+  const names=['lol_get_summoner_profile','lol_list_summoner_matches'];
+  provider.tools=async()=>names.map(name=>({name,inputSchema:{required:['desired_output_fields'],properties:{
+    desired_output_fields:{type:'array',items:{type:'string'}},
+  }}}));
+  const person={gameName:'Player',tagLine:'TEST',region:'EUNE'};
+  const key='summoner:eune:player#test';let available=false;
+  provider.cache[key]={at:Date.now(),value:{rank:null,games:[],seasonChampions:{}}};
+  provider.client.call=async(name,args)=>{
+    assert.ok(args.desired_output_fields.length);
+    assert.ok(!args.desired_output_fields.some(k=>/summoner\.(puuid|game_name)|average_tier/.test(k)));
+    return name===names[1]&&available ? {data:{game_history:[
+      {average_tier_info:{tier:'GOLD'},participants:[{champion_id:103,stats:{death:0,result:'remake'}}]},
+    ]}} : null;
+  };
+  assert.equal(await provider.summoner(person),null);
+  available=true;
+  const summary=await provider.summoner(person);
+  assert.equal(summary.rank,null);assert.equal(summary.games.length,1);assert.equal(summary.games[0].win,null);
+  assert.equal(playerCard({championId:103},summary,game).recent.winRate,null);
+  assert.equal(playerCard({championId:103},summary,game).champion.seasonGames,null);
+});
+
+test('awaria jednej części zachowuje datę i liczby ze starego profilu, a po odzyskaniu łączy oba źródła',async()=>{
+  const key='summoner:eune:player#test', person={region:'EUNE',gameName:'Player',tagLine:'TEST'};
+  const at=Date.now()-86400000;
+  const provider=new opgg.OpggProvider({cache:{[key]:{at,value:{rank:{tier:'PLATINUM'},seasonChampions:{103:{games:5,wins:3}},games:[{championId:64}]}}}});
+  provider.tools=async()=>['lol_get_summoner_profile','lol_list_summoner_matches'].map(name=>({name}));
+  const responses={};
+  provider.client.call=async name=>{if(!responses[name])throw Error('timeout');return responses[name];};
+  const bothOld=await provider.summoner(person);
+  assert.equal(bothOld.rank,null);assert.equal(bothOld.seasonChampions[103].games,5);
+  assert.deepEqual(bothOld.games,[{championId:64}]);
+  assert.deepEqual(bothOld.profileSource,{retry:true,profileMissing:true,historyMissing:true,cachedProfileAt:at,cachedHistoryAt:at});
+  responses.lol_get_summoner_profile=fixture('summoner');
+  const partial=await provider.summoner(person);
+  assert.equal(partial.rank.tier,'EMERALD');assert.equal(partial.profileSource.profileMissing,false);
+  assert.equal(partial.profileSource.cachedHistoryAt,at);assert.equal(partial.profileSource.retry,true);
+  responses.lol_list_summoner_matches=fixture('history');
+  const full=await provider.summoner(person);
+  assert.equal(full.games.length,2);assert.equal(full.profileSource.retry,false);assert.equal(provider.cache[key].partial,false);
+});
+
 test('champion w UPPER_SNAKE_CASE, gdy schemat tego wymaga', () => {
   const tool = { inputSchema: { properties: { champion: { type: 'string', description: 'Champion name in UPPER_SNAKE_CASE Examples: ANNIE, OLAF' } } } };
   const arg = (champion, championName) => opgg.buildArgs(tool, { champion, championName }).champion;

@@ -523,7 +523,12 @@ function interpretChampionSeason(root) {
   return out;
 }
 
-const resultWin = (v) => (typeof v === 'boolean' ? v : typeof v === 'string' ? /^(win|victory|true)$/i.test(v) : num(v) === 1);
+function resultWin(value) {
+  if (value == null) return null;
+  if (/^(win|victory|true|1)$/i.test(String(value))) return true;
+  if (/^(lose|loss|defeat|false|0)$/i.test(String(value))) return false;
+  return null;
+}
 
 // Jedna gra z historii OP.GG: GameHistory(created_at, game_length_second, participants[], teams[]).
 // participants zawiera tylko sprawdzanego gracza, KP liczymy z zabójstw jego drużyny.
@@ -541,7 +546,7 @@ function opggHistoryGame(g) {
   const created = g.created_at ? new Date(g.created_at).getTime() : null;
   return {
     championId,
-    win: st.result != null ? resultWin(st.result) : team && team.game_stat ? team.game_stat.is_win === true : null,
+    win: resultWin(st.result ?? team?.game_stat?.is_win),
     kills,
     deaths: num(st.death),
     assists,
@@ -624,7 +629,7 @@ function interpretSummoner(rawProfile, rawHistory) {
   const profile = parsePayload(rawProfile);
   const history = parsePayload(rawHistory);
   return {
-    rank: interpretRank(profile) || interpretRank(history),
+    rank: interpretRank(profile),
     seasonChampions: Object.fromEntries(interpretChampionSeason(profile)),
     seasonList: seasonListInfo(profile),
     games: interpretGames(history),
@@ -643,6 +648,17 @@ function findTool(tools, patterns) {
 }
 
 const OPGG_POSITION = { top: 'top', jungle: 'jungle', middle: 'mid', bottom: 'adc', support: 'support' };
+const PROFILE_FIELDS = ['data.summoner.league_stats', 'data.summoner.most_champions'];
+const HISTORY_FIELDS = [
+  ...['created_at','game_length_second','game_type'].map(k => 'data.game_history[].' + k),
+  ...['champion_id','position','team_key'].map(k => 'data.game_history[].participants[].' + k),
+  ...['kill','death','assist','minion_kill','neutral_minion_kill','result','ward_place'].map(k => 'data.game_history[].participants[].stats.' + k),
+  'data.game_history[].teams[].key', 'data.game_history[].teams[].game_stat.is_win', 'data.game_history[].teams[].game_stat.champion_kill',
+];
+
+function hasProfileStats(summary) {
+  return !!(summary?.rank || summary?.games?.length || Object.keys(summary?.seasonChampions || {}).length);
+}
 
 function enumMatch(values, wanted) {
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -684,7 +700,9 @@ function buildArgs(tool, { champion, championName, position, region, gameName, t
     } else if (k.includes('desired_output_fields') || k.includes('output_fields')) {
       v = values || (/champion.*analysis/i.test(tool.name)
         ? ['champion','position','data.core_items','data.boots','data.starter_items','data.fourth_items','data.fifth_items','data.sixth_items','data.last_items','data.runes','data.summoner_spells','data.skills','data.skill_masteries','data.strong_counters','data.weak_counters','data.synergies','data.trends.win']
-        : /lane.*meta/i.test(tool.name) ? ['data.positions'] : undefined);
+        : /lane.*meta/i.test(tool.name) ? ['data.positions']
+        : /summoner[-_]?(search|profile)/i.test(tool.name) ? PROFILE_FIELDS
+        : /summoner[-_]?(game[-_]?history|matches)/i.test(tool.name) ? HISTORY_FIELDS : undefined);
     }
     if (v !== undefined) args[key] = v;
   }
@@ -782,7 +800,18 @@ class OpggProvider {
   async summoner({ gameName, tagLine, region }) {
     const key = `summoner:${region}:${gameName}#${tagLine}`.toLowerCase();
     const hit = this.cache[key];
-    if (hit && Date.now() - hit.at < 30 * 60 * 1000) return hit.value;
+    // Legacy fallback ranks could be the average tier of a past match.
+    const cached = hit?.value && {...hit.value, rank:hit.schema === 1 ? hit.value.rank : null};
+    const profileAt = hit?.profileAt === undefined ? hit?.at : hit.profileAt;
+    const historyAt = hit?.historyAt === undefined ? hit?.at : hit.historyAt;
+    if (hit?.schema === 1 && !hit.partial && hasProfileStats(cached) && Date.now() - hit.at < 30 * 60 * 1000) return cached;
+    const withSources = (value, profileMissing, historyMissing) => hasProfileStats(value) ? {
+      ...value, profileSource: {
+        retry:profileMissing || historyMissing, profileMissing, historyMissing,
+        cachedProfileAt:profileMissing && (value.rank || Object.keys(value.seasonChampions || {}).length) ? profileAt : null,
+        cachedHistoryAt:historyMissing && value.games?.length ? historyAt : null,
+      },
+    } : null;
     try {
       const tools = await this.tools();
       const search = findTool(tools, [/summoner[-_]?(search|profile)/i, /get_?summoner_?profile/i]);
@@ -793,12 +822,18 @@ class OpggProvider {
       const [p, h] = await Promise.all([safeCall(search), safeCall(history)]);
       if (p == null && h == null) throw new Error('brak danych gracza');
       const value = interpretSummoner(p, h);
-      this.cache[key] = { at: Date.now(), value };
+      if (p == null && cached) Object.assign(value, {rank:cached.rank, seasonChampions:cached.seasonChampions,
+        seasonList:cached.seasonList, visionPerMin:cached.visionPerMin});
+      if (h == null && cached) value.games = cached.games || [];
+      if (!hasProfileStats(value)) return null;
+      const at = Date.now();
+      this.cache[key] = { at, value, schema:1, partial:p == null || h == null,
+        profileAt:p == null ? profileAt || null : at, historyAt:h == null ? historyAt || null : at };
       this.saveCache(this.cache);
-      return value;
+      return withSources(value, p == null, h == null);
     } catch (err) {
       this.log(`OP.GG gracz ${gameName}#${tagLine}: ${err.message}`);
-      return hit ? hit.value : null;
+      return withSources(cached, true, true);
     }
   }
 

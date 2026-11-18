@@ -85,10 +85,36 @@ class LiveClient {
     if (!inventory) return { status:'invalid' };
     const gold = Number.isFinite(active.currentGold) && active.currentGold >= 0 ? Math.floor(active.currentGold) : null;
     const enemies = enemyInventories(players,own,options.enemies,game,mode);
+    const scoreboard = options.allies && ['ORDER','CHAOS'].includes(own.team) ? {
+      allies: teamScores(players, own.team, options.allies, game),
+      enemies: teamScores(players, own.team === 'ORDER' ? 'CHAOS' : 'ORDER', options.enemies, game),
+    } : null;
     const outcome=require('./match-result').fromLiveEvents(snapshot.events,stats.gameTime);
     const training = options.training === true ? {trainingScores:require('./training').trainingScores(own.scores)} : {};
-    return { status:'live', inventory, gold, enemies, gameTime:stats.gameTime, ...training, ...(outcome?{outcome}:{}) };
+    return { status:'live', inventory, gold, enemies, ...(scoreboard ? {scoreboard} : {}), gameTime:stats.gameTime, ...training, ...(outcome?{outcome}:{}) };
   }
+}
+
+// Public in-game totals only. Keep the two teams separate in a mirror match
+// and skip ambiguous champions. Never copy an account identity from live data.
+function teamScores(players, team, expected = [], game) {
+  const teammates = players.filter(p => p.team === team);
+  const rows = {};
+  const count = v => Number.isSafeInteger(v) && v >= 0 ? v : null;
+  for (const player of expected) {
+    const id = player.championId;
+    const alias = game.championsById.get(id)?.alias;
+    if (!alias || expected.filter(p => p.championId === id).length !== 1) continue;
+    const matches = teammates.filter(p => matchesChampion(p, alias));
+    if (matches.length !== 1) continue;
+    const [match] = matches;
+    if (!player.anonymous && !sameId(riotId(match), `${player.gameName}#${player.tagLine}`)) continue;
+    const {kills, deaths, assists, creepScore} = match.scores || {};
+    const kda = [kills,deaths,assists].every(v => count(v) !== null) ? [kills,deaths,assists] : null;
+    const cs = count(creepScore);
+    if (kda || cs !== null) rows[id] = {kda, cs};
+  }
+  return rows;
 }
 
 function enemyInventories(players, own, expected, game, mode) {

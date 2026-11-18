@@ -121,6 +121,21 @@ function recordOffer(match, frame, pickId, receipt, source='screen') {
   return dirty;
 }
 
+// Earlier visible lineups can include a reroll we didn't witness. Only the
+// player can identify an owned card here; a later lineup never implies a pick.
+function earlierOffers(match, meta, pool, includeLatest=false) {
+  if (!match || !meta.owner || match.key!==meta.key || match.owner!==meta.owner || match.endedAt) return [];
+  const entries=match.offers || [];
+  return (includeLatest?entries:entries.slice(0,-1)).filter(o=>!o.picked && !o.replacedBy &&
+    validOffer(o.cards?.map(c=>c.id),pool));
+}
+
+function confirmEarlierOffer(offer, id, receipt) {
+  if (!offer || offer.picked || offer.replacedBy || !offer.cards.some(c=>c.id===id))
+    throw Error('Ta karta nie jest już dostępna do potwierdzenia z tej oferty.');
+  Object.assign(offer,{picked:id,source:'confirmed',receipt});
+}
+
 function withdrawPicks(match, ids, receipt) {
   let dirty = false;
   for (const offer of match?.offers || []) {
@@ -151,4 +166,4 @@ function correctOffer(match, offerId, cardId) {
   else { delete offer.picked; delete offer.source; }
 }
 
-module.exports = {validOffer,sameCards,snapshotOffer,rerollSlot,rerollInput,newFrame,recordOffer,withdrawPicks,correctOffer};
+module.exports = {validOffer,sameCards,snapshotOffer,rerollSlot,rerollInput,newFrame,recordOffer,earlierOffers,confirmEarlierOffer,withdrawPicks,correctOffer};

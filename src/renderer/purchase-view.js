@@ -78,13 +78,13 @@ function compactScreen(s){
   const fresh=freshRead(b.readout?.inventory),alt=fresh?b.shop?.comparison?.find(o=>o.target.id===b.purchaseGoal?.suggestion?.id)||b.shop?.comparison?.find(o=>o.kind!=='plan'):null;
   const tip=b.mayhem?.headliner?.warning||b.situations?.find(x=>x.inBuild)?.answer||b.situations?.[0]?.answer||b.mayhem?.hints?.[0]?.summary||b.shop?.target?.why||b.notes?.[0];
   return `<section class="compact-content"><h2>${esc(b.name)} <small>${esc(b.mode==='mayhem'?'ARAM: Mayhem':b.mode==='aram'?'ARAM':'Summoner’s Rift')}</small></h2>
-    ${mayhemChoiceView(b.mayhem,true)}
+    ${mayhemChoiceView(b.mayhem)}
     ${readoutPanel(b)}${b.shop?liveShopPanel(b,true):'<p>Plan przygotowany. Złoto odczytam po rozpoczęciu meczu.</p>'}
     ${matchSkipsPanel(b,true)}
     ${alt?`<article class="compact-alternative"><b>Alternatywa: ${esc(alt.target.name)}</b><p>${esc(alt.benefit)}</p><p>Do ukończenia: ${alt.target.cost} złota${alt.purchase?' · teraz '+esc(alt.purchase.name)+' za '+alt.purchase.cost:''}</p><button data-pin-next="${alt.target.id}">Zbieram na ten przedmiot</button></article>`:''}
     ${tip?`<aside class="compact-tip"><b>Najważniejsze teraz</b><p>${esc(tip)}</p></aside>`:''}
     ${otherSkipChoices(b)}
-    ${dataFreshnessBadge()} <button data-build-report>Zgłoś dziwny build</button><p class="compact-help">Ctrl+X chowa to okno. „Pełny widok” otwiera szczegóły.</p></section>`;
+    ${dataFreshnessBadge()} <button data-build-report>Zgłoś dziwny build</button><p class="compact-help">Ctrl+X chowa to okno. „Pełny widok” otwiera szczegóły.</p>${mayhemOfferDock(b.mayhem,true)}</section>`;
 }
 function setCompactView(value){
   compactMode=!!value;document.body.classList.toggle('compact-mode',compactMode);

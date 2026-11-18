@@ -5,7 +5,7 @@ const { findCredentials, LcuClient } = require('./lcu');
 const { loadGameData, loadMastery } = require('./gamedata');
 const engine = require('./engine');
 const { OpggProvider, mergeStats } = require('./opgg');
-const { LOADING_PHASES, readLoadingPlayers, playerCard } = require('./players');
+const { LOADING_PHASES, readLoadingPlayers, playerCard, playerKey, refreshPlayerStats } = require('./players');
 const { lanePlan } = require('./laneplan');
 const { laneVariantOptions, compareLaneVariants } = require('./lane-variants');
 const { botLanePlan, rememberAllyRoles } = require('./bot-plan');
@@ -363,17 +363,16 @@ async function tick() {
         if (!players) return send({ status: 'idle', phase });
         if (!loading) {
           loading = { ...players, summaries: {} };
-          fetchPlayerStats(loading);
           loadingDirty = true;
           autoExportItemSetForLoading();
         } else if (JSON.stringify([players.allies,players.enemies]) !== JSON.stringify([loading.allies,loading.enemies])) {
           Object.assign(loading, players);
           const visible = new Set([...players.allies,...players.enemies].filter(p=>!p.anonymous).map(playerKey));
           for (const key of Object.keys(loading.summaries)) if (!visible.has(key)) delete loading.summaries[key];
-          fetchPlayerStats(loading);
           loadingDirty = true;
         }
       }
+      if (loading) fetchPlayerStats(loading);
       if (phase === 'InProgress') await syncLiveInventory();
       if (!loading) return;
       if (loading.liveStatus === 'live' && Date.now()-(loading.liveAt||0)>=6000) {
@@ -458,7 +457,6 @@ async function markReplayMoment(sessionId) {
   matchReview.bookmark({key:`${target.gameId}:${own.alias}:classic`,alias:own.alias,name:own.name,mode:'classic',
     gameId:target.gameId,championId:me.championId,owner:ownerKey(me.puuid)},time);
 }
-const playerKey = (p) => `${p.gameName}#${p.tagLine}`;
 
 async function syncLiveInventory() {
   const target = loading, me = target.allies.find(p=>p.isMe), state = loadingSelectState(me);
@@ -467,7 +465,7 @@ async function syncLiveInventory() {
   const alias = game.championsById.get(me.championId)?.alias;
   let result;
   const pool = currentMode === 'mayhem' ? state.mayhemPool : currentMode === 'aram' ? 'ARAM' : 'CLASSIC';
-  try { result = await liveClient.inventory(me,alias,pool,game,{ mode:currentMode, enemies:target.enemies, training:Number(currentQueueId)===420,
+  try { result = await liveClient.inventory(me,alias,pool,game,{ mode:currentMode, enemies:target.enemies, allies:settings.stats ? target.allies : undefined, training:Number(currentQueueId)===420,
     sideBoots:currentRoleQuests && ['bottom','adc'].includes(me.position) }); }
   catch { result = { status:'waiting' }; }
   // Żądanie może skończyć się już po zamknięciu meczu. Nigdy nie przenosimy
@@ -501,31 +499,16 @@ async function syncLiveInventory() {
 
 function fetchPlayerStats(target) {
   if (!settings.stats) return;
-  target.statsFetching ||= new Set();
-  const players = [...target.allies, ...target.enemies].filter((p) => !p.anonymous && p.gameName && p.tagLine);
-  let next = 0;
-  const worker = async () => {
-    while (next < players.length) {
-      if(loading!==target||!settings.stats)return;
-      const p = players[next++];
-      const key=playerKey(p);
-      const visible=()=>[...target.allies,...target.enemies].some(current=>!current.anonymous && playerKey(current)===key);
-      if(!visible()||target.statsFetching.has(key)||target.summaries[key])continue;
-      target.statsFetching.add(key);
-      const summary = await provider.summoner({ gameName: p.gameName, tagLine: p.tagLine, region: target.region }).catch(() => null);
-      target.statsFetching.delete(key);
-      if (!visible() || loading!==target) continue;
-      target.summaries[key] = summary || false;
-      if (target === loading) loadingDirty = true;
-    }
-  };
-  for (let i = 0; i < 3; i++) worker();
+  return refreshPlayerStats(target, p => provider.summoner({gameName:p.gameName, tagLine:p.tagLine, region:target.region}),
+    () => loading === target && settings.stats, () => { loadingDirty = true; });
 }
 
 function buildLoadingView() {
   const cardOf = (p) => playerCard(p, settings.stats && !p.anonymous ? loading.summaries[playerKey(p)]||null:null, game,Date.now(),currentMode);
-  const card = (p) => ({
+  const scores = settings.stats && loading.liveStatus === 'live' && Date.now() - loading.liveAt < 6000 ? loading.liveSnapshot?.scoreboard : null;
+  const card = (p, side) => ({
     ...cardOf(p),
+    matchScore: scores?.[side]?.[p.championId] || null,
     championView: champView(p.championId, p.skinId),
     pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName&&!!p.tagLine,
     statsDisabled:!settings.stats,
@@ -542,7 +525,7 @@ function buildLoadingView() {
   }
   let teamPlan = null;
   if (currentMode !== 'mayhem') try { teamPlan = gamePlan(loading.allies, loading.enemies, aram ? null : cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
-  const enemies = loading.enemies.map(card);
+  const enemies = loading.enemies.map(p => card(p, 'enemies'));
   if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
   let noteReminders = [];
   if (Number(currentQueueId) === 420 && me?.championId && loading.gameId) {
@@ -569,7 +552,7 @@ function buildLoadingView() {
     gamePlan: teamPlan,
     mode: currentMode,
     final: finalWithEnemies(me,plan),
-    allies: loading.allies.map(card),
+    allies: loading.allies.map(p => card(p, 'allies')),
     enemies,
     statsEnabled: settings.stats,
     statsStatus: settings.stats ? provider.status : { ok: false, message: 'Profile OP.GG wyłączone' },
@@ -647,17 +630,25 @@ function finalWithEnemies(me,lane) {
         gold:liveStatus==='live'?loading.liveSnapshot?.gold:null};
       build.mayhem.quests=questProgress(costs,mayhemSession.value.questReceipts);
       const display=loading.offerDisplay;
-      const current=display?.current;
+      const current=display?.presented;
       const visible=current && Date.now()-current.at<augmentOffers.OFFER_HOLD_MS;
-      const offer=visible && display.cards && {ids:display.cards.map(c=>c.id)};
+      const shownCards=visible && (current.stable?display.cards:current.cards);
+      const offer=shownCards && {ids:shownCards.map(c=>c.id)};
       if(visible&&!offer){
         build.mayhem.partialOffer={token:current.token,held:current.held,cards:current.cards.map(c=>{
           const card=visionCatalog.find(a=>a.id===c.id);
           return card?{id:card.id,name:card.name,english:card.english}:null;
         })};
       }
-      const recovery=loading.visionMissed && recoverableOffer();
-      if(recovery)build.mayhem.missedOffer={token:recovery.id,cards:recovery.cards.map(({id,name,english})=>({id,name,english}))};
+      const recovery=!visible && loading.visionMissed && recoverableOffer();
+      if(recovery)build.mayhem.missedOffer={token:recovery.id,cards:recovery.cards.map(({id,name,english,grade})=>({id,name,english,grade}))};
+      if(visionConfig?.enabled && visionConfig.mode==='auto'){
+        const past=unconfirmedHistory(s);
+        const summarize=o=>({token:o.id,time:o.time,cards:o.cards.map(({id,name,english,grade})=>({id,name,english,grade,owned:s.mayhem.augments.includes(id)}))});
+        const last=matchReview.value.active?.offers?.at(-1);
+        if(!visible && !recovery && past.includes(last))build.mayhem.lastOffer=summarize(last);
+        build.mayhem.earlierOffers=past.filter(o=>o!==last).map(summarize);
+      }
       if(offer){
         const enemy=engine.teamProfile(s.enemies.filter(e=>e.championId).map(e=>engine.champInfo(game.championsById.get(e.championId)?.alias,game,data)));
         const champion=engine.champInfo(alias,game,data);
@@ -673,7 +664,7 @@ function finalWithEnemies(me,lane) {
           } else offerSnapshot=loading.offerPreview.snapshot;
         }
         if(comparison)for(const card of comparison.cards)card.activation=activationFor(card,{...costs,enemy,champion,offerSnapshot});
-        build.mayhem.comparison=comparison?{...comparison,held:current.held,paused:!augmentClicks.active()}:null;
+        build.mayhem.comparison=comparison?{...comparison,provisional:!current.stable,held:current.held,paused:!augmentClicks.active()}:null;
       }
     }
     const insightContext={key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,status:liveStatus,
@@ -1237,6 +1228,12 @@ function historyMatch(state) {
   return {key:`${loading.gameId||loading.sessionId}:${champ.alias}:mayhem`,alias:champ.alias,
     name:champ.name,mode:'mayhem',gameId:loading.gameId,championId:me.championId,owner:ownerKey(me.puuid)};
 }
+function unconfirmedHistory(state){
+  const display=loading.offerDisplay, latest=matchReview.value.active?.offers?.at(-1);
+  const includeLatest=!!latest && !display?.reroll && !offerTracker.pending && !offerTracker.down &&
+    !display?.presented && (!loading.historyFrame || loading.recoveryOffer===latest.id);
+  return offerHistory.earlierOffers(matchReview.value.active,historyMatch(state),state.mayhemPool,includeLatest);
+}
 function forgetOfferPicks(state,ids,receipt) {
   const match=matchReview.value.active;
   if (ids.length && match?.key===historyMatch(state).key && offerHistory.withdrawPicks(match,ids,receipt)) matchReview.persist();
@@ -1268,6 +1265,12 @@ function rememberOfferFrame(ids,at,state,partial) {
 }
 function saveOfferFrame(frame,pickId,receipt,source) {
   if (!frame) return;
+  if(!frame.recordId){
+    const shown=lastState?.final?.build?.mayhem;
+    const cards=shown?.comparison?.cards;
+    if(shown?.matchKey===mayhemSession.value?.key && offerHistory.sameCards(frame.ids,cards?.map(c=>c.id)))
+      frame.snapshot.cards.forEach((c,i)=>{c.grade=cards[i].grade;});
+  }
   const match=matchReview.ensureActive(frame.meta,frame.time);
   if (match && offerHistory.recordOffer(match,frame,pickId,receipt,source)) matchReview.persist();
   if(frame.recordId){
@@ -1290,8 +1293,10 @@ ipcMain.handle('edit-live-offer',wrap(input=>choiceWrites(()=>{
     saveOfferFrame(frame);
     p.filled=input.id;
     loading.visionMissed=false;
-  }else if(input.action==='confirm'){
-    const offer=loading.visionMissed&&recoverableOffer();
+  }else if(input.action==='confirm' || input.action==='confirm-earlier'){
+    const earlier=input.action==='confirm-earlier';
+    const offer=earlier ? unconfirmedHistory(state).find(o=>o.id===input.token)
+      : loading.visionMissed&&recoverableOffer();
     if(!offer || offer.id!==input.token || !offer.cards.some(c=>c.id===input.id))
       throw Error('Ten wybór jest już zapisany albo pojawiła się kolejna oferta.');
     const session=mayhemSession.value;
@@ -1300,6 +1305,12 @@ ipcMain.handle('edit-live-offer',wrap(input=>choiceWrites(()=>{
     const next=augmentScreen.reconcile({...session,screenIgnored},[...new Set([...(session.screenSlots||[]),input.id])],
       game,state.mayhemPool,{token:receipt,at:Date.now()});
     mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots,screenHistory:next.screenHistory,screenIgnored});
+    if(earlier){
+      offerHistory.confirmEarlierOffer(offer,input.id,receipt);
+      matchReview.persist();
+      send(buildLoadingView());
+      return {ok:true};
+    }
     saveOfferFrame(loading.historyFrame,input.id,receipt,'confirmed');
     offerTracker.reset();loading.visionMissed=false;loading.offerDisplay?.clear(Date.now());
   }else throw Error('Nieznana operacja na kartach.');
@@ -1339,16 +1350,24 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
     // The watcher emits focus heartbeats every 250 ms. A heartbeat must not
     // invalidate the new card geometry just verified under Ctrl+X.
     if(event.type==='focus'&&!event.focused&&offerTracker.paused)return;
-    offerHistory.rerollInput(loading?.historyFrame,event);
     if(event.type==='down'){
-      const visible=display.current||display.candidate;
+      const visible=display.presented||display.candidate;
       const slot=visible && event.at>=visible.at && event.at-visible.at<augmentOffers.OFFER_HOLD_MS
         ?offerHistory.rerollSlot(visible.cards.map(c=>c.rect),event,visible.aspect):-1;
       if(slot>=0){
+        // A quick reroll can arrive before the second OCR pass. The actual
+        // button press corroborates the freshly seen, fully bounded lineup.
+        const frame=loading.historyFrame;
+        if(frame && frame.seenAt===visible.at && event.at-frame.seenAt<=3500 &&
+          offerHistory.sameCards(frame.ids,visible.cards.map(c=>c.id))){
+          if(!frame.recordId)saveOfferFrame(frame);
+          frame.visible=true;
+        }
         display.invalidateReroll(slot,event.at);
         offerTracker.reset();loading.offerWasOnScreen=false;loading.recoveryOffer=null;loading.visionMissed=false;loadingDirty=true;
       }
     }
+    offerHistory.rerollInput(loading.historyFrame,event);
     if(event.type==='cancel'){
       if(event.sourceEnded)display.hold(event.at);
       else{display.clear(event.at);loading.recoveryOffer=null;loading.offerWasOnScreen=false;loading.visionMissed=false;}
@@ -1483,7 +1502,7 @@ async function readAutomaticAugment(input,state){
     const id=canTrack?offerTracker.observe({...detected,grid,at:input.at,aspect,active:true,readMs}):null;
     display.observe(cards,input.at,aspect,grid);
     if(display.uiKey!==uiKey)loadingDirty=true;
-    if(!focusedNow)offerTracker.preview(detected.cards,display.cards?.map(c=>c.id),input.at);
+    if(!focusedNow)offerTracker.preview(cards,display.current && !display.current.held ? display.current.cards.map(c=>c.id) : null,input.at);
     if(cards?.some((c,i)=>c.id&&c.id!==loading.historyFrame?.ids?.[i])){
       loading.recoveryOffer=null;loading.visionMissed=false;
     }

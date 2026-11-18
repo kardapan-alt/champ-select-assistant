@@ -1,0 +1,34 @@
+{
+  "format": "champ-select-assistant/build-report",
+  "schema": 1,
+  "version": "",
+  "patch": null,
+  "scenario": {
+    "alias": "Yasuo",
+    "role": "",
+    "mode": "mayhem",
+    "allies": [],
+    "enemies": ["Vayne", "Jax"],
+    "choices": {"items": [], "boots": null},
+    "mayhem": {"augments": [], "completed": [], "effects": {}, "owned": [], "ownedBoots": null, "headliner": null},
+    "context": {
+      "enemies": [
+        {
+          "alias": "Vayne",
+          "items": [
+            {"itemID": 3153, "slot": 0, "count": 1},
+            {"itemID": 3006, "slot": 1, "count": 1}
+          ]
+        }
+      ]
+    }
+  },
+  "observed": {
+    "gold": null,
+    "source": "Scenariusz testowy na podstawie zgłoszenia Yasuo",
+    "plan": [{"id": 3110, "name": "Frozen Heart"}],
+    "questSlot": null,
+    "target": null
+  },
+  "expectation": {"kind": "exclude", "itemId": 3110}
+}

@@ -492,6 +492,12 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 .augment-screen-controls button { padding:4px 8px; font-size:11px; }
 .augment-undo { margin-top:6px; padding:4px 8px; font-size:11px; max-width:100%; white-space:normal; text-align:left; }
 .augment-comparison { margin:10px 0; }
+.mayhem-dock { position:sticky; bottom:0; z-index:8; box-sizing:border-box; max-height:48vh; overflow-y:auto; overscroll-behavior:contain; padding:7px 10px; margin-top:10px; border:1px solid var(--line-2); border-top:2px solid var(--gold); border-radius:8px 8px 0 0; background:var(--panel); }
+.mayhem-dock .augment-comparison { margin:0; }
+.mayhem-dock .augment-receipt { margin:0; }
+.mayhem-dock .augment-comparison + .augment-receipt { margin-top:6px; }
+.mayhem-dock .augment-offer-grid > button { min-width:0; white-space:normal; overflow-wrap:anywhere; }
+.mayhem-dock .augment-offer-grid > button small { display:block; color:var(--muted); }
 .offer-heading { display:flex; justify-content:space-between; gap:8px; font-size:12px; margin-bottom:6px; }
 .offer-heading span,.offer-note { color:var(--muted); font-size:11px; }
 .augment-receipt { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; margin:7px 0 12px; font-size:12px; }

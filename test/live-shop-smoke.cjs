@@ -186,7 +186,13 @@ server.once('listening',async()=>{
     // Restore the starting build for existing recipe assertions.
     await evaluate(`(async()=>{const c=await window.assist.getMayhem();return window.assist.setMayhem({matchKey:c.matchKey,selection:{...c.selection,augments:[]},autoInventory:true,knownScreenAugments:c.screenAugments,screenUndoRevision:c.screenUndoRevision});})()`);
     for(const [width,height] of [[1100,760],[820,640]]){
-      win.setSize(width,height);await new Promise(r=>setTimeout(r,250));
+      win.setSize(width,height);
+      await waitFor(async()=>{
+        // A hidden BrowserWindow can retain the previous compact viewport
+        // until Chromium paints the first frame at the new native size.
+        await win.webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});
+        return evaluate('Math.abs(innerWidth-'+win.getContentSize()[0]+')<=1');
+      },'Renderer nie przyjął rozmiaru okna zakupów');
       await evaluate('window.scrollTo(0,0);document.getElementById("toast").hidden=true;void 0');
       assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'),'Overflow poziomy');
       assert.ok(await evaluate('document.querySelector(".live-shop").getBoundingClientRect().bottom<innerHeight'),'Kup teraz poza ekranem');

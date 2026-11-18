@@ -3,7 +3,7 @@
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
 const { liveSituations, mergeSituations } = require('./live-build');
-const { itemAvailable, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
+const { itemAvailable, itemGivesMana, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
 const { canonicalAlias, usesMana, resourceFor } = require('./champion-identity');
 const runeContext = require('../data/rune-context.json').champions;
 const { buildIdentity, isSupportCore } = require('./base-build');
@@ -797,8 +797,8 @@ function buildFor(alias, state, game, data) {
   const soldBoots = !!state.liveInventory && owned.length === 6 && !ownedBoots;
   const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
   const explicit = id => owned.includes(id) || (state.choices?.items || []).some(p=>p.id===id);
-  const fitsResource = id => state.mode==='mayhem' || usesMana(alias)!==false || explicit(id)
-    || !game.items.get(id)?.categories?.includes('Mana') || !game.items.get(id)?.categories?.some(c=>['Damage','SpellDamage'].includes(c));
+  const nativeMana = usesMana(alias);
+  const fitsResource = id => explicit(id) || (augmentation ? augmentation.fitsResource(id) : nativeMana !== false || !itemGivesMana(id,game));
   const isBuildItem = (id) => (exists(id) || (owned.includes(id) && mayhem.ownedAvailable(id,game,alias,state.mode))) && !isBootItem(id, game) && !SUPPORT_ITEMS.has(Number(id)) && (!augmentation?.excluded.has(id) || owned.includes(id)) && fitsResource(id);
   const purchased = owned.filter(isBuildItem);
   const ownChoices = purchased.length ? { ...state.choices, items: [
@@ -840,8 +840,9 @@ function buildFor(alias, state, game, data) {
     return a ? { alias: a, championId: e.championId, name: nameOf(a, game), traits: champInfo(a, game, data).traits || [] } : null;
   }).filter(Boolean);
   // Na ARAM-ie nie ma wardów ani Oracle Lens, więc niewidzialność nie ma odpowiedzi w sklepie.
-  const live = liveSituations(state.liveEnemies,itemPoolKey(champ),game,exists);
-  const situations = mergeSituations(detectSituations(enemyList, itemPoolKey(champ), exists),live).filter((s) => !(isAram(state.mode) && s.vision));
+  const counterAvailable = id => exists(id) && fitsResource(id) && (!augmentation?.excluded.has(id) || owned.includes(id));
+  const live = liveSituations(state.liveEnemies,itemPoolKey(champ),game,counterAvailable);
+  const situations = mergeSituations(detectSituations(enemyList, itemPoolKey(champ), counterAvailable),live).filter((s) => !(isAram(state.mode) && s.vision));
   // Mortal Reminder odpowiada równocześnie na leczenie i pancerz. Nie dodajemy
   // obok niego drugiego, niekompatybilnego ulepszenia Last Whisper.
   const healing = situations.find((s) => s.key === 'heal' && s.level === 2);

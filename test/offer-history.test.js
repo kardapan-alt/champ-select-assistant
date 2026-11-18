@@ -13,6 +13,23 @@ const state = () => ({mode:'mayhem',mayhemPool:'KIWI',me:{championId:game.champi
 const names = ids => ({cards:ids.map(id=>({id,name:catalog.find(a=>a.id===id).name})),inventory:'unknown'});
 const capture = ids => ({pool:'KIWI',time:null,snapshot:names(ids)});
 
+test('live review offers only the current player’s unconfirmed choices, including the last after reopening',()=>{
+  const {earlierOffers,confirmEarlierOffer}=require('../src/offer-history');
+  const match={...meta,offers:[1,2,3,4].map(id=>({id,...names(choices)}))};
+  match.offers[0].replacedBy=2;
+  match.offers[1].picked=choices[1];
+  assert.deepEqual(earlierOffers(match,meta,'KIWI').map(o=>o.id),[3]);
+  assert.deepEqual(earlierOffers(match,meta,'KIWI',true).map(o=>o.id),[3,4]);
+  for(const changed of [{key:'other-game'},{owner:'other-account'}])
+    assert.deepEqual(earlierOffers(match,{...meta,...changed},'KIWI',true),[]);
+  assert.deepEqual(earlierOffers({...match,endedAt:123},meta,'KIWI',true),[]);
+  assert.deepEqual(earlierOffers({...match,owner:null},{...meta,owner:null},'KIWI',true),[]);
+  assert.throws(()=>confirmEarlierOffer(match.offers[0],choices[0],'receipt'));
+  confirmEarlierOffer(match.offers[2],choices[0],'receipt');
+  assert.equal(match.offers[2].picked,choices[0]);assert.ok(!match.offers[3].picked);
+  assert.deepEqual(earlierOffers(match,meta,'KIWI',true).map(o=>o.id),[4]);
+});
+
 test('an offer freezes independent builds, including purchases, goal and earlier augments', () => {
   const s=state(),goal=3135;
   s.mayhem.augments.push(id('Goliath'));

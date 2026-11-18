@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const { LcuClient } = require('../src/lcu');
 const { loadGameData } = require('../src/gamedata');
 const opgg = require('../src/opgg');
-const { readLoadingPlayers, playerCard } = require('../src/players');
+const { readLoadingPlayers, playerCard, refreshPlayerStats } = require('../src/players');
 
 process.env.PORT = '0';
 const lcuServer = require('../mock/mock-lcu');
@@ -63,6 +63,29 @@ test('bez danych gracza karta pokazuje tylko nick i championa', () => {
   const card = playerCard({ gameName: 'X', tagLine: 'Y', championId: 1, position: 'top' }, null, game);
   assert.equal(card.loaded, false);
   assert.equal(card.name, 'X#Y');
+});
+
+test('ponawia przejściowy błąd na stabilnym składzie i pomija ukryte profile', async()=>{
+  const target={summaries:{},allies:[{gameName:'Ja',tagLine:'TEST'}],enemies:[{gameName:'Wróg',tagLine:'TEST'},{gameName:'Ukryty',tagLine:'TEST',anonymous:true}]};
+  const calls=[];let time=0;
+  const refresh=()=>refreshPlayerStats(target,async p=>{
+    calls.push(p.gameName);
+    if(!time && p.gameName==='Ja')throw Error('timeout');
+    return {games:[{}]};
+  },()=>true,()=>{},()=>time);
+  await refresh();await refresh();
+  assert.deepEqual(calls,['Ja','Wróg']);
+  assert.equal(target.summaries['Ja#TEST'],false);
+  target.summaries['Wróg#TEST'].profileSource={retry:true};
+  target.statsRetryAt.set('Wróg#TEST',time+60_001);
+  time=60_001;await refresh();await refresh();
+  assert.deepEqual(calls,['Ja','Wróg','Ja','Wróg']);assert.ok(target.summaries['Ja#TEST']);
+  target.summaries={};
+  target.enemies=[];
+  let done;
+  const pending=refreshPlayerStats(target,()=>new Promise(resolve=>{done=resolve;}),()=>true,()=>{});
+  target.allies[0].anonymous=true;
+  done({games:[{}]});await pending;assert.deepEqual(target.summaries,{});
 });
 
 test('ARAM i Mayhem zachowują profil historyczny, bez porad o linii i wizji', async () => {

@@ -13,6 +13,13 @@ function itemAvailable(id, game, mode = 'classic', alias = '') {
   return true;
 }
 
+const bundledManaItems = new Set(require('../data/catalog.json').items
+  .filter(item => item.categories?.includes('Mana')).map(item => item.id));
+function itemGivesMana(id, game) {
+  const categories = game?.items?.get(id)?.categories;
+  return categories?.length ? categories.includes('Mana') : bundledManaItems.has(id);
+}
+
 // Wzajemnie wykluczające się rodziny przedmiotów. Nie proponujemy dwóch
 // ulepszeń Last Whisper ani dwóch źródeł Lifeline w jednym zestawie.
 const EXCLUSIVE = [
@@ -36,4 +43,4 @@ function redundantSpellblade(id, selected) {
 const PURCHASE_FORM = {3040:3003,3042:3004,3121:3119,2530:2526};
 const purchaseItem = id => PURCHASE_FORM[Number(id)] || Number(id);
 
-module.exports = { itemAvailable, itemsCompatible, redundantSpellblade, purchaseItem };
+module.exports = { itemAvailable, itemGivesMana, itemsCompatible, redundantSpellblade, purchaseItem };

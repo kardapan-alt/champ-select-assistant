@@ -98,10 +98,11 @@ app.whenReady().then(async () => {
   assert.ok(await evaluate(`document.querySelector('.pcard').open && document.querySelector('.pcard h4').innerText.includes('30 dni')`));
   await evaluate(`document.querySelector('.pcard summary').click()`); await settled();
   const originalRoster = fixture;
-  fixture = {...fixture, enemies:fixture.enemies.map((p,i)=>i===4?{...p,anonymous:true,name:'SECRET#HIDDEN'}:p)};
+  fixture = {...fixture, enemies:fixture.enemies.map((p,i)=>i===4?{...p,anonymous:true,name:'SECRET#HIDDEN',matchScore:{kda:[2,0,3],cs:0}}:p)};
   win.webContents.send('state', fixture); await settled();
   assert.ok(await evaluate(`document.querySelector('.roster-teams').innerHTML.includes('Gracz anonimowy') && !document.querySelector('.roster-teams').innerHTML.includes('SECRET')`));
   assert.equal(await evaluate(`document.querySelectorAll('.pcard .stats').length`),9,'Anonimowy profil zachowuje kartę i ukrywa statystyki');
+  assert.ok(await evaluate(`document.querySelector('.roster-teams').innerText.includes('Ten mecz · K/D/A 2/0/3 · 0 CS')`));
   fs.writeFileSync(path.join(out, 'players.png'), (await win.webContents.capturePage()).toPNG());
   win.setContentSize(820,600); await settled();
   assert.ok(await evaluate(`(() => { const teams=[...document.querySelectorAll('.roster-team')];return teams[0].offsetTop===teams[1].offsetTop && teams.every(team=>new Set([...team.querySelectorAll('.pcard')].map(c=>c.offsetTop)).size===5) && document.documentElement.scrollWidth<=innerWidth })()`),'Wąski ekran: dwie zwarte listy po pięciu graczy');

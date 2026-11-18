@@ -83,7 +83,7 @@ function explainItem(id,state,build,game,data) {
   const restriction = purchaseRestriction(id,build,game);
   if (restriction) return {...result,reason:restriction};
   if (isBootItem(id,game)) result.reason=`Reguła butów wybrała ${build.boots?.name || 'inny wariant'} (${build.boots?.why || 'slot butów'}).`;
-  else if (!t.resource) result.reason='Automatyczny dobór pomija tu ofensywne przedmioty z maną ze względu na zasób postaci.';
+  else if (!t.resource) result.reason='Ten przedmiot daje manę, której Twój champion nie wykorzystuje.';
   else if (t.inPool && !t.damage) result.reason='Kandydat odpadł przy dopasowaniu typu obrażeń postaci do statystyk przedmiotu.';
   else if (t.inPool && !t.crit) result.reason='Filtr stylu odrzucił zakup pod kryty przy obecnym rdzeniu i augmentach.';
   else if (t.conflict) result.reason=`W planie jest ${game.items.get(t.conflict)?.name || t.conflict}. Silnik rozdziela te przedmioty ze względu na wspólną rodzinę lub efekt Spellblade.`;

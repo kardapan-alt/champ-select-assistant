@@ -1,4 +1,4 @@
-const { itemAvailable, itemsCompatible } = require('./itemrules');
+const { itemAvailable, itemGivesMana, itemsCompatible } = require('./itemrules');
 const { isBootItem } = require('./rolequests');
 const catalog = require('../data/mayhem-augments.json');
 const byId = new Map(catalog.augments.map(a => [a.id, a]));
@@ -113,17 +113,10 @@ function adaptation(selection, champion, context = {}) {
   const tankHaste = enemy.apShare>=.55 ? [3065,2504,3190] : [2502,3110,3190];
   const spellItems = support ? [6617,3107,6620] : tank ? tankHaste : ap ? [4628,8010,6655] : adc ? [6675,3508,3004] : [3071,3161,6692];
   const healthItems = support ? [3107,3190,6617] : tank || durable && !ap ? [3084,2502,3083,3748] : ap ? [4633,3116] : [3071,3181];
-  // Resource data is explicit: an unknown/new champion is not guessed to be manaless.
-  // Frozen Heart may still be a defensive answer; offensive mana purchases need a
-  // resource, a mana conversion, or a direct quest/upgrade chosen by the player.
   const required = new Set([...activeRules.flatMap(r=>r.items || []),...(context.pinned || [])]);
-  if (usesMana === false && !manaConversion) {
-    for (const item of context.game?.items.values() || []) {
-      if (item.categories?.includes('Mana') && item.categories.some(c=>['SpellDamage','Damage'].includes(c)) && !required.has(item.id)) excluded.add(item.id);
-    }
-  }
+  const fitsResource = id => usesMana !== false || manaConversion || required.has(id) || !itemGivesMana(id,context.game);
   let family;
-  const add = (ids, amount, why, direct = amount >= 26) => ids.filter(id=>!excluded.has(id)).forEach((id, index) => {
+  const add = (ids, amount, why, direct = amount >= 26) => ids.filter(id=>!excluded.has(id) && fitsResource(id)).forEach((id, index) => {
     const prev = bonuses.get(id) || { score: 0, reasons: [], contributions:[] };
     bonuses.set(id, { score: Math.min(30, prev.score + amount - index * 0.25), reasons: [...prev.reasons, why],
       contributions:[...prev.contributions,{ group:why, family:family || why, score:amount-index*0.25, direct }] });
@@ -203,7 +196,7 @@ function adaptation(selection, champion, context = {}) {
       add(ids, 26, why + (r.quest ? ': przedmiot do zadania' : ': ulepszony przedmiot'), !r.anyItem && !r.repeat);
     }
   }
-  return { bonuses, hints, unknown, excluded, conversion, repeat, upgrades,
+  return { bonuses, hints, unknown, excluded, fitsResource, conversion, repeat, upgrades,
     transformsBuild:!!(conversion || attackConversion && (attackConversion!=='crit' || attacks && !ap) || healthConversion || attackAP || manaConversion && ap && !tank && !support),
     freeBoots:activeRules.some(r=>r.freeBoots), active: bonuses.size > 0, owned:s.owned || [], ownedBoots:s.ownedBoots || null };
 }

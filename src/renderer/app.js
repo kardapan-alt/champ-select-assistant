@@ -315,12 +315,15 @@ function playerCardHtml(p, side, index) {
   const loaded = !anonymous && !p.statsDisabled && !p.pending && p.loaded;
   const rank = loaded && p.rank;
   const title = [champion.name || 'Nieznana postać', p.position, p.isMe ? 'Ty' : '', p.laneOpponent ? 'Twój rywal z linii' : ''].filter(Boolean).join(' · ');
+  const score = !p.statsDisabled && p.matchScore;
+  const counters = score && [score.kda && `K/D/A ${score.kda.join('/')}`, Number.isInteger(score.cs) && `${score.cs} CS`].filter(Boolean);
   const identity = `<span class="pc-head">${img(champion.icon, 'icon', '')}
     <span class="pc-identity"><strong class="pc-name" title="${esc(name)}">${esc(name)}</strong>
-    <span class="pc-champion">${esc(title)}</span></span></span>`;
+    <span class="pc-champion">${esc(title)}</span>
+    ${counters?.length ? `<span class="pc-champion">Ten mecz · ${esc(counters.join(' · '))}</span>` : ''}</span></span>`;
   const cls = `pcard ${side}${p.isMe ? ' me' : ''}`;
   if (!loaded) {
-    const message = anonymous ? 'Brak publicznego Riot ID' : p.statsDisabled ? 'Statystyki wyłączone' : p.pending ? 'Pobieram statystyki…' : 'Profil OP.GG niedostępny';
+    const message = p.statsDisabled ? 'Statystyki wyłączone' : anonymous ? 'Historia ukryta · brak publicznego Riot ID' : p.pending ? 'Pobieram historię OP.GG…' : 'Brak historii OP.GG · ponowię odczyt';
     return `<article class="${cls}"><div class="roster-summary">${identity}<span class="pc-wait">${message}</span></div></article>`;
   }
   const c = p.champion || {};
@@ -333,7 +336,12 @@ function playerCardHtml(p, side, index) {
     <span class="rank-queue">${esc(rank.queue || 'Ranking')}${rank.lp != null ? ` · ${esc(rank.lp)} LP` : ''}</span>` : 'Brak danych rangi';
   const pool = month ? p.recent30Champs : p.seasonChamps;
   const tags = p.tags || [];
+  const source = p.profileSource;
+  const missing = [['Profil',source?.profileMissing,source?.cachedProfileAt],['Historia',source?.historyMissing,source?.cachedHistoryAt]]
+    .filter(([,unavailable]) => unavailable)
+    .map(([label,,at]) => at ? `${label} z pamięci OP.GG · ${new Date(at).toLocaleString('pl-PL')}` : `${label} OP.GG chwilowo niedostępn${label === 'Profil' ? 'y' : 'a'}`);
   const details = `<div class="roster-details">
+    ${missing.map(label => `<p>${esc(label)}</p>`).join('')}
     ${c.kda ? `<p>KDA postaci w dostępnej historii <strong>${esc(c.kda.k)} / ${esc(c.kda.d)} / ${esc(c.kda.a)}</strong></p>` : ''}
     ${p.mainRole && p.profileMode === 'classic' ? `<p>Najczęstsza rola <strong>${esc(p.mainRole)}</strong></p>` : ''}
     ${tags.length ? `<div class="pc-tags">${tags.map(t => `<span class="tag">${esc(t.text)}</span>`).join('')}</div>` : ''}
@@ -342,7 +350,7 @@ function playerCardHtml(p, side, index) {
   const key = `roster-${side}-${index}`;
   return `<details class="${cls}" data-detail="${key}"${expanded.get('detail:' + key) ? ' open' : ''}>
     <summary class="roster-summary" title="Rozwiń lub zwiń profil gracza ${esc(name)}">${identity}
-      <span class="pc-rank">${rankLine}</span><span class="stats">${stats}</span></summary>${details}</details>`;
+      <span class="pc-rank">${rankLine}${missing.length ? ' · Częściowe dane OP.GG' : ''}</span><span class="stats">${stats}</span></summary>${details}</details>`;
 }
 
 function rosterPanel(s) {
@@ -461,6 +469,7 @@ function loadingScreen(s) {
     ${tabs}
     ${body}
     <footer><span class="stats-status ${s.statsStatus && s.statsStatus.ok ? 'ok' : ''}">${esc(s.statsStatus ? s.statsStatus.message : '')}${s.region ? ` · serwer ${esc(s.region)}` : ''}</span>${aram?'':'<button data-stats-diag>Diagnostyka OP.GG</button>'}</footer>
+    ${mayhemOfferDock(s.final?.build?.mayhem)}
   </div>`;
 }
 

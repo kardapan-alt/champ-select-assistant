@@ -6,9 +6,17 @@ function partialOfferView(offer){
       ${card?`<b>${esc(card.name)}</b>${card.english!==card.name?`<small>${esc(card.english)}</small>`:''}`:
         `<b>Nieczytelna nazwa</b><button type="button" data-fill-offer-slot="${offer.token}" ${offer.held?'disabled':''}>Uzupełnij kartę</button>`}</article>`).join('')}</div></section>`;
 }
-function missedOfferView(offer){
-  return `<section class="augment-comparison"><div class="offer-heading"><b>Którą kartę wybrałeś w grze?</b></div>
-    <div class="augment-offer-grid">${offer.cards.map(c=>`<button type="button" data-confirm-offer-id="${c.id}" data-token="${offer.token}">${esc(c.name)}${c.english!==c.name?`<small>${esc(c.english)}</small>`:''}</button>`).join('')}</div></section>`;
+function missedOfferView(offer,fromHistory=false){
+  return `<section class="augment-comparison"><div class="offer-heading"><b>Ostatnie rozpoznane karty</b><span>Wskaż kartę, jeśli masz ją w grze</span></div>
+    <div class="augment-offer-grid">${offer.cards.map(c=>`<button type="button" ${fromHistory?'data-confirm-earlier':'data-confirm-offer-id'}="${c.id}" data-token="${offer.token}" ${c.owned?'disabled':''}>${esc(c.name)}${c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${c.grade?`<small>Ocena · ${esc(c.grade)}</small>`:''}</button>`).join('')}</div></section>`;
+}
+function earlierOffersView(m){
+  if(!m.earlierOffers?.length)return '';
+  const rows=[...m.earlierOffers].reverse().map(o=>`<section class="augment-comparison">
+    <div class="offer-heading"><b>${Number.isFinite(o.time)?'Karty z '+reviewTime(o.time):'Karty z wcześniejszego odczytu'}</b></div>
+    <div class="augment-offer-grid">${o.cards.map(c=>`<button type="button" data-confirm-earlier="${c.id}" data-token="${o.token}" ${c.owned?'disabled':''}>${esc(c.name)}${c.english&&c.english!==c.name?`<small>${esc(c.english)}</small>`:''}${c.owned?'<small>Już zapisany</small>':''}</button>`).join('')}</div></section>`).join('');
+  return disclosure('earlier-offers-'+m.matchKey,'Uzupełnij wcześniejszy wybór',
+    '<p>Wskaż augment, który masz w grze. Pomiń oferty, które przerzuciłeś.</p>'+rows);
 }
 async function fillOfferDialog(m,token){
   if(document.getElementById('fill-offer-dialog'))return;
@@ -59,13 +67,15 @@ window.assist.onState(state=>{
   }
 });
 document.getElementById('app').addEventListener('click',async event=>{
-  const button=event.target.closest('[data-fill-offer-slot],[data-confirm-offer-id]');
+  const button=event.target.closest('[data-fill-offer-slot],[data-confirm-offer-id],[data-confirm-earlier]');
   const m=lastState?.final?.build?.mayhem;
   if(!button||!m)return;
   if(button.hasAttribute('data-fill-offer-slot'))return fillOfferDialog(m,Number(button.dataset.fillOfferSlot));
   button.disabled=true;
   try{
-    const res=await window.assist.editLiveOffer({action:'confirm',matchKey:m.matchKey,token:Number(button.dataset.token),id:Number(button.dataset.confirmOfferId)});
+    const prior=button.dataset.confirmEarlier;
+    const res=await window.assist.editLiveOffer({action:prior?'confirm-earlier':'confirm',matchKey:m.matchKey,
+      token:Number(button.dataset.token),id:Number(prior||button.dataset.confirmOfferId)});
     if(!res.ok)throw Error(res.error);
     toast('Zapisano wybraną kartę.');
   }catch(err){toast(err.message,true);}finally{button.disabled=false;}

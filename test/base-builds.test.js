@@ -28,7 +28,7 @@ test('all champions have complete, compatible baseline builds in three modes and
       assert.ok(!(item.to||[]).some(next=>game.items.get(next)?.inStore===true),label);
       assert.ok(itemsCompatible(id,ids.slice(0,index)),label);
       assert.ok(!redundantSpellblade(id,ids.slice(0,index)),label);
-      if(usesMana(alias)===false)assert.ok(!item.categories.includes('Mana')||!item.categories.some(t=>['Damage','SpellDamage'].includes(t)),label);
+      if(usesMana(alias)===false)assert.ok(!item.categories.includes('Mana'),label);
     }
     if(!enemies.length){
       const source=mode==='classic'?c:c.aram;
@@ -36,6 +36,31 @@ test('all champions have complete, compatible baseline builds in three modes and
       assert.equal(b.baseSource.mode,mode==='classic'?'classic':'aram');
       assert.equal(b.baseSource.patch,'16.22');
     }
+  }
+});
+
+test('Frozen Heart counters attack speed only for champions who can use its mana',()=>{
+  const enemies=['Jax','Vayne'];
+  const liveEnemies=[{alias:'Jax',championId:game.championsByAlias.get('Jax').id,items:[
+    {id:3085,name:"Runaan's Hurricane",kind:'finished'},{id:3006,name:"Berserker's Greaves",kind:'boots'}]}];
+  for(const mode of ['classic','aram','mayhem']){
+    for(const alias of ['Yasuo','Yone','Shen','Garen']){
+      const s={...state(alias,mode,enemies),liveEnemies,inspectItem:3110};
+      const b=engine.buildFor(alias,s,game,data);
+      assert.equal(b.inspection.resource,false);
+      assert.ok(![...b.items,...b.alternatives].some(i=>i.id===3110));
+      assert.ok(!b.situations.some(s=>s.item?.id===3110 || s.answer.includes('Frozen Heart')));
+      assert.ok(!b.liveAdaptation.some(s=>s.item===3110));
+      assert.ok(!engine.itemSetFor(b,alias,s,game,data).blocks.some(block=>block.items.some(i=>i.id==='3110')));
+    }
+    const ornn=engine.buildFor('Ornn',{...state('Ornn',mode,enemies),liveEnemies},game,data);
+    assert.ok(ornn.items.some(i=>i.id===3110));
+    assert.ok(ornn.liveAdaptation.some(s=>s.item===3110));
+    const yasuo=state('Yasuo',mode,enemies);
+    const owned=engine.buildFor('Yasuo',{...yasuo,liveInventory:{owned:[3110]}},game,data);
+    assert.ok(owned.items.some(i=>i.id===3110 && i.owned));
+    const pinned=engine.buildFor('Yasuo',{...yasuo,choices:{items:[{id:3110,slot:0}]}},game,data);
+    assert.ok(pinned.items.some(i=>i.id===3110 && i.pinned));
   }
 });
 

@@ -77,8 +77,8 @@ const round = (v, d = 1) => (v == null ? null : Math.round(v * 10 ** d) / 10 ** 
 function championList(games, game) {
   const by = new Map();
   for (const g of games) {
-    const e = by.get(g.championId) || { championId: g.championId, games: 0, wins: 0, k: 0, d: 0, a: 0 };
-    e.games++; if (g.win) e.wins++;
+    const e = by.get(g.championId) || { championId: g.championId, games: 0, wins: 0, results: 0, k: 0, d: 0, a: 0 };
+    e.games++; if (typeof g.win === 'boolean') e.results++; if (g.win) e.wins++;
     e.k += g.kills; e.d += g.deaths; e.a += g.assists;
     by.set(g.championId, e);
   }
@@ -86,7 +86,7 @@ function championList(games, game) {
     championId: e.championId,
     name: game.championsById.get(e.championId)?.name || '',
     games: e.games,
-    winRate: Math.round((e.wins / e.games) * 100),
+    winRate: e.results === e.games ? Math.round((e.wins / e.games) * 100) : null,
     kda: `${round(e.k / e.games)} / ${round(e.d / e.games)} / ${round(e.a / e.games)}`,
   }));
 }
@@ -105,12 +105,13 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
     tags: [],
   };
   if (!summary) return card;
+  card.profileSource = summary.profileSource;
   const { rank, seasonChampions = {}, games = [], seasonList = null } = summary;
   const champGames = games.filter((g) => g.championId === player.championId);
   const champName = (id) => game.championsById.get(id)?.name || '';
 
   if (rank) {
-    const valid = rank.wins >= 0 && rank.losses >= 0;
+    const valid = [rank.wins,rank.losses].every(n => Number.isInteger(n) && n >= 0);
     const total = valid ? rank.wins + rank.losses : 0;
     card.rank = {
       label: `${rank.tier[0]}${rank.tier.slice(1).toLowerCase()}${rank.division && !['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(rank.tier) ? ` ${ROMAN[rank.division] || rank.division}` : ''}`,
@@ -130,7 +131,7 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
     .slice(0, 8);
   const season = seasonChampions[player.championId];
   card.champion = {
-    seasonGames: season ? season.games : 0,
+    seasonGames: season ? season.games : Object.keys(seasonChampions).length ? 0 : null,
     // Poza top listą OP.GG: wiemy tylko, że gier jest mniej niż u ostatniego championa na liście.
     seasonBelow: !season && seasonList && seasonList.partial ? seasonList.below : null,
     seasonWinRate: season && season.games && season.wins != null ? Math.round((season.wins / season.games) * 100) : null,
@@ -142,12 +143,11 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
   };
 
   if (games.length) {
-    const wins = games.filter((g) => g.win).length;
     const recentDays = games.filter((g) => g.createdAt && now - g.createdAt <= 30 * DAY);
-    const rate = (list) => (list.length ? Math.round((list.filter((g) => g.win).length / list.length) * 100) : null);
+    const rate = (list) => (list.length && list.every(g => typeof g.win === 'boolean') ? Math.round((list.filter((g) => g.win).length / list.length) * 100) : null);
     card.recent = {
       games: games.length,
-      winRate: Math.round((wins / games.length) * 100),
+      winRate: rate(games),
       last30Days: recentDays.length,
       // OP.GG daje najwyżej 20 ostatnich gier: gdy wszystkie są z 30 dni, gier mogło być więcej.
       last30More: recentDays.length === games.length && games.length >= 20,
@@ -184,7 +184,7 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
 
     let streak = 0;
     for (const g of games) { if (g.win === games[0].win) streak++; else break; }
-    if (streak >= 3) tag(games[0].win ? `Seria ${streak} wygranych` : `Seria ${streak} porażek`, games[0].win ? 'good' : 'warn');
+    if (streak >= 3 && typeof games[0].win === 'boolean') tag(games[0].win ? `Seria ${streak} wygranych` : `Seria ${streak} porażek`, games[0].win ? 'good' : 'warn');
     if (games.length >= 10 && mainRole && player.position && normPosition(mainRole[0]) !== player.position && mainRole[1] / games.length >= 0.6) tag('Inna rola niż w ostatnich grach', 'info');
   }
   // Historical profile numbers are context, not ARAM lane/vision advice.
@@ -192,4 +192,32 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
   return card;
 }
 
-module.exports = { LOADING_PHASES, readLoadingPlayers, playerCard, gier, normPosition };
+const playerKey = p => `${p.gameName}#${p.tagLine}`;
+
+async function refreshPlayerStats(target, lookup, active, changed, now = Date.now) {
+  if (!active()) return;
+  target.statsFetching ||= new Set();
+  target.statsRetryAt ||= new Map();
+  const visible = () => [...target.allies, ...target.enemies].filter(p => !p.anonymous && p.gameName && p.tagLine);
+  const work = [];
+  for (const player of visible()) {
+    if (target.statsFetching.size >= 3) break;
+    const key = playerKey(player);
+    const prior = target.summaries[key];
+    if ((prior && !prior.profileSource?.retry) || target.statsFetching.has(key) || now() < (target.statsRetryAt.get(key) || 0)) continue;
+    target.statsFetching.add(key);
+    work.push((async () => {
+      let summary;
+      try { summary = await lookup(player); } catch { summary = null; }
+      target.statsFetching.delete(key);
+      if (!active() || !visible().some(p => playerKey(p) === key)) return;
+      target.summaries[key] = summary || false;
+      if (!summary || summary.profileSource?.retry) target.statsRetryAt.set(key, now() + 60_000);
+      else target.statsRetryAt.delete(key);
+      changed();
+    })());
+  }
+  await Promise.all(work);
+}
+
+module.exports = { LOADING_PHASES, readLoadingPlayers, playerCard, playerKey, refreshPlayerStats, gier, normPosition };

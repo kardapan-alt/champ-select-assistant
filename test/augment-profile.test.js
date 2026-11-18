@@ -38,7 +38,7 @@ test('mana ma pokrycie w zasobie championa; konwersje, zadania i własne zakupy 
     assert.equal(buildProfile(engine.champInfo(alias,game,data)).usesMana,false);
     for(const names of [[],['Overflow'],['BlueBarrier'],['DoubleTime'],['CantTouchThis'],['MightyShield']]) {
       const b=build(alias,names);
-      assert.ok(!b.items.some(i=>{const c=game.items.get(i.id).categories;return c.includes('Mana')&&c.some(v=>['SpellDamage','Damage'].includes(v));}),`${alias}: ${names}`);
+      assert.ok(!b.items.some(i=>game.items.get(i.id).categories.includes('Mana')),`${alias}: ${names}`);
     }
   }
   assert.equal(buildProfile({alias:'UnreleasedChampion'}).usesMana,null);
@@ -48,9 +48,9 @@ test('mana ma pokrycie w zasobie championa; konwersje, zadania i własne zakupy 
   assert.equal(build('Akali',['TrueEternity']).items[0].id,773027);
   const owned=build('Zed',['Overflow'],{mayhem:{owned:[3004]}});assert.equal(owned.items[0].id,3004);assert.equal(owned.items[0].owned,true);
   assert.equal(build('Zed',['Overflow'],{choices:{items:[{id:3004,slot:0}]}}).items[0].id,3004);
-  // Armor can still justify Frozen Heart without a mana bar.
   const fh=mayhem.adaptation({augments:[id('Impassable')]},engine.champInfo('Shen',game,data),{game,enemy:{adShare:1}});
-  assert.ok(!fh.excluded.has(3110));
+  assert.equal(fh.fitsResource(3110),false);
+  assert.ok(!fh.bonuses.has(3110));
 });
 
 test('prawdziwe nakładanie on-hit, konwersje i ulepszenia nadal wpływają na zakupy',()=>{
@@ -84,8 +84,7 @@ test('283 augmenty × 18 profili: zgodność, zasoby i brak zamiany AP/AD od sam
       assert.ok(itemAvailable(i.id,game,'mayhem',alias));
       assert.ok(itemsCompatible(i.id,ids(b).slice(0,n),repeat));
       if(buildProfile(engine.champInfo(alias,game,data)).usesMana===false&&!r.manaConversion&&!(r.items||[]).includes(i.id)) {
-        const c=game.items.get(i.id).categories;
-        assert.ok(!c.includes('Mana')||!c.some(v=>['SpellDamage','Damage'].includes(v)),`${alias} ${a.api}: ${i.name}`);
+        assert.ok(!game.items.get(i.id).categories.includes('Mana'),`${alias} ${a.api}: ${i.name}`);
       }
     });
     assert.ok(ids(b).filter(id=>[3078,6662,3100].includes(id)).length<=1);

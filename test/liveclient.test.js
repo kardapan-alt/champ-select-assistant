@@ -21,6 +21,27 @@ function fixture(items=[]) {
 const read=responses=>new LiveClient(async p=>{assert.equal(p,'/liveclientdata/allgamedata');return responses;})
   .inventory(me,'Ahri','KIWI',game,{enemies:[{gameName:'Wróg',tagLine:'EUNE',championId:103}]});
 
+test('tablica meczu rozróżnia drużyny i nie ujawnia kont anonimowych przeciwników', async()=>{
+  const f=fixture();
+  f.allPlayers[0].scores={kills:3,deaths:2,assists:1,creepScore:20};
+  f.allPlayers[1].scores={kills:0,deaths:0,assists:0};
+  const options={allies:[{...me,championId:103}],enemies:[{anonymous:true,championId:103}]};
+  const live=new LiveClient(async()=>f);
+  const scores=async()=> (await live.inventory(me,'Ahri','KIWI',game,options)).scoreboard;
+  assert.deepEqual(await scores(),{allies:{103:{kda:[0,0,0],cs:null}},enemies:{103:{kda:[3,2,1],cs:20}}});
+  f.allPlayers[0].scores={creepScore:0,kills:null,deaths:0,assists:2};
+  assert.deepEqual((await scores()).enemies[103],{kda:null,cs:0});
+  f.allPlayers.push({...f.allPlayers[0]});
+  assert.deepEqual((await scores()).enemies,{});
+  f.allPlayers.pop();delete f.allPlayers[0].scores;
+  assert.deepEqual((await scores()).enemies,{});
+  f.allPlayers[0].scores={kills:1,deaths:0,assists:2};
+  options.enemies=[{championId:103,gameName:'Inny',tagLine:'TEST'}];
+  assert.deepEqual((await scores()).enemies,{});
+  f.activePlayer.riotId='Inny#TEST';
+  assert.equal(await scores(),undefined);
+});
+
 test('odczyt wybiera własny Riot ID i championa, także przy lustrzanym przeciwniku',async()=>{
   const value=await read(fixture([item(6655),item(3020,1)]));
   assert.equal(value.status,'live');assert.deepEqual(value.inventory.owned,[6655]);assert.equal(value.inventory.ownedBoots,3020);

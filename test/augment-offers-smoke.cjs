@@ -37,15 +37,16 @@ server.once('listening',async()=>{
       if(constraints.audio!==false||constraints.video.mandatory.chromeMediaSourceId!=='window:1234:0')throw Error('wrong capture');
       const c=document.createElement('canvas');c.width=1920;c.height=1080;window.offerFixture=c;
       window.drawOffer=(titles=['Apex Inventor','Back To Basics','Ice Cold'])=>{
+        window.fixtureTitles=titles;
         const x=c.getContext('2d'),g=x.createLinearGradient(0,0,1920,1080);g.addColorStop(0,'#203040');g.addColorStop(1,'#809070');x.fillStyle=g;x.fillRect(0,0,1920,1080);
         if(!titles)return;
         for(let i=0;i<3;i++){const cx=585+i*375;x.fillStyle='#d6b5d7';x.fillRect(cx-162,210,324,594);x.fillStyle='#101923';x.fillRect(cx-156,216,312,582);
           x.strokeStyle='#ce85eb';x.lineWidth=5;x.beginPath();x.arc(cx,310,45,0,Math.PI*2);x.stroke();
-          x.fillStyle='#ecdbb6';x.font='bold 28px Segoe UI';x.textAlign='center';x.fillText(titles[i],cx,448);
+          x.fillStyle='#ecdbb6';x.font='bold 28px Segoe UI';x.textAlign='center';x.fillText(titles[i],cx,448,300);
           x.fillStyle='#c9ccd0';x.font='18px Segoe UI';x.fillText('Improve your abilities',cx,525);x.fillText('and change your build.',cx,555);
           x.fillStyle='#74736b';x.fillRect(cx-45,845,90,35);
         }
-      };drawOffer();return c.captureStream(5);
+      };drawOffer(window.fixtureTitles);return c.captureStream(5);
     };void 0`);
     await waitFor(()=>evaluate('lastState?.final?.build?.mayhem?.screen.status==="capture-error"'),'Błąd okna ukryty pod oczekiwaniem');
     assert.ok(await evaluate('document.querySelector("[data-readout=augments]").textContent.includes("Nie widzę okna gry")'));
@@ -136,8 +137,12 @@ server.once('listening',async()=>{
     await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.paused'),'Alt-Tab zgubił porównanie');
     await evaluate('window.assist.setViewMode(true)');
     await waitFor(()=>evaluate('document.querySelectorAll(".compact-content [data-offer-id]").length===3'),'Brak 3 kart w małym widoku');
+    const dockInView=()=>evaluate('(()=>{const dock=document.querySelector(".mayhem-dock");if(!dock)return false;const r=dock.getBoundingClientRect();return r.top>0 && r.bottom<=innerHeight+1 && r.bottom>=innerHeight-28;})()');
+    assert.ok(await dockInView(),'Trzy karty mają być przy dolnej krawędzi po otwarciu Ctrl+X');
+    await evaluate('window.scrollTo(0,document.documentElement.scrollHeight);void 0');
+    assert.ok(await dockInView(),'Trzy karty mają pozostać przy dolnej krawędzi po przewinięciu buildu');
     assert.ok(await evaluate('[...document.querySelectorAll(".compact-content [data-offer-id]")].every(e=>e.getBoundingClientRect().bottom<innerHeight)'));
-    assert.ok(await evaluate('document.querySelector(".compact-content .augment-comparison").innerText.includes("Ostatnia oferta")'));
+    await waitFor(()=>evaluate('document.querySelector(".mayhem-dock .offer-heading")?.innerText.includes("Ostatnia oferta")'),'Brak opisu odczytanej oferty pod Ctrl+X');
     assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
     fs.writeFileSync(path.resolve(profile,'../comparison-compact.png'),(await win.webContents.capturePage()).toPNG());
     await evaluate('window.assist.setViewMode(false)');
@@ -226,9 +231,16 @@ server.once('listening',async()=>{
     assert.match(quoted,/1700 zł/);assert.match(quoted,/850 zł/);assert.match(quoted,/1100 zł/);
     assert.match(quoted,/plan|Później/i);
     await evaluate('window.assist.setViewMode(false)');
-    for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
-    await evaluate('drawOffer(null)');
-    await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(3150)'),'Stormsurge nie zapisany');
+    // Hold the final OCR result with all three cards. Before the next frame is
+    // captured, the player chooses Stormsurge, then clicks the uncovered map.
+    beforeOcrResult=async()=>{
+      for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
+      await evaluate('drawOffer(null)');
+      await new Promise(resolve=>setTimeout(resolve,100));
+      for(const type of ['down','up'])onInput({type,at:Date.now(),x:200,y:950,width:1920,height:1080});
+    };
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(3150)'),'Klik na mapie przed pierwszą czystą klatką zgubił Stormsurge');
+    assert.deepEqual(await evaluate('lastState.final.build.mayhem.selection.augments'),[1002,3150]);
     assert.ok(await evaluate('lastState.final.build.items.some(i=>i.id===4646)'));
     assert.ok(await evaluate('document.querySelector(`[data-selected-augment="3150"] .augment-required-item`).textContent.includes("Stormsurge")'));
     assert.ok(await evaluate('!!document.querySelector(`[data-selected-augment="3150"] .augment-rating`)'));
@@ -274,6 +286,22 @@ server.once('listening',async()=>{
     assert.ok(await evaluate('!lastState.final.build.mayhem.undo&&!lastState.final.build.mayhem.comparison'));
     assert.equal(await evaluate('lastState.final.build.mayhem.headliner'),null);
     assert.ok(!(await evaluate('window.assist.undoAugmentRecognition({matchKey:beforeUndo.matchKey,token:oldUndo.token})')).ok);
+    // Replay the lineups seen in the Yasuo report. The dock is shared with the
+    // roster tab; players can review a missed pick while a newer offer is open.
+    await evaluate('document.querySelector("[data-augment-screen-toggle]").click()');
+    await waitFor(()=>evaluate('!!augmentStream && augmentCaptureKey===lastState.final.build.mayhem.matchKey && lastState.final.build.mayhem.screen.diagnostics?.frameValid'),'Brak ponownego połączenia OCR');
+    await evaluate('drawOffer(["Still Here","Upgrade Ravenous Hydra","Nightstalking"])');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.screen.status==="offers" && !!document.querySelector(".mayhem-dock [data-offer-id=\\"2140\\"]")'),'Pierwsza trójka z rozgrywki Yasuo');
+    await evaluate('document.querySelector("[data-loading-tab=players]").click()');
+    await waitFor(()=>evaluate('!!document.querySelector(".roster-teams") && !!document.querySelector(".mayhem-dock [data-offer-id=\\"2140\\"]")'),'Karty niewidoczne na zakładce graczy');
+    await evaluate('drawOffer(null)');
+    await waitFor(()=>evaluate('!!document.querySelector(".mayhem-dock [data-confirm-offer-id=\\"2140\\"]")'),'Niezapisana oferta zniknęła z panelu');
+    await evaluate('drawOffer(["Veil of Warding","Adaptive Ward","Gift of the Drowned"])');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.comparison?.cards[0].id===1034 && !!lastState.final.build.mayhem.earlierOffers?.some(o=>o.cards.some(c=>c.id===2140))'),'Nie zachowano pierwszej trójki');
+    await evaluate('window.assist.setViewMode(true)');
+    await waitFor(()=>evaluate('!!document.querySelector(".compact-content [data-confirm-earlier=\\"2140\\"]")'),'Brak historii w kompakcie');
+    await evaluate('const recoveryButton=document.querySelector(".compact-content [data-confirm-earlier=\\"2140\\"]");recoveryButton.closest("details").open=true;recoveryButton.click();void 0');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(2140) && lastState.final.build.mayhem.comparison?.cards[0].id===1034'),'Uzupełnienie poprzedniego wyboru przerwało nową ofertę');
     console.log('PASS: rzeczywisty OCR, porównanie, zmiana ofert, zatrzymany podgląd, wybór i build, cofanie, stary formularz/przycisk, ponowny odczyt, ręczne przywrócenie i izolacja nowego meczu.');
     server.close();win.destroy();app.quit();
   }catch(e){console.error(e);if(win&&!win.isDestroyed())console.error(await win.webContents.executeJavaScript('JSON.stringify(lastState?.final?.build?.mayhem?.screen)'));server.close();app.exit(1);}

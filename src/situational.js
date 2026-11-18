@@ -12,7 +12,7 @@ const SITUATIONS = [
     // Od 2 championów na krytach item jest wart slotu, 1 to tylko wskazówka.
     levels: [1, 2],
     problem: (names, many) => `${names} ${many ? 'opierają' : 'opiera'} się na krytach`,
-    answer: 'Randuin\'s Omen zmniejsza obrażenia od krytów. Aktywacja spowalnia ruch pobliskich wrogów; szybkość ataków ogranicza Frozen Heart.',
+    answer: 'Randuin\'s Omen zmniejsza obrażenia od krytów. Aktywacja spowalnia ruch pobliskich wrogów.',
     items: { tank: [3143], fighter: [3143], support: [], mage: [], adc: [], assassin: [] },
     general: 3143,
     owner: 'tank albo bruiser',
@@ -139,7 +139,7 @@ function detectSituations(enemies, poolKey, exists = () => true) {
       weight,
       champions: who.map((e) => ({ alias: e.alias, championId: e.championId, name: e.name || e.alias })),
       text: s.problem(joinNames(who.map((e) => e.name || e.alias)), who.length > 1),
-      answer: s.answer,
+      answer: s.key === 'onhit' && !exists(s.general) ? 'Plated Steelcaps zmniejszają obrażenia od podstawowych ataków.' : s.answer,
       myItem,
       general: exists(s.general) ? s.general : null,
       owner: s.owner,
