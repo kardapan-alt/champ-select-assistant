@@ -1,7 +1,7 @@
 const {itemAvailable} = require('./itemrules');
-const {recipeFor,singlePlan} = require('./shop-plan');
+const {OPENING_SECONDS,recipeFor,singlePlan} = require('./shop-plan');
 
-const OPENING = 90, MAX_GAP = 8, GROUP_SECONDS = 15;
+const MAX_GAP = 8, GROUP_SECONDS = 15;
 
 // Net inventory differences ignore slot moves. Only copies that disappeared
 // may pay for a recipe, and a copy can pay for just one item in the basket.
@@ -42,7 +42,7 @@ function purchaseChoices(build,snapshot,game,lane) {
   const defense=lane?.firstBack && {...lane.firstBack,why:'Obrona na linię przeciw '+lane.opponent.name+' (obrażenia '+lane.damage+').'};
   for (const target of [defense,build.boots]) {
     if (!target?.id || target.owned || snapshot.inventory.items.some(i=>i.id===target.id)) continue;
-    const option=singlePlan({...build,items:[target],boots:null,nextPurchase:null},snapshot,game,'live');
+    const option=singlePlan({...build,items:[target],boots:null,nextPurchase:null,roleStarter:null},snapshot,game,'live');
     paths.push({...option,benefit:target.why});
   }
   return paths.filter(o=>o.status==='buy' && o.purchase.cost>0 && o.purchase.cost<=snapshot.gold)
@@ -75,7 +75,7 @@ class FirstShopTracker {
     }
     const time=snapshot.gameTime, items=snapshot.inventory.items, gold=snapshot.gold;
     const first=!match.firstShop;
-    if (first) match.firstShop={status:'waiting',late:time>OPENING};
+    if (first) match.firstShop={status:'waiting',late:time>OPENING_SECONDS};
     if (match.firstShop.status==='recorded' && !this.opening) return false;
     const prev=this.previous;
     if (prev && time<=prev.time) return first;
@@ -89,10 +89,10 @@ class FirstShopTracker {
       delete match.firstShop.collecting;
       return true;
     }
-    const sample={time,items,gold,choices:time>=OPENING-MAX_GAP && Number.isFinite(gold) ? purchaseChoices(build,snapshot,game,lane) : []};
+    const sample={time,items,gold,choices:time>=OPENING_SECONDS-MAX_GAP && Number.isFinite(gold) ? purchaseChoices(build,snapshot,game,lane) : []};
     const last=this.previous;
     this.previous=sample;
-    if (!last || last.time<OPENING) return first;
+    if (!last || last.time<OPENING_SECONDS) return first;
     const changed=difference(items,last.items).length || difference(last.items,items).length;
     if (!changed) return first;
     if (!Number.isFinite(gold) || !Number.isFinite(last.gold)) {

@@ -8,6 +8,10 @@ const POSITION_NAMES = {
   top: 'Top', jungle: 'Jungle', middle: 'Mid', mid: 'Mid', bottom: 'ADC', adc: 'ADC', utility: 'Support', support: 'Support',
 };
 const normPosition = (p) => ({ mid: 'middle', adc: 'bottom', bot: 'bottom', support: 'utility' }[String(p || '').toLowerCase()] || String(p || '').toLowerCase());
+function knownRole(position) {
+  const role = normPosition(position);
+  return Object.hasOwn(POSITION_NAMES, role) ? role : null;
+}
 
 // Use only identities explicitly visible in this match. A public account
 // profile by itself does not override a hidden/unspecified match identity.
@@ -25,7 +29,19 @@ function visibleIdentity(p, me, isMe) {
   return gameName && tagLine ? { gameName, tagLine } : null;
 }
 
-async function readLoadingPlayers(lcu, session, previous) {
+function restoreDraftRoles(team, draftTeam) {
+  const taken = new Set(team.map(p => p.position).filter(Boolean));
+  const confirmed = draftTeam.filter(p => p.locked !== false && p.championId && knownRole(p.position));
+  for (const player of team) {
+    if (player.position || !player.championId || team.filter(p => p.championId === player.championId).length !== 1) continue;
+    const matches = confirmed.filter(p => p.championId === player.championId);
+    if (matches.length !== 1) continue;
+    const role = knownRole(matches[0].position);
+    if (!taken.has(role) && confirmed.filter(p => knownRole(p.position) === role).length === 1) player.position = role;
+  }
+}
+
+async function readLoadingPlayers(lcu, session, previous, draft) {
   if (session === undefined) session = await lcu.get('/lol-gameflow/v1/session');
   const gameData = session && session.gameData;
   if (!gameData) return null;
@@ -50,7 +66,7 @@ async function readLoadingPlayers(lcu, session, previous) {
       anonymous: !identity,
       championId: p.championId || 0,
       skinId: skinOf(p),
-      position: normPosition(p.selectedPosition || p.position),
+      position: knownRole(p.selectedPosition) || knownRole(p.position) || '',
       team: teamIndex,
       isMe,
     };
@@ -58,11 +74,16 @@ async function readLoadingPlayers(lcu, session, previous) {
   const one = (gameData.teamOne || []).map((p) => toPlayer(p, 1));
   const two = (gameData.teamTwo || []).map((p) => toPlayer(p, 2));
   const myTeamIsTwo = two.some((p) => p.isMe);
+  const allies = myTeamIsTwo ? two : one, enemies = myTeamIsTwo ? one : two;
+  if (draft?.mode === 'classic' && gameData.gameId && String(gameData.gameId) === draft.gameId
+      && allies.some(p => p.isMe && p.championId && p.championId === draft.me?.championId)) {
+    restoreDraftRoles(allies, draft.allies);
+    restoreDraftRoles(enemies, draft.enemies);
+  }
   return {
     gameId: gameData.gameId || (session.gameData && session.gameData.gameId) || 0,
     region: String(region).toUpperCase(),
-    allies: myTeamIsTwo ? two : one,
-    enemies: myTeamIsTwo ? one : two,
+    allies, enemies,
   };
 }
 
@@ -166,7 +187,10 @@ function playerCard(player, summary, game, now = Date.now(),mode='classic') {
     const champCount = {};
     for (const g of games) champCount[g.championId] = (champCount[g.championId] || 0) + 1;
     const [topChamp, topCount] = Object.entries(champCount).sort((a, b) => b[1] - a[1])[0];
-    if (games.length >= 10 && topCount / games.length >= 0.75) tag(`OTP ${champName(Number(topChamp))}`, 'info');
+    if (games.length >= 10 && topCount / games.length >= 0.75 && !['aram','mayhem'].includes(mode)) {
+      card.otpChampionId = Number(topChamp);
+      tag(`OTP ${champName(card.otpChampionId)}`, 'info');
+    }
     if (card.champion.seasonGames >= 100) tag(`Doświadczony (${card.champion.seasonGames} ${gier(card.champion.seasonGames)})`, 'good');
     else if (!season || card.champion.seasonGames < 20) tag('Mała próba danych o championie', 'info');
 
@@ -220,4 +244,4 @@ async function refreshPlayerStats(target, lookup, active, changed, now = Date.no
   await Promise.all(work);
 }
 
-module.exports = { LOADING_PHASES, readLoadingPlayers, playerCard, playerKey, refreshPlayerStats, gier, normPosition };
+module.exports = { LOADING_PHASES, readLoadingPlayers, playerCard, playerKey, refreshPlayerStats, gier, normPosition, knownRole };

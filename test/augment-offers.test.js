@@ -4,15 +4,15 @@ const {migrateConfig}=require('../src/augment-vision');
 const catalog=require('../data/mayhem-augments.json').augments;
 const names=['Apex Inventor','Back To Basics','Ice Cold'];
 const ids=names.map(name=>catalog.find(a=>a.english===name).id);
-function fixture(titles=names){
+function fixture(titles=names,letterWidth=5.4){
   const width=640,height=360,pixels=Buffer.alloc(width*height);
   for(let y=0;y<height;y++)for(let x=0;x<width;x++)pixels[y*width+x]=15+(x*3+y*5)%45;
   const words=[];
   for(let i=0;i<3;i++){
     const cx=195+i*125,left=cx-54,right=cx+54;
     for(let y=70;y<=268;y++)for(let x=left;x<=right;x++)pixels[y*width+x]=(x-left<2||right-x<2||y-70<2||268-y<2)?190:20;
-    const text=titles[i],start=cx-text.length*2.7;
-    let x=start;for(const word of text.split(' ')){words.push({text:word,x,y:140,w:word.length*5.4,h:13});x+=word.length*5.4+5.4;}
+    const text=titles[i],start=cx-text.length*letterWidth/2;
+    let x=start;for(const word of text.split(' ')){words.push({text:word,x,y:140,w:word.length*letterWidth,h:13});x+=(word.length+1)*letterWidth;}
   }
   const result={width,height,layouts:[[{words}]]};
   return {result,grid:readGrid({width,height,pixels:pixels.toString('base64')})};
@@ -112,8 +112,8 @@ test('dwa przerzuty nie publikują starych wyników i dopuszczają nieczytelny t
 });
 test('test ze zrzutu zwraca trzy wycinki, rzeczywisty tekst OCR i wynik detektora gry',async()=>{
   const {testOfferScreenshot}=require('../src/augment-screenshot');
-  async function check(titles,frameWidth,pool='KIWI',entries=catalog){
-    const {grid,result}=fixture(titles);
+  async function check(titles,frameWidth,pool='KIWI',entries=catalog,letterWidth){
+    const {grid,result}=fixture(titles,letterWidth);
     if(frameWidth>640){ // Środkowy obraz 16:9 z marginesami ultrawide, jak w pełnej klatce gry.
       const scale=frameWidth/grid.width,margin=(frameWidth-grid.width)/2,height=Math.round(grid.height/scale);
       const resized=Buffer.alloc(grid.width*height);
@@ -133,6 +133,13 @@ test('test ze zrzutu zwraca trzy wycinki, rzeczywisty tekst OCR i wynik detektor
   assert.equal(full.status,'offer');
   assert.deepEqual(full.slots.map(s=>s.english),names);
   assert.deepEqual(full.slots.map(s=>s.readings),names.map(n=>[n]));
+  // Windows OCR measured Deft at 46 or 52 pixels in its 2000-pixel 16:9 crop.
+  const shortNames=['Deft',names[1],names[2]];
+  for(const pixels of [46,52])for(const fullWidth of [640,854]){
+    const result=await check(shortNames,fullWidth,'KIWI',catalog,pixels/4*640/2000);
+    assert.deepEqual(result.slots.map(s=>s.english),shortNames);
+    assert.equal(result.status,'offer');
+  }
   const partial=await check([names[0],'Apex Invent0r',names[2]],800);
   assert.equal(partial.status,'incomplete');
   assert.deepEqual(partial.slots.map(s=>s.english),[names[0],null,names[2]]);
@@ -159,6 +166,51 @@ test('wybór wymaga kliknięcia i zniknięcia kart na dwóch czytelnych klatkach
   const {observe,input}=trackerFixture();input('down',1800);input('up',1900);
   assert.equal(observe(2400,null,cleanGrid()),null);assert.equal(observe(3100,null,cleanGrid()),ids[0]);
   assert.equal(observe(3800,null,cleanGrid()),null);
+});
+test('przerzucona oferta zapisuje kliknięcie po klatce bez tytułów, także po powrocie z kompaktu',()=>{
+  for(const compact of [false,true]){
+    const {t,grid,cards,observe,input}=trackerFixture();
+    t.reset(); // The observed reroll invalidates the previous three IDs.
+    const updated=cards.map((c,i)=>i===0?{...c,id:3150}:c);
+    observe(2000,updated);observe(2500,updated);
+    if(compact){
+      t.input({type:'focus',focused:false,at:2540});
+      const updatedIds=updated.map(c=>c.id);
+      t.preview(updated,updatedIds,2600,grid);
+      assert.ok(t.preview(null,updatedIds,2750,grid));
+      t.input({type:'focus',focused:true,at:2800});
+    }else observe(2750,null,grid);
+    input('down',2900);input('up',2940);
+    assert.equal(observe(3250,null,cleanGrid()),null);
+    assert.equal(observe(3550,null,cleanGrid()),3150);
+    assert.equal(observe(3850,null,cleanGrid()),null);
+  }
+});
+test('przerwa OCR wymaga świeżych trzech ramek i braku sprzecznego tytułu',()=>{
+  for(const scenario of ['stale','missing-rim','changed-title','unconfirmed','reroll']){
+    const {t,grid,cards,observe,input}=trackerFixture();
+    if(scenario==='unconfirmed'){t.reset();observe(1700);}
+    if(scenario==='missing-rim'){
+      for(let y=0;y<grid.height;y++)grid.pixels.fill(30,y*grid.width,y*grid.width+250);
+    }
+    const conflicting=scenario==='changed-title'?[{id:3150,x:.28,y:.39,w:.045,h:.035}]:[];
+    observe(2200,null,grid,conflicting);
+    if(scenario==='reroll')t.reset();
+    if(scenario==='stale')observe(3300,null,grid);
+    const at=scenario==='stale'?3650:2350;
+    input('down',at);input('up',at+50);
+    assert.equal(observe(at+400,null,cleanGrid()),null,scenario);
+    assert.equal(observe(at+800,null,cleanGrid()),null,scenario);
+    assert.equal(t.pending,null);
+  }
+});
+test('nowy tytuł w klikniętej karcie anuluje gest, nawet gdy pozostałe tytuły są nieczytelne',()=>{
+  const {grid,observe,input}=trackerFixture();
+  observe(1900,null,grid);
+  input('down',1950);input('up',1990);
+  observe(2050,null,grid,[{id:3150,x:.28,y:.39,w:.045,h:.035}]);
+  assert.equal(observe(2500,null,cleanGrid()),null);
+  assert.equal(observe(2950,null,cleanGrid()),null);
 });
 test('samo zniknięcie, przerzut pod kartą, przeciągnięcie i zmiana ofert nie dodają augmentu',()=>{
   for(const scenario of ['hover','reroll','drag','change']){

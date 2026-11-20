@@ -5,8 +5,6 @@ const { detectSituations, situationView } = require('./situational');
 
 const { champInfo } = engine;
 
-const toDataRole = (pos) => ({ utility: 'support', mid: 'middle', adc: 'bottom', bot: 'bottom' }[pos] || pos || '');
-
 // Jak grać własnym stylem składu (środek gry).
 const OWN_STYLE = {
   dive: (who) => `Wasz skład to dive: wchodźcie razem na carry wroga${who ? ` (inicjuje ${who})` : ''}, gdy ich CC jest zużyte.`,
@@ -89,9 +87,9 @@ function playersToWatch(enemies, cardFor, game) {
     const who = `${p.gameName || 'Gracz'}${champ ? ` (${champ})` : ''}`;
     const tags = card.tags.map((t) => t.text);
     const c = card.champion || {};
-    const otp = tags.find((t) => t.startsWith('OTP') || t.startsWith('Doświadczony'));
+    const otp = !!p.championId && card.otpChampionId === p.championId;
     // Waga: doświadczenie na championie liczy się bardziej niż dobra seria.
-    if (otp) threats.push({ who, why: otp.startsWith('OTP') ? 'gra prawie tylko tym championem' : `${c.seasonGames} gier tym championem w sezonie`, weight: 3 });
+    if (otp || tags.some(t => t.startsWith('Doświadczony'))) threats.push({ who, why: otp ? 'gra prawie tylko tym championem' : `${c.seasonGames} gier tym championem w sezonie`, weight: 3 });
     else if (c.seasonGames >= 20 && c.seasonWinRate >= 58) threats.push({ who, why: `${c.seasonWinRate}% wygranych tym championem`, weight: 2 });
     else if (card.recent && card.recent.games >= 10 && card.recent.winRate >= 65) threats.push({ who, why: `wygrywa ${card.recent.winRate}% ostatnich gier`, weight: 1 });
 
@@ -117,9 +115,12 @@ function gamePlan(allies, enemies, cardFor, game, data, mode = 'classic') {
   if (diff >= 2) early.push('Jesteście mocniejsi na początku: walczcie o pierwsze smoki i Void Grubs, pomagajcie liniom, które wygrywają.');
   else if (diff <= -2) early.push('Przeciwnicy są mocniejsi na początku: nie forsujcie pierwszych obiektów, farmcie i czekajcie na itemy.');
   else early.push('Siła na początku jest wyrównana: wygra ten, kto pierwszy wygra linię i dostanie pomoc junglera.');
-  const jungle = (team) => team.find((m) => toDataRole(m.player.position) === 'jungle') || team.find((m) => (m.info.roles || [])[0] === 'jungle');
-  const ourJg = jungle(ours);
-  const theirJg = jungle(theirs);
+  const jungle = (players, team) => {
+    const jungler = engine.playerForRole(players, 'jungle', game, data);
+    return team.find(member => member.player === jungler);
+  };
+  const ourJg = jungle(allies, ours);
+  const theirJg = jungle(enemies, theirs);
   const jt = (m) => (m ? m.info.traits || [] : []);
   if (ourJg && (jt(ourJg).includes('early') || jt(ourJg).includes('pick'))) early.push(`Wasz jungler (${ourJg.name}) jest groźny wcześnie: pushujcie fale, gdy jest w pobliżu, i idźcie za nim do rzeki.`);
   // Groźnego wcześnie junglera wroga opisuje już plan na linię.

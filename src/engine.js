@@ -10,6 +10,7 @@ const { buildIdentity, isSupportCore } = require('./base-build');
 const { roleQuestFor, BOOT_UPGRADES, SUPPORT_ITEMS, baseBoots, isBootItem } = require('./rolequests');
 const { normalizePins, validateRunes } = require('./choices');
 const { isAram } = require('./modes');
+const { knownRole } = require('./players');
 const mayhem = require('./mayhem');
 
 const POSITION_LABELS = {
@@ -284,7 +285,7 @@ function suggestPicks(state, game, data, options = {}) {
   const enemyArch = archetypeOf(enemyInfos);
 
   // Blind pick: przeciwnik z Twojej linii jeszcze nie jest widoczny.
-  const laneOpponent = position ? enemyInfos.find((e) => e.roles && e.roles[0] === position) : null;
+  const laneOpponent = laneOpponentOf(state, game, data);
   const blind = !laneOpponent && !options.aram;
 
   const results = [];
@@ -495,17 +496,24 @@ const MELEE_CLASSES = ['fighter', 'tank', 'assassin'];
 const isRanged = (c) => runeContext[canonicalAlias(c.alias)]?.ranged ?? !MELEE_CLASSES.includes(c.class);
 
 // Przeciwnik z Twojej linii (gdy jest już widoczny w champ selekcie).
+function playerForRole(players, position, game, data) {
+  const role = knownRole(position);
+  if (!role) return null;
+  const assignment = p => knownRole(p.position) || knownRole(p.assignedPosition);
+  const assigned = players.filter(p => assignment(p) === role);
+  if (assigned.length) return assigned.length === 1 && assigned[0].championId ? assigned[0] : null;
+  const inferred = players.filter(p => {
+    if (!p.championId || assignment(p)) return false;
+    const alias = game.championsById.get(p.championId)?.alias;
+    return alias && knownRole(champInfo(alias, game, data).roles?.[0]) === role;
+  });
+  return inferred.length === 1 ? inferred[0] : null;
+}
+
 function laneOpponentOf(state, game, data) {
-  const position = toDataRole(state && state.me ? state.me.position : '');
-  if (!position) return null;
-  const enemies=(state.enemies||[]).filter(p=>p.championId).map(p=>({
-    ...champInfo(game.championsById.get(p.championId)?.alias,game,data),assigned:toDataRole(p.position||p.assignedPosition||'')
-  }));
-  const confirmed=enemies.filter(e=>e.assigned===position);
-  if(confirmed.length===1)return {...confirmed[0],laneInferred:false};
-  if(confirmed.length>1)return null;
-  const inferred=enemies.filter(e=>!e.assigned && e.roles?.[0]===position);
-  return inferred.length===1?{...inferred[0],laneInferred:true}:null;
+  const player = playerForRole(state?.enemies || [], state?.me?.position, game, data);
+  const alias = player && game.championsById.get(player.championId)?.alias;
+  return alias ? { ...champInfo(alias, game, data), laneInferred: !knownRole(player.position) && !knownRole(player.assignedPosition) } : null;
 }
 
 // Wynik matchupu z perspektywy championa: własny wpis ma pierwszeństwo przed wpisem przeciwnika.
@@ -764,6 +772,21 @@ function itemPoolKey(champ) {
   return champ.class === 'adc' || champ.class === 'assassin' ? champ.class : 'fighter';
 }
 
+const junglePets = new Set([1101, 1102, 1103]);
+function isRoleStarter(id, position) {
+  return position === 'support' ? id === 3865 : position === 'jungle' && junglePets.has(id);
+}
+
+function startingItems(ctx, data) {
+  const role = ctx.position;
+  const roleShop = role === 'support' || role === 'jungle';
+  const fallback = data.starters?.[roleShop ? role : itemPoolKey(ctx.champ)] || [];
+  const picks = ctx.champ.starters;
+  // A champion's saved page may describe a different role.
+  if (!picks?.length || (roleShop && !picks.some(id => isRoleStarter(id, role)))) return fallback;
+  return picks;
+}
+
 const FIXED_CORE = 2; // spokojny draft: 2 itemy bazowe; mocne zagrożenie: pierwszy item + wcześniejsza odpowiedź
 
 // Adaptacyjny build: każdy item dostaje punkty za to, jak odpowiada na zagrożenia w składzie wroga.
@@ -787,10 +810,6 @@ function buildFor(alias, state, game, data) {
   const threats = threatWeights(enemy);
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
-  const hasSupportSlot = state.mode === 'practice'
-    ? state.liveInventory?.items?.some(item => SUPPORT_ITEMS.has(item.id))
-    : !isAram(state.mode) && ctx.position === 'support';
-  const reservedSlots = hasSupportSlot ? 1 : 0;
   const owned = state.liveInventory?.owned || augmentation?.owned || [];
   const ownedBoots = state.liveInventory?.ownedBoots || augmentation?.ownedBoots;
   const skipped = new Set(augmentation ? state.skippedItems || [] : []);
@@ -798,12 +817,15 @@ function buildFor(alias, state, game, data) {
   const questItems = new Set(augmentation ? [...mayhem.activeQuestItems(state.mayhem)].filter(fitsResource) : []);
   for (const id of [...owned,ownedBoots,...questItems,state.choices?.boots,...(state.choices?.items || []).map(p=>p.id)]) skipped.delete(id);
   const exists = id => !skipped.has(id) && itemAvailable(id,game,state.mode,alias) && fitsResource(id);
-  const soldBoots = !!state.liveInventory && owned.length === 6 && !ownedBoots;
-  const fullBuild = soldBoots ? 6 : 6 - (bootsInQuest ? 0 : 1) - reservedSlots;
   const mainSlot = id => !isBootItem(id,game) && !SUPPORT_ITEMS.has(Number(id));
   const isBuildItem = id => mainSlot(id) && exists(id) && !augmentation?.excluded.has(id);
   // Inventory is observed state; the purchase filter applies only to future slots.
   const purchased = owned.filter(id => mainSlot(id) && (itemAvailable(id,game,state.mode,alias) || mayhem.ownedAvailable(id,game,alias,state.mode)));
+  const supportItem = state.liveInventory?.items?.find(i => i.slot < 6 && SUPPORT_ITEMS.has(i.id));
+  const planSupportSlot = !isAram(state.mode) && state.mode !== 'practice' && ctx.position === 'support' && purchased.length < 5;
+  const reservedSlots = supportItem || planSupportSlot ? 1 : 0;
+  const soldBoots = !!state.liveInventory && !ownedBoots && purchased.length + (supportItem ? 1 : 0) >= 6;
+  const fullBuild = 6 - (soldBoots || bootsInQuest ? 0 : 1) - reservedSlots;
   const ownChoices = purchased.length ? { ...state.choices, items: [
     ...purchased.map((id, slot) => ({ id, slot })),
     ...(state.choices?.items || []).filter(p => p.slot >= purchased.length && !purchased.includes(p.id)),
@@ -982,11 +1004,12 @@ function buildFor(alias, state, game, data) {
     return pin ? { ...item(pin.id), why: purchased.includes(pin.id) ? 'Już posiadasz — zachowany w buildzie' : 'Twój przypięty wybór', owned:purchased.includes(pin.id), pinned: true, source: purchased.includes(pin.id) ? 'owned' : 'pinned', slot } : automatic.length ? { ...automatic.shift(), slot } : null;
   }).filter(Boolean);
   const finalIds = finalItems.map(i => i.id);
+  const manualPins = finalItems.filter(i => i.pinned && !i.owned).length;
   const replacedCore = core.filter((id) => !finalIds.includes(id));
-  if (replacedCore.length) notes.push(`${replacedCore.map((id) => item(id).name).join(', ')} wypada z buildu po dopasowaniu do draftu${pins.length ? ' i Twoich przypiętych wyborów' : ''}.`);
+  if (replacedCore.length) notes.push(`${replacedCore.map((id) => item(id).name).join(', ')} wypada z buildu po dopasowaniu do draftu${manualPins ? ' i Twoich przypiętych wyborów' : ''}.`);
   const decisions = finalItems.map((it, index) => {
-    const step = index === 0 ? 1 : index + 2;
-    const timing = it.pinned ? 'Utrzymany na wybranym miejscu' : it.priority ? 'Przyspieszony zakup' : index >= 4 ? 'Uzupełnienie na późną grę' : 'Zakup w podstawowej kolejności';
+    const step = soldBoots || index === 0 ? index + 1 : index + 2;
+    const timing = it.owned ? 'W ekwipunku' : it.pinned ? 'Utrzymany na wybranym miejscu' : it.priority ? 'Przyspieszony zakup' : index >= 4 ? 'Uzupełnienie na późną grę' : 'Zakup w podstawowej kolejności';
     return { id: it.id, name: it.name, step, source: it.source, text: `${timing}: ${it.why}.` };
   });
   const moved = core.map((id, index) => ({ id, from: index, to: finalIds.indexOf(id) })).filter(x => x.to > x.from);
@@ -996,10 +1019,15 @@ function buildFor(alias, state, game, data) {
   ];
   const firstPriority = finalItems.find(it => it.priority);
   const decisionSummary = firstPriority ? `${firstPriority.name} wcześniej: ${firstPriority.why}.`
-    : pins.length ? `${pins.length} przypiętych wyborów; reszta dopasowana do draftu.` : 'Zachowany rdzeń; dalsze zakupy dopasowane do składu wroga.';
+    : manualPins ? `Przypięte wybory: ${manualPins}. Pozostałe zakupy dobrane do draftu.`
+    : soldBoots ? 'Wszystkie główne przedmioty są w ekwipunku.' : 'Zachowany rdzeń; dalsze zakupy dopasowane do składu wroga.';
   const defensive = chosen.filter((c) => [THREAT_REASONS.mr, THREAT_REASONS.armor].includes(c.why));
   if (defensive.length >= 2) notes.push(`Skład wroga jest jednostronny, dlatego build ma ${defensive.length} itemy obronne.`);
-  if (quest) notes.push(quest.detail);
+  const supportWithoutBoots = supportItem && soldBoots;
+  const questView = supportWithoutBoots && quest?.role === 'utility'
+    ? { ...quest, summary:'5 przedmiotów i przedmiot wsparcia w sześciu slotach.',
+      detail:'Twój ekwipunek jest pełny. Po queście Control Wardy mają osobny slot.' } : quest;
+  if (questView) notes.push(questView.detail);
   else if (reservedSlots) notes.push('Jeden slot zostaje na przedmiot wsparcia. Control Wardy w tym trybie wymagają miejsca w ekwipunku.');
   const bootsUpgrade = quest?.role === 'middle' && game.items.has(BOOT_UPGRADES[boots]) ? item(BOOT_UPGRADES[boots]) : null;
   if (bootsUpgrade) notes.push(`Po queście mida: ${item(boots).name} → ${bootsUpgrade.name}, za darmo w tym samym slocie.`);
@@ -1010,13 +1038,15 @@ function buildFor(alias, state, game, data) {
   const build = {
     alias,
     mode: state.mode || 'classic',
+    roleStarter: state.mode === 'classic' && ['utility','support','jungle'].includes(state.me?.position)
+      ? startingItems(ctx,data).find(id => isRoleStarter(id, ctx.position) && exists(id)) || null : null,
     mayhem: augmentation ? { hints:augmentation.hints, unknown:augmentation.unknown, selection:state.mayhem || {}, repeat:[...pinRepeats], questItems:[...questItems], skipped:[...skipped],
       headliner:require('./headliners').headlinerView(state.mayhem?.headliner,state.mayhem),synergies:require('./augment-synergies').synergies(state.mayhem),
       nextItem:nextUpgrade ? { ...item(nextUpgrade.to), upgrade:true } : finalItems.find(it => !it.owned) || null } : null,
     decisions, changes, decisionSummary, choiceWarnings: warnings,
     liveAdaptation:live.map(s=>({ text:s.text, item:s.myItem, evidence:s.evidence })),
     inventory: { itemSlots: fullBuild, reservedSlots, bootsSlot: soldBoots ? 'none' : bootsInQuest ? 'quest' : 'inventory' },
-    quest: quest ? { ...quest, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
+    quest: questView ? { ...questView, bootsUpgrade, slotItem: bootsInQuest ? { ...item(boots), why: 'Po queście: boczny slot', step: 2 }
       : quest.extraSlot === 'control-wards' && exists(2055) ? { ...item(2055), why: 'Po queście: do 2 szt.' } : null } : null,
     name: game.championsByAlias.get(alias)?.name || alias,
     estimated: !!(champ.unknown || (champ.fromStats && !champ.statsBuild)),
@@ -1025,8 +1055,8 @@ function buildFor(alias, state, game, data) {
     enemy: describeEnemy(enemy),
     spells: spells.ids.map(spell),
     spellsWhy: spells.why,
-    reservedSlot: reservedSlots ? 'Przedmiot wsparcia' : null,
-    boots: augmentation?.freeBoots && !augmentation.ownedBoots ? { id:null,name:'Buty z augmentu',icon:'',why:'Darmowe — zaznacz otrzymane',owned:true,slot:'boots' }
+    reservedSlot: supportItem ? item(supportItem.id).name : reservedSlots ? 'Przedmiot wsparcia' : null,
+    boots: soldBoots ? {id:null,name:'',icon:'',why:'',slot:'boots'} : augmentation?.freeBoots && !augmentation.ownedBoots ? { id:null,name:'Buty z augmentu',icon:'',why:'Darmowe — zaznacz otrzymane',owned:true,slot:'boots' }
       : !boots && skipped.size ? {id:null,name:'Brak proponowanych butów',why:'Warianty z planu zostały pominięte',slot:'boots'}
       : { ...item(boots), why: bootsWhy, pinned: bootsPinned, owned:!!ownedBoots, slot: 'boots' },
     items: finalItems,
@@ -1078,7 +1108,6 @@ function itemSetFor(build, alias, state, game, data) {
   const repeat = new Set(build.mayhem?.repeat || []);
   const list = (ids) => [...new Set(ids)].filter(exists).map((id) => ({ id: String(id), count: repeat.has(id) ? ids.filter(x=>x===id).length : 1 }));
   const laneName = ctx.lane ? nameOf(ctx.lane.alias, game) : '';
-  const startKey = ctx.position === 'jungle' ? 'jungle' : ctx.position === 'support' ? 'support' : itemPoolKey(ctx.champ);
   const trinkets = data.trinkets || {};
   const blocks = [];
   // Sklep w grze ma wąską kolumnę: długie nazwy bloków i długie rzędy przesuwają cały zestaw i ucinają lewą krawędź.
@@ -1092,7 +1121,7 @@ function itemSetFor(build, alias, state, game, data) {
   };
 
   const aram = ctx.position === 'aram';
-  if (!aram) block(laneName ? `Start vs ${laneName}` : 'Start', [...(ctx.champ.starters || (data.starters || {})[startKey] || []), trinkets.start]);
+  if (!aram) block(laneName ? `Start vs ${laneName}` : 'Start', [...startingItems(ctx,data), trinkets.start]);
   if (ctx.lane && data.earlyDefense && ctx.position !== 'support') {
     const comp = ctx.lane.dmg === 'ap' ? data.earlyDefense.ap : ctx.lane.dmg === 'ad' ? data.earlyDefense.ad : null;
     if (comp) block('Gdy przegrywasz linię', [comp, 2055]);
@@ -1145,5 +1174,6 @@ function orderSpells(spellIds, current) {
 }
 
 module.exports = {
+  playerForRole,
   POSITION_LABELS, SPELL, readSession, aramChoices, champInfo, isRanged, matchupVerdict, laneOpponentOf, spellsFor, itemSetFor, adaptRunes, suggestPicks, suggestBans, compositions, counterCount, enemyProfile, threatWeights, teamProfile, archetypeOf, describeEnemy, runePageFor, normalizeRunes, buildFor, orderSpells,
 };

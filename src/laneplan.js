@@ -1,18 +1,14 @@
 // Plan na linię na ekranie ładowania: Twój przeciwnik z linii, wynik matchupu i kilka konkretnych wskazówek.
 // Korzysta tylko z championów i statystyk graczy, które są widoczne od ekranu ładowania.
-const { champInfo, isRanged, matchupVerdict } = require('./engine');
-
-const toDataRole = (pos) => ({ utility: 'support', mid: 'middle', adc: 'bottom', bot: 'bottom' }[pos] || pos || '');
+const { champInfo, isRanged, matchupVerdict, playerForRole } = require('./engine');
+const { knownRole } = require('./players');
 
 // Przeciwnik z tej samej pozycji; gdy klient nie podaje pozycji, zgadujemy po głównej roli championa.
 function findLaneOpponent(me, enemies, game, data) {
   const aliasOf = (id) => game.championsById.get(id)?.alias;
-  const myRole = toDataRole(me.position) || (champInfo(aliasOf(me.championId), game, data).roles || [])[0] || '';
-  if (!myRole) return null;
-  const byPosition = enemies.find((e) => toDataRole(e.position) === myRole);
-  if (byPosition) return { player: byPosition, role: myRole };
-  const byRole = enemies.find((e) => e.championId && (champInfo(aliasOf(e.championId), game, data).roles || [])[0] === myRole);
-  return byRole ? { player: byRole, role: myRole } : null;
+  const myRole = knownRole(me.position) || knownRole(champInfo(aliasOf(me.championId), game, data).roles?.[0]);
+  const player = playerForRole(enemies, myRole, game, data);
+  return player ? { player, role: myRole === 'utility' ? 'support' : myRole } : null;
 }
 
 const VERDICT = {
@@ -65,15 +61,13 @@ function lanePlan(me, enemies, cardFor, game, data) {
     [has('Dużo zgonów'), `${player} często ginie ${(has('Dużo zgonów') || '').replace('Dużo zgonów ', '')}: szukaj zabójstwa, gdy wyjdzie za daleko.`],
     [has('Mała próba danych') || has('Mało gier tym championem'), `Mało danych o ${laneName} u tego gracza: oceniaj jego zachowanie na linii, nie sam winrate.`],
     [has('Inna rola') || has('Gra poza swoją rolą'), `${player} ostatnio grał głównie inną rolę; to nie przesądza o jego umiejętnościach na tej linii.`],
-    [has('OTP') || has('Doświadczony'), `${player} zna ${laneName} bardzo dobrze: nie licz na proste błędy, graj pewnie.`],
+    [oppCard?.otpChampionId === found.player.championId || has('Doświadczony'), `${player} zna ${laneName} bardzo dobrze: nie licz na proste błędy, graj pewnie.`],
   ].find(([when]) => when);
   if (playerTip) tips.push(playerTip[1]);
 
   // Jungler wroga mocny na początku: ostrzeżenie o wczesnych gankach.
   if (found.role !== 'jungle') {
-    const jungler = enemies.find((e) => toDataRole(e.position) === 'jungle')
-      || enemies.find((e) => !['top','jungle','middle','bottom','support'].includes(toDataRole(e.position)) && e.championId
-        && (champInfo(aliasOf(e.championId), game, data).roles || [])[0] === 'jungle');
+    const jungler = playerForRole(enemies, 'jungle', game, data);
     const jAlias = jungler && aliasOf(jungler.championId);
     const jt = jAlias ? champInfo(jAlias, game, data).traits || [] : [];
     if (jAlias && (jt.includes('early') || jt.includes('pick'))) tips.push(`Ich jungler (${name(jAlias)}) jest groźny wcześnie: postaw ward w rzece przed 3. minutą.`);
@@ -88,6 +82,7 @@ function lanePlan(me, enemies, cardFor, game, data) {
 
   return {
     role: found.role,
+    inferred: !(knownRole(found.player.position) || knownRole(found.player.assignedPosition)) || !knownRole(me.position),
     me: { championId: me.championId, name: name(myAlias) },
     opponent: { championId: found.player.championId, name: laneName, player: found.player.gameName ? `${found.player.gameName}#${found.player.tagLine}` : '' },
     opponentIndex: enemies.indexOf(found.player),

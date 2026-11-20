@@ -16,6 +16,7 @@ class McpClient {
     this.sessionId = null;
     this.nextId = 1;
     this.tools = null;
+    this.initializing = null;
   }
 
   post(body) {
@@ -35,11 +36,17 @@ class McpClient {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
         res.on('end', () => {
-          if (res.headers['mcp-session-id']) this.sessionId = res.headers['mcp-session-id'];
-          const text = Buffer.concat(chunks).toString('utf8');
-          if (res.statusCode >= 400) return reject(new Error(`OP.GG HTTP ${res.statusCode}`));
-          resolve(parseRpcResponse(text, body.id));
+          if (res.statusCode >= 400) {
+            return reject(Object.assign(new Error(`OP.GG HTTP ${res.statusCode}`), { statusCode:res.statusCode }));
+          }
+          try {
+            const result = parseRpcResponse(Buffer.concat(chunks).toString('utf8'), body.id);
+            // A late response to an old call must not reinstall the expired session.
+            if (body.method === 'initialize') this.sessionId = res.headers['mcp-session-id'] || null;
+            resolve(result);
+          } catch (error) { reject(error); }
         });
+        res.on('error', reject);
       });
       req.on('timeout', () => req.destroy(new Error('OP.GG: przekroczono czas')));
       req.on('error', reject);
@@ -57,10 +64,18 @@ class McpClient {
 
   async init() {
     if (this.tools) return this.tools;
+    if (!this.initializing) {
+      this.initializing = this.openSession().finally(() => { this.initializing = null; });
+    }
+    return this.initializing;
+  }
+
+  async openSession() {
+    this.sessionId = null;
     await this.rpc('initialize', {
       protocolVersion: '2025-03-26',
       capabilities: {},
-      clientInfo: { name: 'champ-select-assistant', version: '0.4.0' },
+      clientInfo: { name: 'champ-select-assistant', version: require('../package.json').version },
     });
     await this.post({ jsonrpc: '2.0', method: 'notifications/initialized' }).catch(() => {});
     const list = await this.rpc('tools/list', {});
@@ -69,11 +84,26 @@ class McpClient {
   }
 
   async call(name, args) {
-    const result = await this.rpc('tools/call', { name, arguments: args });
+    let result;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const tools = await this.init();
+      const stateful = !!this.sessionId;
+      try {
+        result = await this.rpc('tools/call', { name, arguments: args });
+        break;
+      } catch (error) {
+        if (error.statusCode !== 404 || !stateful) throw error;
+        if (tools === this.tools) {
+          this.tools = null;
+          this.sessionId = null;
+        }
+        if (attempt === 1) throw error;
+      }
+    }
     if (!result) return null;
-    if (result.structuredContent) return result.structuredContent;
     const text = (result.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
     if (result.isError) throw new Error(`OP.GG: ${text.slice(0, 200)}`);
+    if (result.structuredContent) return result.structuredContent;
     return text;
   }
 }
@@ -721,8 +751,21 @@ class OpggProvider {
     this.cache = cache;
     this.saveCache = saveCache;
     this.log = log;
-    this.status = { ok: false, message: 'nie połączono', updatedAt: null };
+    this.status = { ok: false, message: 'nie połączono', updatedAt: null, lastSuccessAt:null };
+    this.profileStatus = null;
+    this.retryConnectionAt = 0;
     this.inflight = new Map();
+  }
+
+  recordStatus(ok, message, profile = false) {
+    const now = Date.now();
+    const previous = profile ? this.profileStatus : this.status;
+    const lastSuccessAt = ok ? now : previous?.lastSuccessAt ?? null;
+    if (!ok && lastSuccessAt !== null) message += ` · ostatni pełny odczyt ${new Date(lastSuccessAt).toLocaleString('pl-PL')}`;
+    if (!ok && !this.client.tools && now >= this.retryConnectionAt) this.retryConnectionAt = now + 60_000;
+    const status = { ok, message, updatedAt:now, lastSuccessAt };
+    this.status = status;
+    if (profile) this.profileStatus = status;
   }
 
   fresh(key) {
@@ -740,10 +783,12 @@ class OpggProvider {
         if (value) {
           this.cache[key] = { at: Date.now(), value, ...(isBuildCache(key)?{schema:BUILD_CACHE_SCHEMA}:{}) };
           this.saveCache(this.cache);
+          this.recordStatus(true, 'OP.GG na żywo');
         }
         return value;
       } catch (err) {
         this.log(`OP.GG ${key}: ${err.message}`);
+        this.recordStatus(false, `OP.GG niedostępne (${err.message})`);
         // Przy błędzie użyj starszych danych z pamięci, jeśli są.
         const stale=this.cache[key];
         return stale && (!isBuildCache(key) || stale.schema===BUILD_CACHE_SCHEMA) ? stale.value : null;
@@ -756,19 +801,10 @@ class OpggProvider {
   }
 
   async tools() {
-    // Po błędzie połączenia nie próbuj ponownie częściej niż co minutę.
-    if (!this.client.tools && this.lastFailure && Date.now() - this.lastFailure < 60 * 1000) {
-      throw new Error(this.status.message);
+    if (!this.client.tools && Date.now() < this.retryConnectionAt) {
+      throw new Error('oczekiwanie na kolejną próbę połączenia');
     }
-    try {
-      const tools = await this.client.init();
-      this.status = { ok: true, message: 'OP.GG na żywo', updatedAt: Date.now() };
-      return tools;
-    } catch (err) {
-      this.status = { ok: false, message: `OP.GG niedostępne (${err.message})`, updatedAt: Date.now() };
-      this.lastFailure = Date.now();
-      throw err;
-    }
+    return this.client.init();
   }
 
   async meta(game) {
@@ -825,14 +861,20 @@ class OpggProvider {
       if (p == null && cached) Object.assign(value, {rank:cached.rank, seasonChampions:cached.seasonChampions,
         seasonList:cached.seasonList, visionPerMin:cached.visionPerMin});
       if (h == null && cached) value.games = cached.games || [];
-      if (!hasProfileStats(value)) return null;
+      if (!hasProfileStats(value)) {
+        this.recordStatus(false, 'OP.GG · brak statystyk gracza', true);
+        return null;
+      }
       const at = Date.now();
       this.cache[key] = { at, value, schema:1, partial:p == null || h == null,
         profileAt:p == null ? profileAt || null : at, historyAt:h == null ? historyAt || null : at };
       this.saveCache(this.cache);
+      const complete = p != null && h != null;
+      this.recordStatus(complete, complete ? 'OP.GG na żywo' : 'OP.GG · niepełny odczyt profilu lub historii', true);
       return withSources(value, p == null, h == null);
     } catch (err) {
       this.log(`OP.GG gracz ${gameName}#${tagLine}: ${err.message}`);
+      this.recordStatus(false, 'OP.GG · statystyki graczy chwilowo niedostępne', true);
       return withSources(cached, true, true);
     }
   }

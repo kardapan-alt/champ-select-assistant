@@ -1,5 +1,5 @@
 const { gameId } = require('./match-result');
-const { normPosition } = require('./players');
+const { normPosition, knownRole } = require('./players');
 
 const roles = ['top', 'jungle', 'middle', 'bottom', 'utility'];
 const metrics = ['cs10', 'vision10'];
@@ -56,11 +56,6 @@ function rememberTraining(value, match) {
   const other = entry => entry.owner !== match.owner || entry.role !== t.role;
   const recent = history.filter(e=>!other(e) && e.gameId !== String(match.gameId)).slice(0,19);
   value.trainingHistory = [{gameId:String(match.gameId),owner:match.owner,role:t.role,scores},...recent,...history.filter(other)];
-}
-
-function knownRole(position) {
-  const role = normPosition(position);
-  return roles.includes(role) ? role : null;
 }
 
 function recordTraining(review, meta, queueId, position, snapshot) {

@@ -239,14 +239,15 @@ server.once('listening',async()=>{
     assert.match(quoted,/1700 zł/);assert.match(quoted,/850 zł/);assert.match(quoted,/1100 zł/);
     assert.match(quoted,/plan|Później/i);
     await evaluate('window.assist.setViewMode(false)');
-    // Hold the final OCR result with all three cards. Before the next frame is
-    // captured, the player chooses Stormsurge, then clicks the uncovered map.
-    beforeOcrResult=async()=>{
-      for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
-      await evaluate('drawOffer(null)');
-      await new Promise(resolve=>setTimeout(resolve,100));
-      for(const type of ['down','up'])onInput({type,at:Date.now(),x:200,y:950,width:1920,height:1080});
-    };
+    // OCR misses one reading while the rims and icons remain visible. The
+    // player chooses that confirmed card and immediately clicks the map.
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.screen.status==="offers" && !lastState.final.build.mayhem.comparison?.provisional'),'Oferta Stormsurge wymaga potwierdzenia przed luką w OCR');
+    await evaluate('drawOffer(["","",""])');
+    await waitFor(()=>evaluate('lastState.final.build.mayhem.screen.status==="held-offer" && lastState.final.build.mayhem.comparison?.held'),'Brak widocznej oferty po utracie tytułów');
+    for(const type of ['down','up'])onInput({type,at:Date.now(),x:585,y:500,width:1920,height:1080});
+    await evaluate('drawOffer(null)');
+    await new Promise(resolve=>setTimeout(resolve,100));
+    for(const type of ['down','up'])onInput({type,at:Date.now(),x:200,y:950,width:1920,height:1080});
     await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(3150)'),'Klik na mapie przed pierwszą czystą klatką zgubił Stormsurge');
     assert.deepEqual(await evaluate('lastState.final.build.mayhem.selection.augments'),[1002,3150]);
     assert.ok(await evaluate('lastState.final.build.items.some(i=>i.id===4646)'));

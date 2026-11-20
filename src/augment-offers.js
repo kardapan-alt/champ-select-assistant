@@ -14,8 +14,11 @@ function titleCandidates(result,catalog,pool){
     const x=Math.min(...words.map(w=>w.x)),y=Math.min(...words.map(w=>w.y));
     const right=Math.max(...words.map(w=>w.x+w.w)),bottom=Math.max(...words.map(w=>w.y+w.h));
     const crop=result.crop||{x:0,y:0,w:1,h:1};
-    const r={id:[...ids][0],x:crop.x+x/result.width*crop.w,y:crop.y+y/result.height*crop.h,w:(right-x)/result.width*crop.w,h:(bottom-y)/result.height*crop.h};
-    if(r.y<.12||r.y+r.h>.8||r.w<.025||r.w>.30||r.h<.009||r.h>.10)return;
+    // Text is measured in the OCR crop. Ultrawide side margins do not make
+    // a short title such as “Deft” less readable. Check its card below.
+    const width=(right-x)/result.width;
+    const r={id:[...ids][0],x:crop.x+x/result.width*crop.w,y:crop.y+y/result.height*crop.h,w:width*crop.w,h:(bottom-y)/result.height*crop.h};
+    if(r.y<.12||r.y+r.h>.8||width<.01||width>.30||r.h<.009||r.h>.10)return;
     if(!found.some(p=>p.id===r.id&&Math.abs(p.x-r.x)<.015&&Math.abs(p.y-r.y)<.015))found.push(r);
   }
   for(const layout of result.layouts||[]){
@@ -80,7 +83,7 @@ function cardBounds(grid,title,gap){
   // Both long sides must belong to the same card, not a nearby button or shop row.
   if(lineScore(grid,left,top+g*.15,bottom-g*.15,true)<.65 || lineScore(grid,right,top+g*.15,bottom-g*.15,true)<.65)return null;
   const r={x:left/W,y:top/H,w:(right-left)/W,h:(bottom-top)/H};
-  if(title.x<r.x||title.x+title.w>r.x+r.w)return null;
+  if(title.x<r.x||title.x+title.w>r.x+r.w||(title.id && title.w<r.w*.05))return null;
   return r;
 }
 function detectOffer(result,grid,catalog,pool){
@@ -202,14 +205,19 @@ class OfferDisplay {
     return c?[c.token,c.stable,c.held,c.filled].join(':'):'';
   }
 }
+function cardRimVisible(grid,r){
+  const top=(r.y+r.h*.1)*grid.height,bottom=(r.y+r.h*.9)*grid.height;
+  const sides=[r.x,r.x+r.w].map(x=>lineScore(grid,x*grid.width,top,bottom,true));
+  const rim=[r.y,r.y+r.h].some(y=>lineScore(grid,y*grid.height,(r.x+r.w*.1)*grid.width,(r.x+r.w*.9)*grid.width,false)>.55);
+  // Pojedyncza krawędź mapy lub HUD nie oznacza, że karta nadal jest otwarta.
+  return sides.every(score=>score>.55)&&rim;
+}
 function oldCardsVisible(grid,cards){
-  return cards.some(({rect:r})=>{
-    const top=(r.y+r.h*.1)*grid.height,bottom=(r.y+r.h*.9)*grid.height;
-    const sides=[r.x,r.x+r.w].map(x=>lineScore(grid,x*grid.width,top,bottom,true));
-    const rim=[r.y,r.y+r.h].some(y=>lineScore(grid,y*grid.height,(r.x+r.w*.1)*grid.width,(r.x+r.w*.9)*grid.width,false)>.55);
-    // Pojedyncza krawędź mapy lub HUD nie oznacza, że karta nadal jest otwarta.
-    return sides.every(score=>score>.55)&&rim;
-  });
+  return cards.some(c=>cardRimVisible(grid,c.rect));
+}
+function conflictingTitle(cards,candidates){
+  return candidates.some(t=>cards.some(c=>c.id && c.id!==t.id &&
+    inside({x:t.x+t.w/2,y:t.y+t.h/2},c.rect)));
 }
 
 function clickPoint(e,aspect){
@@ -229,7 +237,7 @@ function changedCards(before,after){
 
 class OfferTracker {
   constructor(){this.reset();}
-  reset(){this.offer=null;this.streak=0;this.at=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;this.paused=false;this.resumedAt=0;}
+  reset(){this.offer=null;this.streak=0;this.at=0;this.readableAt=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;this.paused=false;this.resumedAt=0;}
   input(event){
     if(event.type==='focus'){
       if(event.focused){if(this.paused)this.resumedAt=event.at;this.paused=false;return;}
@@ -243,12 +251,22 @@ class OfferTracker {
       this.events.push(event);if(this.events.length>40){this.reset();this.cancelledAt=event.at;}
     }
   }
+  canHold(at,grid,candidates){
+    // A dropout can bridge a recent confirmed reading, never refresh its age.
+    // All three rims must remain in place. A reroll input resets this tracker.
+    return this.offer && this.streak>=2 && at-this.readableAt<=this.freshness &&
+      grid?.valid && this.offer.every(c=>cardRimVisible(grid,c.rect)) && !conflictingTitle(this.offer,candidates);
+  }
   // While the player reads the assistant, only revalidate an already confirmed
   // offer from the captured game window. No selections are processed in this phase.
-  preview(cards,ids,at){
+  preview(cards,ids,at,grid,candidates=[]){
     if(!Number.isSafeInteger(at)||!this.paused||at<=this.cancelledAt||at<=this.at)return false;
-    this.offer=cards&&ids&&signature(cards)===ids.join(':')?cards:null;
-    this.streak=this.offer?2:0;this.at=at;return !!this.offer;
+    if(cards && ids && signature(cards)===ids.join(':')){
+      this.offer=cards;this.streak=2;this.readableAt=at;
+    }else if(cards || !this.canHold(at,grid,candidates) || !ids || signature(this.offer)!==ids.join(':')){
+      this.offer=null;this.streak=0;
+    }
+    this.at=at;return !!this.offer;
   }
   hasChoiceInput(){
     return !!(this.pending||this.down||this.offer&&this.events.some(e=>e.type==='down'&&e.width>0&&e.height>0&&
@@ -276,7 +294,7 @@ class OfferTracker {
         this.pending={id:down.id,rect:down.rect,at:e.at,absent:0,cards:down.cards};
       return;
     }
-    if(!point||!this.offer||e.at-this.at>this.freshness||e.at<this.at){this.down=null;return;}
+    if(!point||!this.offer||e.at-this.readableAt>this.freshness||e.at<this.at){this.down=null;return;}
     const card=this.offer.find(c=>c.id && inside(point,c.rect));
     if(e.type==='down'){this.pending=null;this.down=card?{id:card.id,rect:card.rect,cards:this.offer,at:e.at}:null;if(!card){this.offer=null;this.streak=0;}return;}
     this.down=null;
@@ -296,9 +314,11 @@ class OfferTracker {
       if(this.pending&&(this.pending.laterClick||changedCards(this.pending.cards,visible)))this.pending=null;
       if(this.pending)this.pending.absent=0;
       if(this.down&&changedCards(this.down.cards,visible))this.down=null;
-      this.streak=this.offer&&signature(visible)===signature(this.offer)&&at-this.at<this.freshness?this.streak+1:1;
-      this.offer=visible;this.at=at;return null;
+      this.streak=this.offer&&signature(visible)===signature(this.offer)&&at-this.readableAt<this.freshness?this.streak+1:1;
+      this.offer=visible;this.readableAt=at;this.at=at;return null;
     }
+    if(this.down && conflictingTitle(this.down.cards,candidates))this.down=null;
+    if(this.pending && conflictingTitle(this.pending.cards,candidates))this.pending=null;
     if(this.pending){
       const titleInCard=candidates.some(title=>this.pending.cards.some(({id,rect})=>title.id===id&&inside({x:title.x+title.w/2,y:title.y+title.h/2},rect)));
       if(titleInCard||oldCardsVisible(grid,this.pending.cards)){
@@ -307,7 +327,8 @@ class OfferTracker {
       }
       else if(++this.pending.absent>=2 && at-this.pending.at>=250){const id=this.pending.id;this.pending=null;this.offer=null;this.streak=0;this.at=at;return id;}
     }
-    this.at=at;this.offer=null;this.streak=0;return null;
+    if(!this.canHold(at,grid,candidates)){this.offer=null;this.streak=0;}
+    this.at=at;return null;
   }
 }
 module.exports={titleCandidates,readGrid,detectOffer,cardBounds,oldCardsVisible,observePartial,filledCards,OfferTracker,OfferDisplay,OFFER_HOLD_MS};

@@ -37,7 +37,7 @@ function purchaseControls(b,compact=false){
   const g=b.purchaseGoal;if(!g||labActive)return '';
   const canEdit=g.canEdit&&freshRead(b.readout?.inventory);
   return `<div class="purchase-controls">${g.id?`<div><b>Przypięty cel: ${esc(g.name)}</b> <button data-unpin-next>Odblokuj</button></div>`
-    :compact?`${b.shop?.target?`<button data-pin-next="${b.shop.target.id}" ${canEdit?'':'disabled'}>Zbieram na ${esc(b.shop.target.name)}</button>`:''}`:''}
+    :compact?`${b.shop?.target && !b.shop.target.starter?`<button data-pin-next="${b.shop.target.id}" ${canEdit?'':'disabled'}>Zbieram na ${esc(b.shop.target.name)}</button>`:''}`:''}
     ${!compact?`<label>Zbieram na <select data-next-choice ${canEdit?'':'disabled'}><option value="">${g.id?'Zmień przypięty cel…':'Automatyczny plan · wybierz cel…'}</option>${g.options.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('')}</select></label>`:''}
     ${g.notice?`<p class="note">${esc(g.notice)}</p>`:''}
     ${g.suggestion&&!compact?`<p class="goal-alternative">Plan automatyczny proponuje ${esc(g.suggestion.name)}: ${esc(g.suggestion.why)}. Twój cel pozostaje przypięty.</p>`:''}</div>`;

@@ -1,5 +1,6 @@
 const { itemAvailable, itemFitsResource } = require('./itemrules');
 const { isBootItem } = require('./rolequests');
+const OPENING_SECONDS = 90;
 
 // Receptura z przypisaniem konkretnych posiadanych sztuk. Jedna różdżka nie
 // pokrywa dwóch gałęzi Rabadona, a gotowy komponent nie jest kupowany drugi raz.
@@ -22,9 +23,17 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
   if (status !== 'live' || !snapshot?.inventory || !Number.isFinite(snapshot.gold) || snapshot.gold<0)
     return { status:status==='live'?'waiting':status, gold:null };
   const gold = Math.floor(snapshot.gold), inventory = snapshot.inventory;
+  const opening = build.mode === 'classic' && Number.isFinite(snapshot.gameTime)
+    && snapshot.gameTime >= 0 && snapshot.gameTime < OPENING_SECONDS && !build.nextPurchase?.id
+    && inventory.items.every(i => {
+      const item = game.items.get(i.id);
+      return item?.categories?.includes('Consumable') || (item?.priceTotal === 0 && item?.categories?.includes('Lane'));
+    });
+  const starterId = opening ? build.roleStarter : null;
   const exists = id => {
     const item = game.items.get(id);
-    return itemFitsResource(id,game,build.alias) && itemAvailable(id,game,build.mode,build.alias) && !item?.requiredBuffCurrencyName
+    const supportStart = id === 3865 && starterId === id && item?.requiredBuffCurrencyName === 'SupportItemPurchaseBuff';
+    return itemFitsResource(id,game,build.alias) && itemAvailable(id,game,build.mode,build.alias) && (!item?.requiredBuffCurrencyName || supportStart)
       && !item?.requiredAlly && !item?.categories?.includes('Trinket');
   };
   const order = [...build.items];
@@ -33,6 +42,7 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
   if (upgrade && exists(upgrade.id)) order.unshift(upgrade);
   const pinned=build.nextPurchase?.id&&order.find(i=>i.id===build.nextPurchase.id&&!i.owned);
   if(pinned)order.unshift(pinned);
+  if (starterId) order.unshift({id:starterId,starter:true,why:'Przedmiot startowy Twojej roli'});
   const next = order.find(i=>!i.owned && exists(i.id));
   if (!next) {
     if (build.mayhem?.skipped?.length && (build.items.length < build.inventory.itemSlots || !build.boots?.id && !build.boots?.owned && build.inventory.bootsSlot==='inventory')) return {status:'skipped',gold};
@@ -41,11 +51,19 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
   const tree = recipeFor(next.id,inventory,game);
   if (!tree) return { status:'unknown-price',gold };
   const itemView = id => { const item=game.items.get(id); return {id,name:item.name,icon:item.iconPath}; };
-  const target = { ...itemView(next.id), cost:tree.cost, credit:tree.credit, why:next.why || 'Kolejny przedmiot w buildzie' };
+  const target = { ...itemView(next.id), cost:tree.cost, credit:tree.credit, why:next.why || 'Kolejny przedmiot w buildzie',
+    ...(next.starter ? {starter:true} : {}) };
   const candidates = [];
+  const quoted = new Set();
   const visit = node => {
     if (node.held) return;
-    if (exists(node.id) && (node.cost>0 || node.used.length)) candidates.push(node);
+    if (!quoted.has(node.id) && exists(node.id)) {
+      quoted.add(node.id);
+      // Each possible shop click gets the full inventory. The final target's
+      // tree may have allocated a shared Long Sword to a different branch.
+      const quote = node === tree || !node.children.length ? node : recipeFor(node.id,inventory,game);
+      if (quote && (quote.cost>0 || quote.used.length)) candidates.push(quote);
+    }
     node.children.forEach(visit);
   };
   visit(tree);
@@ -77,7 +95,7 @@ function singlePlan(build, snapshot, game, status = 'waiting') {
 
 function shopPlan(build,snapshot,game,status='waiting'){
   const main=singlePlan(build,snapshot,game,status);
-  if(!main.target||status!=='live')return main;
+  if(!main.target||main.target.starter||status!=='live')return main;
   const labels={SpellDamage:'AP',Damage:'AD',Armor:'pancerz',SpellBlock:'odporność na magię',Health:'zdrowie',Mana:'mana',
     AbilityHaste:'haste',CooldownReduction:'haste',MagicPenetration:'przebicie magiczne',ArmorPenetration:'przebicie pancerza',
     CriticalStrike:'kryty',AttackSpeed:'szybkość ataku',LifeSteal:'kradzież życia',Movement:'ruch'};
@@ -85,7 +103,7 @@ function shopPlan(build,snapshot,game,status='waiting'){
   const mainFocus=focus(main.target.id);
   const later=build.items.filter(i=>!i.owned&&i.id!==main.target.id).map(i=>({...i,kind:'later'}));
   const alternatives=(build.alternatives||[]).filter(i=>!i.owned&&i.id!==main.target.id).map(i=>({...i,kind:'alternative'}));
-  if(build.purchaseAlternative&&build.purchaseAlternative.id!==main.target.id)
+  if(build.purchaseAlternative&&!build.purchaseAlternative.starter&&build.purchaseAlternative.id!==main.target.id)
     alternatives.unshift({...build.purchaseAlternative,kind:'alternative'});
   const seen=new Set([main.target.id]);
   const options=[{...main,kind:'plan',focus:mainFocus,benefit:main.target.why,tradeoff:'Zachowujesz bieżącą kolejność buildu.'}];
@@ -93,7 +111,7 @@ function shopPlan(build,snapshot,game,status='waiting'){
   for(const pool of [later,alternatives]){
     for(const candidate of pool){
       if(seen.has(candidate.id))continue;
-      const option=singlePlan({...build,items:[candidate],boots:null,mayhem:null,nextPurchase:null},snapshot,game,status);
+      const option=singlePlan({...build,items:[candidate],boots:null,mayhem:null,nextPurchase:null,roleStarter:null},snapshot,game,status);
       if(!option.target)continue;
       seen.add(candidate.id);
       const candidateFocus=focus(candidate.id),delayed=mainFocus.filter(x=>!candidateFocus.includes(x));
@@ -104,4 +122,4 @@ function shopPlan(build,snapshot,game,status='waiting'){
   }
   return {...main,comparison:options};
 }
-module.exports = { recipeFor, shopPlan, singlePlan };
+module.exports = { OPENING_SECONDS, recipeFor, shopPlan, singlePlan };

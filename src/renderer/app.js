@@ -239,7 +239,7 @@ function liveShopPanel(b,compact=false) {
   if(b.readout?.inventory.status==='live'&&!freshRead(b.readout.inventory))s={status:'stale',gold:null};
   const messages={waiting:'Czekam na aktualne złoto i ekwipunek.',stale:'Odczyt z gry przerwany — czekam na aktualne złoto.',manual:'Włącz automatyczny odczyt ekwipunku, aby zobaczyć zakup za aktualne złoto.',skipped:'Po pominięciach nie ma kolejnego pasującego zakupu. Możesz cofnąć pominięcie.',complete:'Docelowy build jest już kupiony.',unavailable:'Następny przedmiot wymaga odblokowania w grze.', 'unknown-price':'Brak pewnej ceny w katalogu gry — sprawdź sklep.'};
   const purchase=s.purchase;
-  const content=purchase ? `${img(purchase.icon,'shop-icon',purchase.name)}<div><b>${esc(purchase.name)} · ${purchase.cost} złota</b><span>${purchase.component?`Komponent do ${esc(s.target.name)}`:'Ukończ ten przedmiot'}${purchase.credit?` · uwzględniono komponenty za ${purchase.credit}`:''} · zostanie ${s.remaining}</span></div>`
+  const content=purchase ? `${img(purchase.icon,'shop-icon',purchase.name)}<div><b>${esc(purchase.name)} · ${purchase.cost} złota</b><span>${s.target.starter?'Przedmiot startowy Twojej roli':purchase.component?`Komponent do ${esc(s.target.name)}`:'Ukończ ten przedmiot'}${purchase.credit?` · uwzględniono komponenty za ${purchase.credit}`:''} · zostanie ${s.remaining}</span></div>`
     : `<div><b>${esc(s.status==='save'?`Odłóż jeszcze ${s.missing} złota`:s.status==='full'?'Brakuje miejsca w ekwipunku':messages[s.status]||messages.waiting)}</b>${s.target?`<span>${s.status==='save'?`Na ${esc(s.savingFor.name)} · `:''}Cel: ${esc(s.target.name)} (${s.target.cost} złota do ukończenia)</span>`:''}</div>`;
   return `<section class="live-shop" data-fresh="${s.gold!=null}" aria-label="Kup teraz"><div class="shop-heading"><b>Kup teraz</b>${s.gold!=null?`<span>Masz <strong>${s.gold}</strong> złota</span>`:''}</div><div class="shop-purchase">${content}</div>
     ${purchase?'<p class="shop-note">Gdy możesz korzystać ze sklepu. Kupujesz ręcznie w grze.</p>':''}
@@ -319,7 +319,8 @@ function playerCardHtml(p, side, index) {
   const name = anonymous ? 'Gracz anonimowy' : p.name || 'Nieznany gracz';
   const loaded = !anonymous && !p.statsDisabled && !p.pending && p.loaded;
   const rank = loaded && p.rank;
-  const title = [champion.name || 'Nieznana postać', p.position, p.isMe ? 'Ty' : '', p.laneOpponent ? 'Twój rywal z linii' : ''].filter(Boolean).join(' · ');
+  const laneLabel = p.laneInferred ? 'Przewidywany rywal z linii' : 'Twój rywal z linii';
+  const title = [champion.name || 'Nieznana postać', p.position, p.isMe ? 'Ty' : '', p.laneOpponent ? laneLabel : ''].filter(Boolean).join(' · ');
   const score = !p.statsDisabled && p.matchScore;
   const counters = score && [score.kda && `K/D/A ${score.kda.join('/')}`, Number.isInteger(score.cs) && `${score.cs} CS`].filter(Boolean);
   const identity = `<span class="pc-head">${img(champion.icon, 'icon', '')}
@@ -395,6 +396,7 @@ function planPanel(plan) {
       ${img(plan.me.icon, 'icon', plan.me.name)}<span class="vs">vs</span>${img(plan.opponent.icon, 'icon', plan.opponent.name)}
       <div class="meta">
         <h2>Plan na linię: ${esc(plan.me.name)} vs ${esc(plan.opponent.name)}</h2>
+        ${plan.inferred ? '<div class="muted">Przewidywany rywal na podstawie typowej pozycji postaci.</div>' : ''}
         <div class="sub">${label ? `<span class="tag ${cls}">${label} matchup</span>` : ''} ${wr} <span class="muted">· obrażenia ${esc(plan.damage)}${plan.opponent.player ? ` · ${esc(plan.opponent.player)}` : ''}</span></div>
       </div>
     </div>

@@ -12,6 +12,68 @@ const enemy=(ids,alias='Lux')=>({championId:game.championsByAlias.get(alias).id,
 const build=(id,extra={})=>({alias:'Ahri',mode:'mayhem',items:[{id}],boots:{id:null},inventory:{bootsSlot:'none'},...extra});
 const plan=(id,ids,gold,extra={})=>shopPlan(build(id,extra),{inventory:inv(ids),gold},game,'live');
 
+function roleShop(alias,position,ids=[],gold=500,gameTime=0,mode='classic',champions=data) {
+  const inventory=inv(ids,alias,mode);
+  const state={mode,me:{championId:game.championsByAlias.get(alias).id,position},allies:[],enemies:[],liveInventory:inventory};
+  const build=engine.buildFor(alias,state,game,champions);
+  return {build,state,shop:shopPlan(build,{inventory,gold,gameTime},game,'live')};
+}
+
+test('pierwszy zakup na supporcie i w jungli zgadza się z zestawem startowym roli',()=>{
+  for (const [alias,role,starter,cost] of [['Leona','utility',3865,400],['Warwick','jungle',1102,450]]) {
+    const {build,state,shop}=roleShop(alias,role);
+    const start=engine.itemSetFor(build,alias,state,game,data).blocks.find(b=>b.type==='Start');
+    assert.equal(Number(start.items[0].id),starter);
+    assert.equal(shop.target.id,starter);
+    assert.equal(shop.purchase.id,starter);
+    assert.equal(shop.purchase.cost,cost);
+    assert.equal(shop.remaining,500-cost);
+    assert.equal(shop.target.starter,true);
+    assert.equal(shop.comparison,undefined);
+    assert.equal(roleShop(alias,role,[2003],450,8).shop.purchase.id,starter);
+    assert.equal(roleShop(alias,role,[],cost-1,9).shop.missing,1);
+    assert.equal(roleShop(alias,role,[starter],50,12).shop.target.starter,undefined);
+    assert.equal(roleShop(alias,role,[],500,500).shop.target.starter,undefined);
+    assert.equal(roleShop(alias,'',[],500,0).build.roleStarter,null);
+    for(const mode of ['practice','aram','mayhem'])assert.equal(roleShop(alias,role,[],500,0,mode).build.roleStarter,null);
+  }
+  assert.equal(roleShop('Warwick','jungle',[1103],50,12).shop.target.starter,undefined);
+  assert.equal(roleShop('Leona','utility',[1093],500,0).shop.purchase.id,3865);
+  const otherRole={...data,champions:{...data.champions,Warwick:{...data.champions.Warwick,starters:[1055,2003]}}};
+  assert.equal(roleShop('Warwick','jungle',[],500,0,'classic',otherRole).shop.purchase.id,1102);
+});
+
+test('Zaahen może połączyć składniki z różnych gałęzi Trinity w pełnym ekwipunku za 600 złota',()=>{
+  const ids=[1036,1042,1001,1033,2003,1029];
+  const p=plan(3078,ids,600,{alias:'Zaahen',mode:'practice'});
+  assert.equal(p.target.id,3078);assert.equal(p.target.credit,600);
+  assert.equal(p.purchase.id,3051);assert.equal(p.purchase.credit,600);
+  assert.equal(p.purchase.cost,600);assert.equal(p.remaining,0);
+  const waiting=plan(3078,ids,599,{alias:'Zaahen',mode:'practice'});
+  assert.equal(waiting.savingFor.id,3051);assert.equal(waiting.missing,1);
+});
+
+test('Leona po sprzedaży butów zachowuje prawdziwy przedmiot wsparcia i pięć pełnych zakupów',()=>{
+  const items=[3190,3109,3075,3143,3083];
+  const {build,shop}=roleShop('Leona','utility',[3869,...items],800,1800);
+  assert.equal(build.inventory.bootsSlot,'none');
+  assert.equal(build.boots.id,null);
+  assert.equal(build.inventory.reservedSlots,1);
+  assert.equal(build.inventory.itemSlots,5);
+  assert.deepEqual(build.items.map(i=>i.id),items);
+  assert.ok(build.items.every(i=>i.owned));
+  assert.equal(build.reservedSlot,'Celestial Opposition');
+  assert.deepEqual(build.choiceWarnings,[]);
+  assert.doesNotMatch(build.decisionSummary,/przypię/i);
+  assert.equal(shop.status,'complete');
+  const withBoots=roleShop('Leona','utility',[3869,3047,...items.slice(0,4)],500,1800);
+  assert.equal(withBoots.build.boots.owned,true);
+  assert.equal(withBoots.build.inventory.itemSlots,4);
+  const emptySlot=roleShop('Leona','utility',[3869,...items.slice(0,4)],500,1800);
+  assert.equal(emptySlot.build.inventory.bootsSlot,'inventory');
+  assert.ok(emptySlot.build.boots.id);
+});
+
 test('Kup teraz: gotowy przedmiot, największy komponent lub brakujące złoto',()=>{
   let p=plan(3089,[],3500);assert.equal(p.purchase.id,3089);assert.equal(p.purchase.cost,3500);assert.equal(p.remaining,0);
   p=plan(3089,[],1500);assert.equal(p.purchase.id,1058);assert.equal(p.purchase.cost,1200);assert.equal(p.purchase.component,true);

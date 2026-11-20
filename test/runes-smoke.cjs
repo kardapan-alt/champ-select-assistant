@@ -14,17 +14,24 @@ const server=require('../mock/mock-lcu'),{LcuClient}=require('../src/lcu');
 const aliases=[...Object.keys(data.champions),'Zoe','KSante','Rumble'],id=a=>aliases.indexOf(a)+1;
 let win,swapped=false,mode='CLASSIC',posts=0;
 const get=LcuClient.prototype.get,request=LcuClient.prototype.request;
+const opponentRoles=()=>[['Teemo',swapped?'middle':'top'],['Renekton',swapped?'top':'middle'],['Jinx','bottom'],['Sejuani','jungle'],['Lulu','utility']];
 LcuClient.prototype.request=async function(method,url,...args){if(method==='POST'&&url==='/lol-perks/v1/pages'||method==='PUT'&&url.startsWith('/lol-perks/v1/pages/'))posts++;return request.call(this,method,url,...args);};
 LcuClient.prototype.get=async function(url){
   if(url.endsWith('/perkstyles.json'))return catalog.perkstyles;
   if(url.endsWith('/perks.json'))return catalog.perks;
   if(url==='/lol-patch/v1/game-version')return '16.22.1';
   const value=await get.call(this,url);
-  if(value&&url==='/lol-gameflow/v1/session'){value.gameData.queue={gameMode:mode,id:mode==='CLASSIC'?420:mode==='ARAM'?450:2400};value.map.id=mode==='CLASSIC'?11:12;}
+  if(url==='/lol-gameflow/v1/gameflow-phase' && value==='InProgress')return 'GameStart';
+  if(value&&url==='/lol-gameflow/v1/session'){
+    value.gameData.queue={gameMode:mode,id:mode==='CLASSIC'?420:mode==='ARAM'?450:2400};
+    value.map.id=mode==='CLASSIC'?11:12;
+    const me=value.gameData.teamOne.find(p=>p.puuid==='puuid-me');
+    Object.assign(me,{championId:id('Garen'),selectedPosition:'TOP'});
+    value.gameData.teamTwo=opponentRoles().map(([alias,role])=>({championId:id(alias),selectedPosition:role.toUpperCase()}));
+  }
   if(value&&url==='/lol-champ-select/v1/session'){
     const me=value.myTeam.find(p=>p.cellId===value.localPlayerCellId);me.championId=id('Garen');me.assignedPosition='top';
-    const opponents=[['Teemo',swapped?'middle':'top'],['Renekton',swapped?'top':'middle'],['Jinx','bottom'],['Sejuani','jungle'],['Lulu','utility']];
-    value.theirTeam=opponents.map(([alias,assignedPosition],i)=>({cellId:i+5,championId:id(alias),assignedPosition}));
+    value.theirTeam=opponentRoles().map(([alias,assignedPosition],i)=>({cellId:i+5,championId:id(alias),assignedPosition}));
     value.actions=[[...value.myTeam,...value.theirTeam].map(p=>({type:'pick',actorCellId:p.cellId,championId:p.championId,completed:true}))];
   }
   return value;
@@ -51,6 +58,15 @@ server.once('listening',async()=>{
     assert.ok(posts>before);view=await state();assert.equal(view.myChampion.runes.laneOpponent,'Renekton');
     assert.deepEqual((await current()).selectedPerkIds,view.myChampion.runes.selectedPerkIds);
     assert.ok(await evaluate('document.body.textContent.includes("OP.GG 16.22")'));
+    const imported=await current(),writesAtLock=posts;
+    await step(6);
+    await waitFor(async()=> (await state()).final?.myChampion?.runes?.laneOpponent==='Renekton','Loading screen lost the confirmed opponent');
+    const loadingRunes=(await state()).final.myChampion.runes;
+    assert.ok(loadingRunes.selectedPerkIds.includes(8473));
+    assert.deepEqual(loadingRunes.selectedPerkIds,imported.selectedPerkIds);
+    assert.equal(posts,writesAtLock,'Loading preview changed the imported page');
+    await step(3);
+    await waitFor(async()=> (await state()).myChampion?.runes?.laneOpponent==='Renekton','Did not return to draft');
     const manual=await current();manual.selectedPerkIds[6]=manual.selectedPerkIds[6]===5008?5005:5008;
     await fetch(process.env.LCU_MOCK+'/lol-perks/v1/pages/'+manual.id,{method:'DELETE'});delete manual.id;manual.name='My manual rune page';
     await fetch(process.env.LCU_MOCK+'/lol-perks/v1/pages',{method:'POST',body:JSON.stringify(manual)});

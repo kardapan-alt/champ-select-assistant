@@ -364,7 +364,7 @@ async function tick() {
       lastSessionJson = '';
       if (flow && loading?.gameId && String(loading.gameId) !== String(flow.gameData?.gameId)) loading=null;
       if (!loading || flow) {
-        const players = await readLoadingPlayers(lcu, flow, loading).catch(() => null);
+        const players = await readLoadingPlayers(lcu, flow, loading, lastSelectState).catch(() => null);
         if (!players) return send({ status: 'idle', phase });
         if (!loading) {
           loading = { ...players, summaries: {} };
@@ -534,7 +534,10 @@ function buildLoadingView() {
   let teamPlan = null;
   if (currentMode !== 'mayhem') try { teamPlan = gamePlan(loading.allies, loading.enemies, aram ? null : cardOf, game, data, currentMode); } catch (err) { log(`plan gry: ${err.message}`); }
   const enemies = loading.enemies.map(p => card(p, 'enemies'));
-  if (plan && enemies[plan.opponentIndex]) enemies[plan.opponentIndex].laneOpponent = true;
+  if (plan && enemies[plan.opponentIndex]) {
+    enemies[plan.opponentIndex].laneOpponent = true;
+    enemies[plan.opponentIndex].laneInferred = plan.inferred;
+  }
   let noteReminders = [];
   if (Number(currentQueueId) === 420 && me?.championId && loading.gameId) {
     const own = game.championsById.get(me.championId);
@@ -563,7 +566,7 @@ function buildLoadingView() {
     allies: loading.allies.map(p => card(p, 'allies')),
     enemies,
     statsEnabled: settings.stats,
-    statsStatus: settings.stats ? provider.status : { ok: false, message: 'Profile OP.GG wyłączone' },
+    statsStatus: settings.stats ? (provider.profileStatus || provider.status) : { ok: false, message: 'Profile OP.GG wyłączone' },
   };
 }
 
@@ -581,7 +584,7 @@ function loadingSelectState(me) {
   if (!loading.sessionId) loading.sessionId = crypto.randomUUID();
   const session = currentMode === 'mayhem' && alias ? mayhemSession.ensure(loading.gameId || loading.sessionId, alias, currentMayhemPool) : null;
   return { ...base, me:{ ...base.me, ...me }, allies:loading.allies, mode:currentMode, roleQuestsEnabled:currentRoleQuests,
-    enemies: loading.enemies.map((p) => ({ championId: p.championId })),
+    enemies: loading.enemies.map(({championId, position}) => ({championId, position})),
     mayhem:session ? mayhem.effectiveSelection(session) : undefined,
     skippedItems:session?.skips?.map(entry=>entry.id) || [],
     liveInventory:session ? session.autoInventory !== false ? session.inventory : null : loading.liveInventory,
@@ -696,6 +699,7 @@ function finalWithEnemies(me,lane) {
 
 function buildView(session, gameId) {
   const state = engine.readSession(session, currentMode, { ...session.extra, roleQuestsEnabled: currentRoleQuests });
+  state.gameId = gameId;
   botDraft = rememberAllyRoles(state, currentQueueId, gameId);
   lastSelectState = state;
   const me = state.me;
@@ -1509,7 +1513,11 @@ async function readAutomaticAugment(input,state){
     const id=canTrack?offerTracker.observe({...detected,grid,at:input.at,aspect,active:true,readMs}):null;
     display.observe(cards,input.at,aspect,grid);
     if(display.uiKey!==uiKey)loadingDirty=true;
-    if(!focusedNow)offerTracker.preview(cards,display.current && !display.current.held ? display.current.cards.map(c=>c.id) : null,input.at);
+    if(!focusedNow){
+      const confirmed=display.current;
+      const ids=confirmed && (!cards || !confirmed.held) ? confirmed.cards.map(c=>c.id) : null;
+      offerTracker.preview(cards,ids,input.at,grid,detected.candidates);
+    }
     if(cards?.some((c,i)=>c.id&&c.id!==loading.historyFrame?.ids?.[i])){
       loading.recoveryOffer=null;loading.visionMissed=false;
     }
