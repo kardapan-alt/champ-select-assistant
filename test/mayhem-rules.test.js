@@ -16,7 +16,7 @@ function setup(alias,names,owned=[],extra={},pool='KIWI') {
 const build=(alias,names,owned=[],extra={},pool)=>engine.buildFor(alias,setup(alias,names,owned,extra,pool),game,data);
 
 test('każdy augment KIWI i KIWI_JADE ma jawną regułę oraz ślad sprawdzonego opisu',()=>{
-  assert.equal(catalog.length,283);
+  assert.equal(catalog.filter(a=>a.pools.length).length,286);
   assert.deepEqual(Object.keys(rules).sort(),catalog.map(a=>a.api.replace(/^ARAM_/,'')).sort());
   assert.deepEqual(Object.keys(evidence.augments).sort(),catalog.map(a=>a.api).sort());
   for(const a of catalog) {
@@ -30,8 +30,8 @@ test('każdy augment KIWI i KIWI_JADE ma jawną regułę oraz ślad sprawdzonego
   for(const pool of ['KIWI','KIWI_JADE'])assert.ok(mayhem.choicesCatalog(pool).augments.every(a=>a.supported));
 });
 
-test('283 augmenty × 6 klas: pełny legalny build, bez nieznanych efektów i nieuprawnionych duplikatów',()=>{
-  for(const a of catalog)for(const alias of ['Ahri','Jinx','Ornn','Garen','Zed','Sona']) {
+test('aktywne augmenty × 6 klas: pełny legalny build, bez nieznanych efektów i nieuprawnionych duplikatów',()=>{
+  for(const a of catalog.filter(a=>a.pools.length))for(const alias of ['Ahri','Jinx','Ornn','Garen','Zed','Sona']) {
     const state=setup(alias,[a.api],[],{},a.pools[0]), before=JSON.stringify(state);
     const b=engine.buildFor(alias,state,game,data),repeat=new Set(b.mayhem.repeat);
     assert.equal(JSON.stringify(state),before,'Mutacja '+a.api);
@@ -41,6 +41,39 @@ test('283 augmenty × 6 klas: pełny legalny build, bez nieznanych efektów i ni
     assert.ok(b.items.filter(i=>[3100,3078,6662].includes(i.id)).length<=1,`${alias} ${a.api}: kilka Spellblade`);
     assert.ok(b.boots.id || a.api==='Quest_Sneakerhead');
     assert.ok(!b.situations.some(s=>s.vision));
+  }
+});
+
+test('katalog 26.23 rozróżnia nowe karty KIWI, karty Jade i identyfikatory historyczne',()=>{
+  const expected=[
+    [3262,'Slime Time','Godzina Śluzu'],
+    [3263,'Steadfaster Presence','Niewzruszona Postawa'],
+    [3264,'Mystic Guard','Mistyczny Strażnik'],
+    [3265,'Fortified','Umocnienie']
+  ];
+  const kiwi=mayhem.choicesCatalog('KIWI').augments,jade=mayhem.choicesCatalog('KIWI_JADE').augments;
+  assert.equal(kiwi.length,242);assert.equal(jade.length,188);
+  for(const [id,english,polish] of expected){
+    const card=kiwi.find(a=>a.id===id);
+    assert.equal(card.english,english);assert.equal(card.name,polish);assert.ok(card.supported);
+    assert.equal(jade.some(a=>a.id===id),false);
+  }
+  for(const id of [2034,2137]){
+    assert.equal(kiwi.some(a=>a.id===id),false);
+    assert.ok(jade.some(a=>a.id===id));
+  }
+  const surge=catalog.find(a=>a.id===2134);
+  assert.equal(surge.english,'Surge Field');
+  assert.deepEqual(surge.pools,[]);
+  assert.throws(()=>mayhem.validateSelection({augments:[surge.id]},game,'Shen','KIWI'));
+});
+
+test('premia za pancerz lub MR dotyczy wyłącznie przedmiotów z odpowiednią statystyką',()=>{
+  const shen=engine.champInfo('Shen',game,data);
+  for(const [id,stat,enemy] of [[3265,'Armor',{adShare:.85}],[3264,'SpellBlock',{apShare:.85}]]){
+    const result=mayhem.adaptation({augments:[id]},shen,{game,enemy});
+    assert.ok(result.bonuses.size>0);
+    for(const itemId of result.bonuses.keys())assert.ok(game.items.get(itemId).categories.includes(stat));
   }
 });
 

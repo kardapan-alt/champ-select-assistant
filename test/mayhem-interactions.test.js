@@ -11,16 +11,16 @@ const { compareAugments } = require('../src/mayhem-compare');
 const find = key => catalog.find(a => a.api.replace(/^ARAM_/,'') === key);
 
 test('każde ulepszenie przedmiotu i zadanie ma opis ze źródłem dla właściwego patcha', () => {
-  const newer = {...game, provenance:{version:'16.23.12+1'}};
+  const newer = {...game, provenance:{version:'16.24.12+1'}};
   for (const a of catalog.filter(a => /(?:Upgrade|Quest)_/.test(a.api))) {
     const record = itemInteraction(a, {}, newer);
     assert.ok(record?.mechanic, a.api);
     assert.equal(record.descriptionKey, evidence.augments[a.api].description);
-    assert.equal(record.patch,'16.22');
-    assert.equal(record.otherPatch,'16.23');
+    assert.equal(record.patch,'16.23');
+    assert.equal(record.otherPatch,'16.24');
   }
   assert.equal(itemInteraction(find('Deft'),{},game),null);
-  assert.equal(itemInteraction(find('Upgrade_Stormsurge'),{},game).otherPatch,null);
+  assert.equal(itemInteraction(find('Upgrade_Stormsurge'),{},{...game,provenance:{version:'16.23.1'}}).otherPatch,null);
 });
 
 test('ta sama mechanika przy wybranej karcie i ofercie, bez fikcyjnych premii zakupowych dla Crimson Cobalt', () => {

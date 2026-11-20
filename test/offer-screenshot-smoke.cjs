@@ -13,7 +13,8 @@ WindowsOcr.prototype.read=async function(png) {
   const center=[.308,.5,.692][missingSlot];
   return {...result,layouts:result.layouts.map(layout=>layout.map(line=>({...line,words:line.words.filter(word=>{
     const x=(word.x+word.w/2)/result.width, y=(word.y+word.h/2)/result.height;
-    return Math.abs(x-center)>.095 || y<.33 || y>.49;
+    const inTitleBand=result.height<result.width*.1 || (y>=.33 && y<=.49);
+    return Math.abs(x-center)>.095 || !inTitleBand;
   })})))};
 };
 const profile=path.resolve(__dirname,'../../screenshot-test-preview/profile');

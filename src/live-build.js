@@ -16,6 +16,21 @@ const RULES = [
     items:{tank:[3075],fighter:[6609],assassin:[6609],adc:[3033],mage:[3165],support:[3165]}, answer:'Przyspiesz antyleczenie; powinien je nakładać gracz, który może trafić leczony cel.' },
 ];
 
+// Two independent purchases distinguish e.g. AP Alistar from a tank or an enchanter with support AP.
+function offensiveBuild(items, game) {
+  let magic = 0, physical = 0, magicItem = false, physicalItem = false;
+  for (const it of items || []) {
+    const tags = game.items.get(it.id)?.categories || [];
+    if (it.kind === 'boots' && tags.includes('MagicPenetration')) { magic++; continue; }
+    if (it.kind !== 'finished' || tags.includes('ManaRegen')) continue;
+    if (tags.includes('SpellDamage') && !tags.includes('Damage')) { magic++; magicItem = true; }
+    if (tags.includes('Damage') && !tags.includes('SpellDamage')) { physical++; physicalItem = true; }
+  }
+  if (magicItem && magic >= 2 && !physical) return 'ap';
+  if (physicalItem && physical >= 2 && !magic) return 'ad';
+  return null;
+}
+
 function liveSituations(enemies, poolKey, game, exists) {
   if (!Array.isArray(enemies)) return [];
   return RULES.flatMap(rule => {
@@ -43,4 +58,4 @@ function mergeSituations(base, live) {
   return [...live.sort((a,b)=>b.weight-a.weight), ...base.filter(s=>!keys.has(s.key))];
 }
 
-module.exports = { liveSituations, mergeSituations };
+module.exports = { liveSituations, mergeSituations, offensiveBuild };

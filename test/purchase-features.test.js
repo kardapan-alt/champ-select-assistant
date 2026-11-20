@@ -81,10 +81,14 @@ test('numer patcha jest oddzielony od wersji kompilacji; brak wersji nie daje zg
 test('aktualność rozróżnia dane klienta, wbudowane reguły, brak patcha i nowszy klient',()=>{
   const g={...game,provenance:{source:'client',version:'16.22.9',loadedAt:12345}};
   const current=dataFreshness(g,{connected:true,mode:'mayhem'});
-  assert.equal(current.warning,false);assert.equal(current.rows.find(r=>r.name==='Reguły augmentów').status,'match');
-  assert.equal(current.rows.find(r=>r.name==='Katalog augmentów').status,'unknown');
+  assert.equal(current.warning,true);assert.equal(current.rows.find(r=>r.name==='Reguły augmentów').status,'different');
+  assert.equal(current.rows.find(r=>r.name==='Katalog augmentów').status,'different');
   assert.equal(current.rows.find(r=>r.name==='Reguły buildu i run').status,'unknown');
-  g.provenance.version='16.23.0';assert.equal(dataFreshness(g,{connected:true,mode:'mayhem'}).warning,true);
+  g.provenance.version='16.23.0';
+  const updated=dataFreshness(g,{connected:true,mode:'mayhem'});
+  assert.equal(updated.rows.find(r=>r.name==='Katalog augmentów').status,'match');
+  assert.equal(updated.rows.find(r=>r.name==='Reguły augmentów').status,'match');
+  assert.equal(updated.warning,true); // Wbudowane mapy przedmiotów nadal pochodzą z 16.22.
   assert.equal(dataFreshness(g,{connected:false,mode:'mayhem'}).version,null);
   assert.equal(dataFreshness(game).rows[0].status,'unknown');
 });

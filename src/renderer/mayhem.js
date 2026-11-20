@@ -22,6 +22,22 @@ function offerOrderLabel(comparison){
   if(comparison.held)return 'Ostatni odczyt · czekam na potwierdzenie kart';
   return comparison.paused?'Ostatnia oferta z okna gry':'Kolejność jak w grze';
 }
+const augmentTraceClock = new Intl.DateTimeFormat('pl-PL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+function augmentClickTraceView(entries, section) {
+  const events = Array.isArray(entries) ? entries.filter(entry => entry && Number.isSafeInteger(entry.at)
+    && Number.isFinite(new Date(entry.at).getTime()) && typeof entry.message === 'string') : [];
+  let previousRotation;
+  const rows = events.reverse().sort((a,b) => b.at - a.at).map(entry => {
+    const rotation = entry.rotation;
+    const group = rotation !== previousRotation && Number.isInteger(rotation)
+      ? `<small>${rotation ? 'Po przerzucie nr '+rotation : 'Przed pierwszym przerzutem'}</small>` : '';
+    previousRotation = rotation;
+    return `<li data-click-stage="${esc(entry.event)}">${group}<time>${esc(augmentTraceClock.format(entry.at))}</time><span>${esc(entry.message)}</span></li>`;
+  }).join('');
+  return disclosure(section, 'Diagnostyka wyboru augmentu', rows
+    ? `<ol class="augment-click-trace" aria-label="Zdarzenia od najnowszego">${rows}</ol>`
+    : '<p class="note">Tu pojawi się przebieg odczytu, gdy asystent zauważy karty w grze.</p>');
+}
 function mayhemOfferDock(m,compact=false){
   if(!m||labActive||!m.matchKey)return '';
   const comparison=m.comparison;
@@ -69,6 +85,8 @@ function mayhemPanel(b) {
     ${m.headliner?`<div class="headliner-tip"><b>Headliner ${m.headlinerDetection?.source==='screen'?'· wykryty automatycznie':''}: ${esc(m.headliner.name)}${m.headliner.ability?' · '+esc(m.headliner.ability):''}</b><p>${esc(m.headliner.tip)}</p>${m.headliner.warning?`<p class="bad">${esc(m.headliner.warning)}</p>`:''}</div>`:`<p class="note">${m.headlinerDetection?.auto ? m.headlinerDetection.available ? 'Headliner: czekam na nazwę i opis wydarzenia w obrazie gry.' : 'Headliner: włącz automatyczny OCR, aby wykrywać go z ekranu.' : 'Headlinera ustawisz w „Augmenty i ekwipunek”.'}</p>`}
     ${live && !b.readout ? `<p class="live-inventory-status ${live.status==='live'?'good':'muted'}">${esc(liveText[live.status] || liveText.waiting)}</p>` : ''}
     ${m.screen && !labActive ? `<div class="augment-screen-controls"><span>${esc(screenText[m.screen.status] || screenText.waiting)}${m.screen.diagnostics?.readMs?` · OCR ${Math.round(m.screen.diagnostics.readMs)} ms`:''}</span>${m.screen.config?.mode!=='auto'?'<button data-augment-auto>Tryb automatyczny</button>':''}<button data-augment-screen-toggle>${m.screen.enabled?'Wyłącz':'Włącz'}</button><button data-test-offer-screenshot>Test kart ze zrzutu</button></div>` : ''}
+    ${m.screen && !labActive && (m.screen.config?.mode==='auto' || m.screen.diagnostics?.clickTrace?.length)
+      ? augmentClickTraceView(m.screen.diagnostics?.clickTrace, 'augment-click-trace') : ''}
     ${selected.length||!m.comparison?`<div class="augment-chips">${selected.length ? selected.map(a => `<article class="selected-augment-card" data-selected-augment="${a.id}"><b title="${esc(a.summary)}">${esc(a.name)}${a.completed?' ✓':''}</b><small>${esc(a.english)}</small>${augmentGrade(a.rating)}<p>${esc(a.rating?.reason||a.summary)}</p>${(a.requiredItems||[]).map(i=>`<p class="augment-required-item">${esc(i.status==='owned'?'Już kupiony':i.status==='planned'?'W buildzie':'Poza planem')}: <b>${esc(i.name)}</b>${i.status==='outside'?' · sprawdź wolne sloty i przypięcia':''}</p>`).join('')}</article>`).join('') : '<span class="muted">Czekam na nowe karty wyboru w oknie gry. Wcześniej pominięte augmenty dodasz przez „Augmenty i ekwipunek”. Odczyt augmentów nie wymaga rozpoznania Headlinera.</span>'}</div>${selected.length?'<p class="offer-note">Dopasowanie w tym buildzie: S → A → B → C → D → E → F. „—” = brak oceny, nie słaby augment.</p>':''}`:''}
     ${m.nextItem && !b.shop ? `<p class="next-purchase">${m.nextItem.upgrade?'Ulepsz posiadany przedmiot do':'Następny przedmiot'}: <b>${esc(m.nextItem.name)}</b>${m.nextItem.components ? ` · masz komponenty za ${m.nextItem.components.credit} złota, do ukończenia ${m.nextItem.components.remaining}` : ''}</p>` : ''}
     ${live?.auto && live.inventory ? disclosure('live-inventory', 'Odczytany ekwipunek · '+live.inventory.items.length+' zajętych slotów', live.inventory.items.length ? `<div class="live-items">${live.inventory.items.map(i=>`<span class="tag" title="${esc(i.name)}">${i.icon?`<img src="${esc(i.icon)}" alt="">`:''}${esc(i.name)}${i.count>1?' ×'+i.count:''}${i.kind==='component'?' · komponent':i.kind==='unknown'?' · poza katalogiem':''}</span>`).join('')}</div><p class="note">Gotowe przedmioty zostają w buildzie. Komponenty i mikstury są śledzone osobno.</p>` : '<p class="note">Ekwipunek jest pusty.</p>') : ''}

@@ -1,4 +1,4 @@
-const {normalize}=require('./augment-vision');
+const {normalize,offerCrop,offerTitleBand}=require('./augment-vision');
 const inside=(p,r)=>p.x>r.x+.012 && p.x<r.x+r.w-.012 && p.y>r.y+.012 && p.y<r.y+r.h-.012;
 const signature=cards=>cards.map(c=>c.id).join(':');
 
@@ -21,7 +21,7 @@ function titleCandidates(result,catalog,pool){
     if(r.y<.12||r.y+r.h>.8||width<.01||width>.30||r.h<.009||r.h>.10)return;
     if(!found.some(p=>p.id===r.id&&Math.abs(p.x-r.x)<.015&&Math.abs(p.y-r.y)<.015))found.push(r);
   }
-  for(const layout of result.layouts||[]){
+  for(const layout of result.offerLayouts||result.layouts||[]){
     const lines=layout.filter(l=>Array.isArray(l.words));
     for(const line of lines){
       const words=line.words.filter(w=>['x','y','w','h'].every(k=>Number.isFinite(w[k]))).sort((a,b)=>a.x-b.x);
@@ -86,6 +86,21 @@ function cardBounds(grid,title,gap){
   if(title.x<r.x||title.x+title.w>r.x+r.w||(title.id && title.w<r.w*.05))return null;
   return r;
 }
+// The busy game scene can make Windows skip even clearly printed titles. Run a
+// second segmentation on the title band when the central card outline is visible.
+// Keep banner OCR in its original coordinate system and its own text layouts.
+async function readOfferOcr(ocr,input,grid){
+  const result=await ocr.read(input.png);
+  if(!input.titlePng || !result?.layouts || !grid?.valid)return result;
+  const crop=offerCrop(input.width,input.height);
+  if(!cardBounds(grid,{x:.499,y:.404,w:.002,h:.02},.192*crop.w))return result;
+  const band=offerTitleBand(result.height);
+  const titles=await ocr.read(input.titlePng);
+  if(!titles?.layouts || titles.width!==result.width || titles.height!==band.height)return {...result,titleBandAttempted:true};
+  const aligned=titles.layouts.map(layout=>layout.map(line=>({words:line.words.map(word=>({...word,y:word.y+band.y}))})));
+  return {...result,titleBandAttempted:true,offerLayouts:[...aligned,...result.layouts]};
+}
+
 function detectOffer(result,grid,catalog,pool){
   if(!grid?.valid||!result?.width||!result?.height)return {cards:null,candidates:[]};
   const candidates=titleCandidates(result,catalog,pool).sort((a,b)=>a.x-b.x),matches=[];
@@ -236,19 +251,48 @@ function changedCards(before,after){
 }
 
 class OfferTracker {
-  constructor(){this.reset();}
-  reset(){this.offer=null;this.streak=0;this.at=0;this.readableAt=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;this.paused=false;this.resumedAt=0;}
+  constructor(trace=()=>{}){this.trace=trace;this.reset();}
+  reset(){this.offer=null;this.streak=0;this.at=0;this.readableAt=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=0;this.freshness=1800;this.paused=false;this.resumedAt=0;this.traceLayout=null;this.tracePress=null;}
+  rememberLayout(cards,at,aspect){
+    const attempted=!!this.traceLayout?.attempted && !changedCards(this.traceLayout.cards,cards);
+    this.traceLayout={cards,at,aspect,absent:0,attempted};
+  }
+  traceAbsence(grid,at){
+    const layout=this.traceLayout;
+    if(!layout||!grid?.valid)return;
+    if(oldCardsVisible(grid,layout.cards)){layout.absent=0;return;}
+    if(++layout.absent<2)return;
+    if(!layout.attempted)this.trace('no-press',at);
+    else if(this.down)this.trace('no-release',at,{id:this.down.id,slot:this.down.slot});
+    this.traceLayout=null;
+  }
+  traceHit(e){
+    const layout=this.traceLayout;
+    if(!layout || layout.absent || e.at<layout.at || e.at-layout.at>OFFER_HOLD_MS)return null;
+    const point=clickPoint(e,layout.aspect);
+    const index=point ? layout.cards.findIndex(c=>inside(point,c.rect)) : -1;
+    return index>=0 ? {slot:index+1,id:layout.cards[index].id} : null;
+  }
+  discard(reason,at,choice=this.pending||this.down||this.tracePress){
+    if(choice)this.trace('discard',at,{reason,id:choice.id,slot:choice.slot});
+    this.tracePress=null;
+  }
+  abort(reason,at){this.discard(reason,at);this.reset();}
   input(event){
     if(event.type==='focus'){
-      if(event.focused){if(this.paused)this.resumedAt=event.at;this.paused=false;return;}
+      if(event.focused){if(this.paused){this.resumedAt=event.at;this.trace('focus',event.at,{focused:true});}this.paused=false;return;}
       if(this.paused)return; // Heartbeat from the same unfocused window.
+      this.trace('focus',event.at,{focused:false,reason:event.sourceStale?'heartbeat':undefined});
       this.paused=true;
     }
     if(event.type==='cancel'||event.type==='focus'){
+      this.discard(event.type==='focus'?(event.sourceStale?'heartbeat':'focus'):event.sourceEnded?'source-ended':'cancel',event.at);
       this.offer=null;this.streak=0;this.pending=null;this.down=null;this.events=[];this.cancelledAt=event.at;return;
     }
     if(!this.paused&&event.at>=this.resumedAt&&['down','up'].includes(event.type)){
-      this.events.push(event);if(this.events.length>40){this.reset();this.cancelledAt=event.at;}
+      const hit=event.type==='down' && this.traceHit(event);
+      if(hit){this.traceLayout.attempted=true;this.tracePress=hit;this.trace('down',event.at,hit);}
+      this.events.push(hit?{...event,traced:true}:event);if(this.events.length>40){this.abort('overflow',event.at);this.cancelledAt=event.at;}
     }
   }
   canHold(at,grid,candidates){
@@ -259,13 +303,15 @@ class OfferTracker {
   }
   // While the player reads the assistant, only revalidate an already confirmed
   // offer from the captured game window. No selections are processed in this phase.
-  preview(cards,ids,at,grid,candidates=[]){
+  preview(cards,ids,at,grid,candidates=[],aspect){
     if(!Number.isSafeInteger(at)||!this.paused||at<=this.cancelledAt||at<=this.at)return false;
     if(cards && ids && signature(cards)===ids.join(':')){
       this.offer=cards;this.streak=2;this.readableAt=at;
+      if(aspect)this.rememberLayout(cards,at,aspect);
     }else if(cards || !this.canHold(at,grid,candidates) || !ids || signature(this.offer)!==ids.join(':')){
       this.offer=null;this.streak=0;
     }
+    if(!cards)this.traceAbsence(grid,at);
     this.at=at;return !!this.offer;
   }
   hasChoiceInput(){
@@ -284,19 +330,36 @@ class OfferTracker {
       // A double-click inside the same card still identifies just one choice.
       if(point && this.at<this.pending.at && inside(point,this.pending.rect))return;
       if(!point || this.at<this.pending.at){this.offer=null;this.streak=0;}
-      this.pending=null;
+      this.discard('competing',e.at);this.pending=null;
     }
     // Some game buttons dismiss on mouse-down, before the next frame / mouse-up.
     // Retain that exact card until release, while still rejecting a drag outside it.
     if(e.type==='up'&&this.down){
       const down=this.down;this.down=null;
-      if(e.at>=down.at&&e.at-down.at<1200&&point&&inside(point,down.rect))
-        this.pending={id:down.id,rect:down.rect,at:e.at,absent:0,cards:down.cards};
+      if(e.at>=down.at&&e.at-down.at<1200&&point&&inside(point,down.rect)){
+        this.pending={id:down.id,slot:down.slot,rect:down.rect,at:e.at,absent:0,cards:down.cards};
+        this.trace('up',e.at,{id:down.id,slot:down.slot});
+      }else this.discard(point?'release':'layout',e.at,down);
       return;
     }
-    if(!point||!this.offer||e.at-this.readableAt>this.freshness||e.at<this.at){this.down=null;return;}
-    const card=this.offer.find(c=>c.id && inside(point,c.rect));
-    if(e.type==='down'){this.pending=null;this.down=card?{id:card.id,rect:card.rect,cards:this.offer,at:e.at}:null;if(!card){this.offer=null;this.streak=0;}return;}
+    if(!point||!this.offer||e.at-this.readableAt>this.freshness||e.at<this.at){
+      if(e.type==='down'){
+        const hit=this.traceHit(e);
+        if(hit || !point&&this.offer)this.trace('discard',e.at,{...hit,reason:!point?'layout':!this.offer?'no-offer':e.at<this.at?'old-input':'stale'});
+        this.tracePress=null;
+      }
+      this.down=null;return;
+    }
+    const index=this.offer.findIndex(c=>inside(point,c.rect)),card=this.offer[index];
+    if(e.type==='down'){
+      this.pending=null;this.down=card?.id?{id:card.id,slot:index+1,rect:card.rect,cards:this.offer,at:e.at}:null;
+      if(this.down&&!e.traced){this.trace('down',e.at,{id:card.id,slot:index+1});if(this.traceLayout)this.traceLayout.attempted=true;}
+      if(!this.down){
+        if(card)this.trace('discard',e.at,{reason:'unknown-title',slot:index+1});
+        this.tracePress=null;this.offer=null;this.streak=0;
+      }
+      return;
+    }
     this.down=null;
   }
   observe({at,aspect,cards,partial,candidates=[],grid,active,readMs=0}){
@@ -305,30 +368,42 @@ class OfferTracker {
     // and saving a click always requires release and two clean game frames.
     this.freshness=Math.min(5000,Math.max(1800,Number.isFinite(readMs)?readMs+1000:1800));
     if(at<=this.cancelledAt||at<this.resumedAt||at<=this.at)return null;
-    if(!active||!grid?.valid){this.pending=null;this.down=null;this.offer=null;this.streak=0;this.events=[];this.at=at;return null;}
+    if(!active||!grid?.valid){this.discard(active?'unreadable-frame':'focus',at);this.pending=null;this.down=null;this.offer=null;this.streak=0;this.events=[];this.at=at;return null;}
     const events=this.events.filter(e=>e.at<=at);this.events=this.events.filter(e=>e.at>at);
     for(const e of events)this.click(e,aspect);
-    if(this.pending&&at-this.pending.at>Math.max(4000,this.freshness*2+1000))this.pending=null;
+    if(this.pending&&at-this.pending.at>Math.max(4000,this.freshness*2+1000)){this.discard('timeout',at);this.pending=null;}
     const visible=cards || partial;
     if(visible){
-      if(this.pending&&(this.pending.laterClick||changedCards(this.pending.cards,visible)))this.pending=null;
-      if(this.pending)this.pending.absent=0;
-      if(this.down&&changedCards(this.down.cards,visible))this.down=null;
+      if(this.pending&&(this.pending.laterClick||changedCards(this.pending.cards,visible))){this.discard(this.pending.laterClick?'competing':'changed',at);this.pending=null;}
+      if(this.pending){if(this.pending.absent)this.trace('visible-again',at);this.pending.absent=0;}
+      if(this.down&&changedCards(this.down.cards,visible)){this.discard('changed',at,this.down);this.down=null;}
       this.streak=this.offer&&signature(visible)===signature(this.offer)&&at-this.readableAt<this.freshness?this.streak+1:1;
+      this.rememberLayout(visible,at,aspect);
       this.offer=visible;this.readableAt=at;this.at=at;return null;
     }
-    if(this.down && conflictingTitle(this.down.cards,candidates))this.down=null;
-    if(this.pending && conflictingTitle(this.pending.cards,candidates))this.pending=null;
+    if(this.down && conflictingTitle(this.down.cards,candidates)){this.discard('changed',at,this.down);this.down=null;}
+    if(this.pending && conflictingTitle(this.pending.cards,candidates)){this.discard('changed',at);this.pending=null;}
     if(this.pending){
       const titleInCard=candidates.some(title=>this.pending.cards.some(({id,rect})=>title.id===id&&inside({x:title.x+title.w/2,y:title.y+title.h/2},rect)));
       if(titleInCard||oldCardsVisible(grid,this.pending.cards)){
-        if(this.pending.laterClick)this.pending=null;
-        else this.pending.absent=0;
+        if(this.pending.laterClick){this.discard('competing',at);this.pending=null;}
+        else {if(this.pending.absent)this.trace('visible-again',at);this.pending.absent=0;}
       }
-      else if(++this.pending.absent>=2 && at-this.pending.at>=250){const id=this.pending.id;this.pending=null;this.offer=null;this.streak=0;this.at=at;return id;}
+      else {
+        const {id,slot}=this.pending;
+        if(++this.pending.absent===1)this.trace('absent',at,{id,slot});
+        if(this.pending.absent>=2 && at-this.pending.at>=250){
+          this.trace('confirmed',at,{id,slot});
+          this.pending=null;this.offer=null;this.traceLayout=null;this.tracePress=null;this.streak=0;this.at=at;return id;
+        }
+      }
     }
-    if(!this.canHold(at,grid,candidates)){this.offer=null;this.streak=0;}
+    this.traceAbsence(grid,at);
+    if(!this.canHold(at,grid,candidates)){
+      if(this.offer&&!this.down&&!this.pending)this.trace('dropout',at);
+      this.offer=null;this.streak=0;
+    }
     this.at=at;return null;
   }
 }
-module.exports={titleCandidates,readGrid,detectOffer,cardBounds,oldCardsVisible,observePartial,filledCards,OfferTracker,OfferDisplay,OFFER_HOLD_MS};
+module.exports={titleCandidates,readGrid,readOfferOcr,detectOffer,cardBounds,oldCardsVisible,observePartial,filledCards,OfferTracker,OfferDisplay,OFFER_HOLD_MS};

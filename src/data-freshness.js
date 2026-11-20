@@ -19,7 +19,7 @@ function dataFreshness(game,{connected=false,mode='classic',analysisAt=null,base
     detail:`${runeSource.live?'Pobrana analiza':'Zapis'} OP.GG: ${runeSource.mode==='aram'?'ARAM':runeSource.position||'Summoner’s Rift'}. Drobne runy dopasowywane do widocznych przeciwników.`});
   if(mode==='mayhem')rows.push(
     {name:'Reguły augmentów',patch:patchOf(rules.patch),date:rules.reviewed,status:patchStatus(version,rules.patch),detail:'Patch zapisany przy ostatnim przeglądzie reguł.'},
-    {name:'Katalog augmentów',date:augments.fetched,patch:null,status:'unknown',detail:'Data pobrania nazw i list; katalog nie zawiera numeru patcha.'},
+    {name:'Katalog augmentów',date:augments.fetched,patch:augments.patch,status:patchStatus(version,augments.patch),detail:'Nazwy PL i EN oraz listy kart dla obu odmian Mayhem z danych klienta.'},
     {name:'Teksty Headlinerów',date:headliners.fetched,patch:null,status:'unknown',detail:'Data pobrania tekstów do OCR. Nie oznacza testu rozpoznawania w prawdziwym meczu.'}
   );
   else if(analysisAt)rows.push({name:'Build z OP.GG',date:analysisAt,patch:null,status:'unknown',detail:'Czas pobrania użytej analizy. Źródło nie potwierdziło numeru patcha; pamięć podręczna może być starsza.'});

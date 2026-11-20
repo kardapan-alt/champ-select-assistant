@@ -13,6 +13,18 @@ const state = () => ({mode:'mayhem',mayhemPool:'KIWI',me:{championId:game.champi
 const names = ids => ({cards:ids.map(id=>({id,name:catalog.find(a=>a.id===id).name})),inventory:'unknown'});
 const capture = ids => ({pool:'KIWI',time:null,snapshot:names(ids)});
 
+test('post-game click diagnostics belong to the specific Mayhem match and survive restarting the assistant', () => {
+  const clickTrace=[{at:1000,rotation:1,event:'saved',message:'Zapisano środkową kartę.'}];
+  for (const [matchKey,expected] of [['777:Zoe:KIWI',true],['777:Zoe:KIWI_JADE',true],
+    ['778:Zoe:KIWI',false],['777:Shen:KIWI',false],[null,false]]) {
+    const review=new MatchReview({},()=>{},()=>({matchKey,clickTrace}));
+    review.ensureActive(meta);
+    review.finish();
+    const restored=new MatchReview(structuredClone(review.value)).latest();
+    assert.deepEqual(restored.clickTrace, expected ? clickTrace : undefined);
+  }
+});
+
 test('live review offers only the current player’s unconfirmed choices, including the last after reopening',()=>{
   const {earlierOffers,confirmEarlierOffer}=require('../src/offer-history');
   const match={...meta,offers:[1,2,3,4].map(id=>({id,...names(choices)}))};

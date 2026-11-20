@@ -5,8 +5,8 @@ const { itemFitsResource } = require('./itemrules');
 
 // Polish paraphrases checked against the Riot card descriptions indexed in
 // mayhem-rule-evidence.json. Item passive names/effects are from Data Dragon
-// 16.22.1, en_US/item.json. These describe triggers, not measured in-game procs.
-const reviewedPatch = '16.22';
+// 16.23.1, en_US/item.json. These describe triggers, not measured in-game procs.
+const reviewedPatch = '16.23';
 const itemEffects = {
   3115: 'Icathian Bite zadaje obrażenia magiczne przy trafieniu.',
   3153: 'Mist’s Edge zadaje przy trafieniu obrażenia zależne od aktualnego zdrowia celu.',

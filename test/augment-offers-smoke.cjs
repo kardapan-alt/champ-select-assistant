@@ -9,7 +9,7 @@ globalShortcut.register=(key,handler)=>{
   if(key==='Control+Z')pressCompactShortcut=handler;
   return true;
 };
-for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:'Control+X'},'mayhem-session.json':null,'augment-screen.json':null,'match-review.json':{matches:[],active:null}}))
+for(const [name,value] of Object.entries({'settings.json':{stats:false,autoRunes:false,autoItemSet:false,autoPopup:false,launchAtLogin:false,keyboardShortcut:'Control+X'},'mayhem-session.json':null,'augment-screen.json':null,'augment-diagnostics.json':null,'match-review.json':{matches:[],active:null}}))
   fs.writeFileSync(path.join(profile,name),JSON.stringify(value));
 process.argv.push('--background');process.env.PORT='0';process.env.STEP='8';
 const server=require('../mock/mock-lcu');
@@ -249,6 +249,8 @@ server.once('listening',async()=>{
     await new Promise(resolve=>setTimeout(resolve,100));
     for(const type of ['down','up'])onInput({type,at:Date.now(),x:200,y:950,width:1920,height:1080});
     await waitFor(()=>evaluate('lastState.final.build.mayhem.selection.augments.includes(3150)'),'Klik na mapie przed pierwszą czystą klatką zgubił Stormsurge');
+    await waitFor(()=>evaluate(`[...document.querySelectorAll('[data-detail="augment-click-trace"] [data-click-stage="saved"]')].some(el=>el.textContent.includes('Stormsurge'))`),
+      'Brak zapisu wyboru w diagnostyce na żywo');
     assert.deepEqual(await evaluate('lastState.final.build.mayhem.selection.augments'),[1002,3150]);
     assert.ok(await evaluate('lastState.final.build.items.some(i=>i.id===4646)'));
     assert.ok(await evaluate('document.querySelector(`[data-selected-augment="3150"] .augment-required-item`).textContent.includes("Stormsurge")'));
@@ -276,6 +278,8 @@ server.once('listening',async()=>{
     await evaluate('document.getElementById("match-history").click()');
     const history='[data-history-offer][data-picked="3150"]';
     await waitFor(()=>evaluate(`!!document.querySelector('${history}')`),'Brak wybranego Stormsurge w historii ofert');
+    assert.ok(await evaluate(`[...document.querySelectorAll('[data-detail="review-augment-click-trace"] [data-click-stage="saved"]')].some(el=>el.textContent.includes('Stormsurge'))`),
+      'W podsumowaniu meczu brakuje diagnostyki zapisu');
     const recorded=await evaluate(`Array.from(document.querySelector('${history}').querySelectorAll('[data-history-card]'), b=>Number(b.dataset.historyCard))`);
     const catalog=require('../data/mayhem-augments.json').augments;
     assert.deepEqual(recorded,['Upgrade Stormsurge','Back To Basics','Ice Cold'].map(name=>catalog.find(a=>a.english.toLowerCase()===name.toLowerCase()).id));

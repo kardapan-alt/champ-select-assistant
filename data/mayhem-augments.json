@@ -1,10 +1,11 @@
 {
   "schema": 1,
-  "fetched": "2026-11-15",
+  "patch": "16.23",
+  "fetched": "2026-11-20",
   "sources": [
-    "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/augment-lists.json",
-    "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/cherry-augments.json",
-    "https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/pl_pl/v1/cherry-augments.json"
+    "https://raw.communitydragon.org/16.23/plugins/rcp-be-lol-game-data/global/default/v1/augment-lists.json",
+    "https://raw.communitydragon.org/16.23/plugins/rcp-be-lol-game-data/global/default/v1/cherry-augments.json",
+    "https://raw.communitydragon.org/16.23/plugins/rcp-be-lol-game-data/global/pl_pl/v1/cherry-augments.json"
   ],
   "augments": [
     {
@@ -1992,7 +1993,6 @@
       "rarity": "kGold",
       "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SharkTempest_small.png",
       "pools": [
-        "KIWI",
         "KIWI_JADE"
       ]
     },
@@ -2508,9 +2508,7 @@
       "english": "Surge Field",
       "rarity": "kPrismatic",
       "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SurgeField_small.png",
-      "pools": [
-        "KIWI"
-      ]
+      "pools": []
     },
     {
       "id": 2135,
@@ -2544,7 +2542,6 @@
       "rarity": "kGold",
       "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/PatOnTheBack_small.png",
       "pools": [
-        "KIWI",
         "KIWI_JADE"
       ]
     },
@@ -3086,6 +3083,50 @@
       "english": "DOOM",
       "rarity": "kGold",
       "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Pentakill_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3262,
+      "api": "ARAM_SlimeTime",
+      "name": "Godzina Śluzu",
+      "english": "Slime Time",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Cherry/Augments/Icons/SlimeTime_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3263,
+      "api": "SteadfastPresence",
+      "name": "Niewzruszona Postawa",
+      "english": "Steadfaster Presence",
+      "rarity": "kGold",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/SteadfastPresence_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3264,
+      "api": "MysticGuard",
+      "name": "Mistyczny Strażnik",
+      "english": "Mystic Guard",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/MysticGuard_small.png",
+      "pools": [
+        "KIWI"
+      ]
+    },
+    {
+      "id": 3265,
+      "api": "Fortified",
+      "name": "Umocnienie",
+      "english": "Fortified",
+      "rarity": "kSilver",
+      "icon": "/lol-game-data/assets/ASSETS/UX/Kiwi/Augments/Icons/Fortified_small.png",
       "pools": [
         "KIWI"
       ]

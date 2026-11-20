@@ -34,6 +34,37 @@ test('nieznany lub błędny tytuł nie jest zgadywany',()=>{
     const {result,grid}=fixture([bad,names[1],names[2]]);assert.equal(detectOffer(result,grid,catalog,'KIWI').cards,null);
   }
 });
+test('pas tytułów Shena uzupełnia odczyt całego obrazu, zachowuje współrzędne i omija zwykłą mapę',async()=>{
+  const {offerTitleBand}=require('../src/augment-vision');
+  const {readOfferOcr}=require('../src/augment-offers');
+  const {testOfferScreenshot}=require('../src/augment-screenshot');
+  for(const titles of [['Quickstep','Tank Engine','Still Here'],['Steadfaster Presence','Tank Engine','The Boom and the Bass']]){
+    const {grid,result}=fixture(titles,4.5);
+    const full={...result,layouts:[[{words:[{text:'Arcade',x:320,y:40,w:35,h:13}]}]]};
+    const band=offerTitleBand(result.height);
+    const strip={width:result.width,height:band.height,layouts:result.layouts.map(layout=>layout.map(line=>({
+      words:line.words.map(w=>({...w,y:w.y-band.y})),
+    })))};
+    const input={png:'full',titlePng:'strip',width:1280,height:720,pool:'KIWI',grid:{...grid,pixels:grid.pixels.toString('base64')}};
+    const reads=[],ocr={read:async png=>{reads.push(png);return png==='full'?full:strip;}};
+    assert.equal(detectOffer(full,grid,catalog,'KIWI').cards,null);
+    const combined=await readOfferOcr(ocr,input,grid);
+    assert.deepEqual(reads,['full','strip']);
+    assert.deepEqual(combined.layouts,full.layouts,'Headliner keeps the full-scene readings');
+    const detected=detectOffer(combined,grid,catalog,'KIWI');
+    assert.deepEqual(detected.cards?.map(c=>catalog.find(a=>a.id===c.id).english),titles);
+    const offline=await testOfferScreenshot(input,ocr,catalog);
+    assert.equal(offline.status,'offer');
+    assert.deepEqual(offline.slots.map(s=>s.english),titles);
+    reads.length=0;
+    assert.equal(await readOfferOcr(ocr,input,cleanGrid()),full);
+    assert.deepEqual(reads,['full']);
+    const failed={read:async png=>png==='full'?result:{error:'ocr'}};
+    const fallback=await readOfferOcr(failed,input,grid);
+    assert.equal(fallback.titleBandAttempted,true);
+    assert.deepEqual({...result,titleBandAttempted:true},fallback);
+  }
+});
 test('dwa tytuły są przypisane do właściwych pozycji dopiero przy trzech ramkach i dwóch zgodnych odczytach',()=>{
   for(let slot=0;slot<3;slot++){
     const titles=names.with(slot,'Unknown OCR'),{result,grid}=fixture(titles);

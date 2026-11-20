@@ -108,6 +108,7 @@ async function openMatchReviews(){
       <h4>Ostatnio zapisane augmenty</h4><p>${names(m.augments)||'Brak zapisanych augmentów'}</p>
       ${(m.synergies||[]).map(p=>`<p class="good">${esc(p.names.join(' + '))}: ${esc(p.text)}</p>`).join('')}
       ${offerHistoryPanel(m)}
+      ${m.mode==='mayhem' && m.clickTrace?.length ? augmentClickTraceView(m.clickTrace, 'review-augment-click-trace') : ''}
       ${augmentImpactView(m)}
       <h4>Ostatni odczyt ekwipunku</h4><div class="review-items">${m.items.map(i=>`<div>${img(i.icon,'shop-icon',i.name)}<span>${i.count>1?i.count+' × ':''}${esc(i.name)}</span></div>`).join('')||(m.firstRead==null?'Brak odczytu':'Pusty ekwipunek')}</div>
       <details class="review-timeline"><summary>Historia ekwipunku, augmentów i porad (${m.events.length})</summary><ol>${m.events.map(e=>`<li><time>${reviewTime(e.time)}</time> ${e.type==='initial'?`Pierwszy odczyt: ${names(e.added)||'pusto'}`:e.type==='inventory'?`${e.added.length?'Przybyło: '+names(e.added)+'. ':''}${e.removed.length?'Ubyło: '+names(e.removed):''}`:e.type==='plan'?e.target?`Cel zakupów: <b>${esc(e.target.name)}</b> — ${esc(e.target.why)}`:'Build kupiony lub brak dostępnego celu.':e.type==='gap'?'Przerwa w odczycie — część zmian mogła nie zostać zapisana.':`Zestaw augmentów: ${names(e.augments)||'pusto'}${e.headliner?' · Headliner: '+esc(e.headliner.name):''}`}</li>`).join('')}</ol></details>

@@ -1,4 +1,4 @@
-// Jawnie przejrzane efekty KIWI / KIWI_JADE, patch 16.22 (26.22).
+// Jawnie przejrzane efekty KIWI / KIWI_JADE, patch 16.23 (26.23).
 // Pochodzenie każdego opisu: data/mayhem-rule-evidence.json.
 // Brak domyślnej reguły „obsługiwany”: nowy augment wymaga przeglądu i testów.
 const rules = {};
@@ -11,6 +11,10 @@ function rule(names, effects, summary, extra = {}) {
 const neutral = (names, summary) => rule(names, [], summary, { neutral:true });
 
 rule('Goliath|TankEngine', ['health'], 'Premia do maksymalnego zdrowia wzmacnia zakupy HP; dobieram je do klasy postaci.');
+rule('Fortified', ['armor'], 'Zyskujesz 20 pancerza i o 25% więcej dodatkowego pancerza. Spośród zakupów obronnych dopasowanych do wroga premiuję te z pancerzem.');
+rule('MysticGuard', ['magicresist'], 'Zyskujesz 20 odporności na magię i o 25% więcej dodatkowej odporności na magię. Premię uwzględniam przy zakupach obronnych pod wroga.');
+rule('SteadfastPresence', ['resists'], 'Zyskujesz pancerz, odporność na magię i nieustępliwość. Premia rośnie poniżej 40% zdrowia. Przedmioty obronne dobieram do obrażeń wroga.');
+rule('SlimeTime', ['selfheal'], 'Co kilka sekund zadajesz obrażenia pobliskim wrogom. Trafiony bohater pozostawia kroplę, którą możesz zebrać, by się uleczyć.');
 rule('CelestialBody', ['health','resists'], 'Duża pula HP i mniejsze obrażenia sprzyjają wytrzymałości: zdrowie łączę z odpornościami.');
 rule('ImTheJuggernaut|Adamant|TitansPulse|WardingWeapon', ['health'], 'Augment dostarcza odporności podczas walki. Zdrowie pomaga wykorzystać dodatkowy pancerz i MR.');
 rule('HeavyHitter', ['health','healthhit'], 'Autoataki skalują się z maksymalnym HP: premiuję zdrowie, Titanic Hydrę i odpowiednie tempo ataków.');

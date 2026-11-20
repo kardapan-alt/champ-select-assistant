@@ -1,10 +1,10 @@
-const {detectOffer,readGrid}=require('./augment-offers');
+const {detectOffer,readGrid,readOfferOcr}=require('./augment-offers');
 const {offerCrop}=require('./augment-vision');
 
 // Rectangles use original screenshot coordinates, including the margins of ultrawide displays.
 function wordsInRegion(result,crop,region){
   const readings=new Set();
-  for(const layout of result?.layouts||[]){
+  for(const layout of result?.offerLayouts||result?.layouts||[]){
     const lines=[];
     for(const line of layout){
       const words=line.words.filter(word=>{
@@ -50,7 +50,7 @@ async function testOfferScreenshot(input,ocr,catalog){
     throw Error('Wybierz pełny zrzut okna gry w rozdzielczości od 640 × 400 do 40 megapikseli.');
   const grid=readGrid(input.grid),crop=offerCrop(width,height);
   if(!grid)throw Error('Nie udało się przygotować zrzutu do odczytu.');
-  const result=grid.valid ? await ocr.read(input.png) : null;
+  const result=grid.valid ? await readOfferOcr(ocr,input,grid) : null;
   if(!result?.layouts){
     const status=!grid.valid?'empty':result?.error==='language'?'language':'error';
     return {status,slots:screenshotSlots({cards:null,candidates:[]},result,crop,catalog)};

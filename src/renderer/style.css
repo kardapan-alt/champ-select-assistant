@@ -495,6 +495,13 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--ally); ou
 .augment-screen-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:6px 0; }
 .augment-screen-controls span { flex:1; min-width:190px; }
 .augment-screen-controls button { padding:4px 8px; font-size:11px; }
+.augment-click-trace { padding:0; margin:0; list-style:none; }
+.augment-click-trace li { display:grid; grid-template-columns:auto minmax(0,1fr); gap:0 10px; padding:4px 0; font-size:12px; }
+.augment-click-trace li small { grid-column:1 / -1; color:var(--gold); margin:6px 0 3px; }
+.augment-click-trace time { color:var(--muted); font-variant-numeric:tabular-nums; }
+.augment-click-trace span { overflow-wrap:anywhere; }
+.augment-click-trace li[data-click-stage="saved"] span { color:var(--good); }
+.augment-click-trace li[data-click-stage="discard"] span { color:var(--gold); }
 .augment-undo { margin-top:6px; padding:4px 8px; font-size:11px; max-width:100%; white-space:normal; text-align:left; }
 .augment-comparison { margin:10px 0; }
 .mayhem-dock { position:sticky; bottom:0; z-index:8; box-sizing:border-box; max-height:48vh; overflow-y:auto; overscroll-behavior:contain; padding:7px 10px; margin-top:10px; border:1px solid var(--line-2); border-top:2px solid var(--gold); border-radius:8px 8px 0 0; background:var(--panel); }

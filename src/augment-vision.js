@@ -36,6 +36,9 @@
     const w=Math.min(1,height*16/9/width);
     return {x:(1-w)/2,y:0,w,h:1};
   }
+  function offerTitleBand(height){
+    return {y:Math.round(height*.365),height:Math.round(height*.09)};
+  }
   // Dawna kalibracja nie jest potrzebna do odczytu kart. Zachowaj wyłączenie.
   const migrateConfig=value=>validateConfig(value?.mode?value:{enabled:value?.enabled!==false,mode:'auto'});
   class Consensus {
@@ -51,5 +54,5 @@
       });
     }
   }
-  return {normalize,recognizeText,validateConfig,migrateConfig,sameLayout,offerCrop,Consensus};
+  return {normalize,recognizeText,validateConfig,migrateConfig,sameLayout,offerCrop,offerTitleBand,Consensus};
 });

@@ -46,7 +46,7 @@ async function pollAugmentScreen(){
     const context=await startAugmentCapture(m.matchKey),frame=augmentFrameCanvas(),config=m.screen.config,at=Date.now();
     const automatic=config?.mode==='auto'?augmentOfferFrame(frame):null;
     const result=await window.assist.augmentScreenFrame({matchKey:m.matchKey,token:context.token,revision:m.screen.revision,frame:++augmentFrame,
-      at,width:frame.width,height:frame.height,grid:automatic?.grid,
+      at,width:frame.width,height:frame.height,grid:automatic?.grid,titlePng:automatic?.titlePng,
       png:automatic?.png || (AugmentVision.sameLayout(config,frame.width,frame.height)?augmentTitlePng(frame,config.regions[0]):null)});
     frame.width=0;frame.height=0;
     if(!result.ok)throw Error(result.error||'Ponawiam odczyt okna gry.');
@@ -66,11 +66,15 @@ function augmentOfferFrame(frame){
   for(let i=0;i<ocrPixels.data.length;i+=4){const d=ocrPixels.data,v=255-Math.min(255,Math.max(0,(d[i]*.299+d[i+1]*.587+d[i+2]*.114-50)*1.7));d[i]=d[i+1]=d[i+2]=v;}
   ocrContext.putImageData(ocrPixels,0,0);
   const png=c.toDataURL('image/png').split(',')[1];
+  const band=AugmentVision.offerTitleBand(c.height),titles=document.createElement('canvas');
+  titles.width=c.width;titles.height=band.height;
+  titles.getContext('2d').drawImage(c,0,band.y,c.width,band.height,0,0,c.width,band.height);
+  const titlePng=titles.toDataURL('image/png').split(',')[1];titles.width=0;titles.height=0;
   const scale=Math.min(640/frame.width,640/frame.height);c.width=Math.round(frame.width*scale);c.height=Math.round(frame.height*scale);
   const ctx=c.getContext('2d');ctx.drawImage(frame,0,0,c.width,c.height);
   const data=ctx.getImageData(0,0,c.width,c.height).data,parts=[];
   for(let i=0;i<data.length;i+=4)parts.push(String.fromCharCode(Math.round(data[i]*.299+data[i+1]*.587+data[i+2]*.114)));
-  const grid={width:c.width,height:c.height,pixels:btoa(parts.join(''))};c.width=0;c.height=0;return {png,grid,crop};
+  const grid={width:c.width,height:c.height,pixels:btoa(parts.join(''))};c.width=0;c.height=0;return {png,titlePng,grid,crop};
 }
 setInterval(pollAugmentScreen,700);
 window.assist.onState(state=>{

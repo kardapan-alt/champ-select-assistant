@@ -9,7 +9,12 @@ const item=i=>({id:i.id,name:i.name,icon:i.icon||'',count:i.count||1});
 const {rememberReplay}=require('./replay-checks');
 const {FirstShopTracker}=require('./first-shop');
 class MatchReview {
-  constructor(value={},save=()=>{}){this.value=value&&Array.isArray(value.matches)?value:{matches:[],active:null};this.save=save;this.shopTracker=new FirstShopTracker();}
+  constructor(value={}, save=()=>{}, readAugmentDiagnostics=()=>null) {
+    this.value=value&&Array.isArray(value.matches)?value:{matches:[],active:null};
+    this.save=save;
+    this.readAugmentDiagnostics=readAugmentDiagnostics;
+    this.shopTracker=new FirstShopTracker();
+  }
   persist(){this.save(clone(this.value));}
   ensureActive({key,alias,name,mode,gameId,championId,owner}, time=null){
     if(!key||this.value.matches.some(m=>m.key===key))return null;
@@ -65,6 +70,14 @@ class MatchReview {
   finish(reason='ended'){
     const a=this.value.active;if(!a)return;
     if(a.firstShop?.collecting)this.shopTracker.gap(a);
+    if (a.mode==='mayhem') {
+      const diagnostics=this.readAugmentDiagnostics();
+      const scope=typeof diagnostics?.matchKey==='string' && /^(.+):KIWI(?:_JADE)?$/.exec(diagnostics.matchKey);
+      if (scope && a.key===scope[1]+':mayhem'
+          && Array.isArray(diagnostics.clickTrace) && diagnostics.clickTrace.length) {
+        a.clickTrace=diagnostics.clickTrace;
+      }
+    }
     require('./training').rememberTraining(this.value,a);
     for (const offer of a.offers || []) {
       const picked=offer.cards.find(c=>c.id===offer.picked);

@@ -28,8 +28,8 @@ function openOfferScreenshotTest(){
       const {width,height}=image;
       if(width<640||height<400||width>10000||height>10000||width*height>40000000)
         throw Error('Wybierz pełny zrzut okna gry w rozdzielczości od 640 × 400 do 40 megapikseli.');
-      const {png,grid}=augmentOfferFrame(image);
-      const result=await window.assist.testOfferScreenshot({width,height,png,grid,pool});
+      const {png,titlePng,grid}=augmentOfferFrame(image);
+      const result=await window.assist.testOfferScreenshot({width,height,png,titlePng,grid,pool});
       if(!dialog.open)return;
       if(!result.ok)throw Error(result.error);
       const messages={

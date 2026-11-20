@@ -1,8 +1,8 @@
-## Wersja 0.6.45
+## Wersja 0.6.46
 
-- **Augmenty w Mayhem.** Po przerzucie asystent zachowuje ostatnią potwierdzoną trójkę na czas krótkiej przerwy w odczycie tytułów i sprawdza, w którą kartę kliknięto. Poprawiliśmy rozpoznawanie krótkich nazw, takich jak Deft, także na monitorach ultrawide.
-- **„Kup teraz”.** Na starcie SoloQ Leona na supporcie dostaje podpowiedź zakupu World Atlas, a jungler przedmiotu dla swojej roli. Przy składaniu Trinity Force asystent rozważa, jak wykorzystać wspólne komponenty. Jeśli masz Long Sword, Dagger i 600 złota, uwzględni dostępny Hearthbound Axe. Po sprzedaży butów na supporcie build pokazuje wszystkie posiadane przedmioty.
-- **Statystyki graczy.** Po wygaśnięciu sesji OP.GG asystent odnawia połączenie. Przy przerwie w dostępie pokazuje stan odczytu i zachowuje dostępne dane profilu.
-- **SoloQ.** Podgląd run po przejściu na mapę zachowuje potwierdzone role z tego samego draftu. Plan linii uwzględnia przydział przeciwnika, a ostrzeżenie o graczu OTP dotyczy postaci, którą faktycznie wybrał.
+- **Odczyt kart w ARAM Mayhem.** Asystent czyta nazwy także z wąskiego pasa na wysokości tytułów. Oba zrzuty Shena przechodzą ten sam odczyt co obraz z gry, również po przerzuceniu lewej i prawej karty.
+- **Katalog z patcha 26.23.** W zwykłym Mayhem asystent rozpoznaje cztery nowe augmenty dla tanków — Steadfaster Presence, Fortified, Mystic Guard i Slime Time. Uwzględnia osobną pulę kart Jade.
+- **Obrona tanka w Mayhem.** Asystent uwzględnia ofensywne zakupy AP także u bohaterów zwykle grających jako tank lub support. Jeśli przeważa zagrożenie magiczne, wcześniej proponuje odporność na magię. Zgłoszony mecz Shena z Ciałem Astralnym trafił do testów przed wydaniem.
+- **Diagnostyka wyboru augmentu.** W zakładce „Build i augmenty” rozwiń „Diagnostyka wyboru augmentu”. Zobaczysz odczytane karty, zauważone przerzuty, naciśnięcie i zwolnienie przycisku oraz wynik zapisu. Jeśli asystent odrzucił wybór, pokaże zarejestrowany powód. Po grze ostatnie zdarzenia znajdziesz w „Po meczu”.
 
-Wersja z instalatora pobiera aktualizację w tle. Po pobraniu wybierz „Uruchom ponownie” w asystencie.
+Wersja z instalatora pobiera wydanie w tle. Po meczu wybierz „Uruchom ponownie”, gdy aktualizacja będzie gotowa.

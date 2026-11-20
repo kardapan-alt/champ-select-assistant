@@ -58,7 +58,8 @@ const headlinerConsensus=new HeadlinerConsensus();
 let matchReview;
 let matchupNotes;
 let mayhemFavorites;
-const offerTracker=new augmentOffers.OfferTracker();
+const {AugmentTrace}=require('./augment-trace');
+const offerTracker=new augmentOffers.OfferTracker(traceAugment);
 const offerHistory=require('./offer-history');
 const visionCatalog=require('../data/mayhem-augments.json').augments;
 const visionConsensus = new augmentVision.Consensus();
@@ -193,7 +194,7 @@ function initStats() {
   settings = { ...settings, ...readJson(userFile('settings.json'), {}) };
   matchReview = new MatchReview(readJson(userFile('match-review.json'), {}), value => {
     const file=userFile('match-review.json');fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
-  });
+  }, () => readJson(userFile('augment-diagnostics.json'), null));
   if(matchReview.value.active)matchReview.gap();
   const noteFile = userFile('matchup-notes.json');
   matchupNotes = new MatchupNotes(readJson(noteFile,[]), entries => {
@@ -1329,16 +1330,41 @@ ipcMain.handle('edit-live-offer',wrap(input=>choiceWrites(()=>{
   return {ok:true};
 })));
 function visionStatus(status,error=null) {
-  if(loading&&(Date.now()-(loading.visionSavedAt||0)>=5000||loading.visionStatus!==status)){
-    loading.visionSavedAt=Date.now();
-    writeJson(userFile('augment-diagnostics.json'),{version:app.getVersion(),at:Date.now(),status,error,
-      ...(loading.visionDiagnostics||{}),focused:augmentClicks.active(),
-      inputAgeMs:augmentClicks.lastSeen?Date.now()-augmentClicks.lastSeen:null,
-      streak:offerTracker.streak,pending:offerTracker.pending?.id||null,
-      saved:mayhemSession.value?.selection?.augments?.length||0});
+  if(loading){
+    const trace=currentAugmentTrace();
+    if(trace?.dirty || Date.now()-(loading.visionSavedAt||0)>=5000 || loading.visionStatus!==status)
+      persistVisionDiagnostics(status,error,trace);
   }
   if(!loading || loading.visionStatus===status&&loading.visionError===error&&!loadingDirty)return;
   loading.visionStatus=status;loading.visionError=error;loadingDirty=false;send(buildLoadingView());
+}
+function currentAugmentTrace(){
+  const key=mayhemSession?.value?.key;
+  if(!key || !loading || currentMode!=='mayhem' || String(loading.gameId||loading.sessionId)!==String(mayhemSession.value.gameId))return null;
+  if(loading.clickTrace?.key!==key){
+    const nameOf=id=>{
+      const card=visionCatalog.find(a=>a.id===id);
+      return card?.english&&card.english!==card.name ? card.name+' ('+card.english+')' : card?.name||String(id);
+    };
+    loading.clickTrace=new AugmentTrace(key,nameOf,readJson(userFile('augment-diagnostics.json'),null));
+    loading.visionDiagnostics={...loading.visionDiagnostics,clickTrace:loading.clickTrace.entries};
+  }
+  return loading.clickTrace;
+}
+function traceAugment(event,at,details){
+  if(currentAugmentTrace()?.record(event,at,details))loadingDirty=true;
+}
+function persistVisionDiagnostics(status,error,trace){
+  const now=Date.now();
+  const value={...loading.visionDiagnostics,version:app.getVersion(),at:now,status,error,matchKey:trace?.key||null,
+    focused:augmentClicks.active(),inputAgeMs:augmentClicks.lastSeen?now-augmentClicks.lastSeen:null,
+    streak:offerTracker.streak,pending:offerTracker.pending?.id||null,saved:mayhemSession.value?.selection?.augments?.length||0};
+  const file=userFile('augment-diagnostics.json');
+  try{
+    fs.writeFileSync(file+'.tmp',JSON.stringify(value));fs.renameSync(file+'.tmp',file);
+    if(trace)trace.dirty=false;
+  }catch{/* Diagnostics must never interrupt a selection. */}
+  loading.visionSavedAt=now;
 }
 function noteVisionRead(){
   const now=Date.now();loading.visionAt=now;
@@ -1375,7 +1401,9 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
           frame.visible=true;
         }
         display.invalidateReroll(slot,event.at);
-        offerTracker.reset();loading.offerWasOnScreen=false;loading.recoveryOffer=null;loading.visionMissed=false;loadingDirty=true;
+        offerTracker.abort('reroll',event.at);
+        traceAugment('reroll',event.at,{slot:slot+1,id:visible.cards[slot].id});
+        loading.offerWasOnScreen=false;loading.recoveryOffer=null;loading.visionMissed=false;loadingDirty=true;
       }
     }
     offerHistory.rerollInput(loading.historyFrame,event);
@@ -1396,6 +1424,10 @@ ipcMain.handle('augment-screen-source',wrap(async matchKey=>{
   return {ok:true,sourceId:source.id,token:visionToken,pool:state.mayhemPool};
 }));
 function stopVisionWorkers(keepDisplay=false){
+  if(visionToken && loading?.clickTrace){
+    offerTracker.abort('capture-ended',Date.now());
+    if(loading.clickTrace.dirty)persistVisionDiagnostics(loading.visionStatus||'paused',null,loading.clickTrace);
+  }
   if(keepDisplay===true){
     const display=loading?.offerDisplay,key=display?.uiKey;
     display?.hold(Date.now());
@@ -1421,7 +1453,7 @@ ipcMain.handle('set-augment-screen',wrap(input=>choiceWrites(async()=>{
   return {ok:true,matchKey:state.mayhemKey};
 })));
 ipcMain.handle('augment-screen-problem',wrap(input=>{
-  mayhemContext(input?.matchKey);visionConsensus.reset();offerTracker.reset();
+  mayhemContext(input?.matchKey);visionConsensus.reset();offerTracker.abort('capture-error',Date.now());
   const error=typeof input.error==='string'?input.error.slice(0,220):'Nie udało się odczytać obrazu gry. Użyj okna bez ramek.';
   visionStatus('capture-error',error);return {ok:true};
 }));
@@ -1473,7 +1505,7 @@ async function readAutomaticAugment(input,state){
   const display=loading.offerDisplay;
   if(!augmentClicks.child || !display)return {ok:false,error:'Ponawiam odczyt okna gry.'};
   const active=augmentClicks.active();
-  if(!active&&!offerTracker.paused)offerTracker.input({type:'focus',focused:false,at:Date.now()});
+  if(!active&&!offerTracker.paused)offerTracker.input({type:'focus',focused:false,sourceStale:augmentClicks.focused,at:Date.now()});
   const focusedAtCapture=active&&input.at>=offerTracker.resumedAt;
   const grid=augmentOffers.readGrid(input.grid);
   loading.visionDiagnostics={...(loading.visionDiagnostics||{}),width:input.width,height:input.height,
@@ -1482,12 +1514,12 @@ async function readAutomaticAugment(input,state){
     const key=display.uiKey;
     display.hold(Date.now());
     if(key!==display.uiKey)loadingDirty=true;
-    offerTracker.reset();headlinerConsensus.reset();visionStatus(status);
+    offerTracker.abort(status,Date.now());headlinerConsensus.reset();visionStatus(status);
     return {ok:true};
   }
   if(!Number.isInteger(input.width)||!Number.isInteger(input.height)||input.width<640||input.height<400||input.width>10000||input.height>10000
     ||!Number.isSafeInteger(input.at)||Math.abs(Date.now()-input.at)>1500||!grid?.valid)return unavailable('unreadable-frame');
-  const started=Date.now(),result=await windowsOcr.read(input.png),readMs=Date.now()-started;
+  const started=Date.now(),result=await augmentOffers.readOfferOcr(windowsOcr,input,grid),readMs=Date.now()-started;
   return choiceWrites(async()=>{
     const currentState=mayhemContext(input.matchKey);
     if(!visionConfig?.enabled||visionConfig.mode!=='auto'||input.token!==visionToken||input.revision!==visionRevision)return {ok:false,error:'Nieaktualny odczyt.'};
@@ -1507,7 +1539,12 @@ async function readAutomaticAugment(input,state){
     loading.visionDiagnostics={...loading.visionDiagnostics,readMs,
       titles:detected.candidates.length,cards:detected.cards?.length||0,
       recognizedIds:detected.candidates.map(c=>c.id)};
-    if(display.waitingForReroll(cards,input.at)){visionStatus('rerolling');return {ok:true};}
+    if(display.waitingForReroll(cards,input.at)){
+      traceAugment('waiting',input.at);
+      visionStatus('rerolling');return {ok:true};
+    }
+    if(cards)traceAugment('offer',input.at,{ids:cards.map(c=>c.id),focused:focusedNow});
+    else if(result.titleBandAttempted)traceAugment('missing-layout',input.at,{titleCount:new Set(detected.candidates.map(c=>c.id)).size});
     const prior=display.current,uiKey=display.uiKey,aspect=input.width/input.height;
     const gesture=offerTracker.pending?.cards;
     const id=canTrack?offerTracker.observe({...detected,grid,at:input.at,aspect,active:true,readMs}):null;
@@ -1516,7 +1553,7 @@ async function readAutomaticAugment(input,state){
     if(!focusedNow){
       const confirmed=display.current;
       const ids=confirmed && (!cards || !confirmed.held) ? confirmed.cards.map(c=>c.id) : null;
-      offerTracker.preview(cards,ids,input.at,grid,detected.candidates);
+      offerTracker.preview(cards,ids,input.at,grid,detected.candidates,aspect);
     }
     if(cards?.some((c,i)=>c.id&&c.id!==loading.historyFrame?.ids?.[i])){
       loading.recoveryOffer=null;loading.visionMissed=false;
@@ -1534,19 +1571,29 @@ async function readAutomaticAugment(input,state){
     }
     let saved=false;
     if(id){
+      let failure='validation';
       try{
         const known=mayhemSession.value.screenSlots||[];
         const receipt=crypto.randomUUID();
         const next=augmentScreen.reconcile(mayhemSession.value,[...new Set([...known,id])],game,state.mayhemPool,{token:receipt,at:Date.now()});
-        saved=next.selection.augments.includes(id)&&!mayhemSession.value.selection.augments.includes(id);
+        const selected=next.selection.augments.includes(id),alreadySelected=mayhemSession.value.selection.augments.includes(id);
+        failure='write';
         if(JSON.stringify(next)!==JSON.stringify(mayhemSession.value)){
           mayhemSession.patch(state.mayhemKey,{selection:next.selection,screenSlots:next.screenSlots,screenHistory:next.screenHistory});loadingDirty=true;
         }
-        if(next.selection.augments.includes(id) && offerHistory.sameCards(gesture?.map(c=>c.id),loading.historyFrame?.ids)) {
+        saved=selected&&!alreadySelected;
+        if(saved)traceAugment('saved',Date.now(),{id});
+        else traceAugment('discard',Date.now(),{id,reason:alreadySelected?'duplicate':'ignored'});
+        failure='history';
+        if(selected && offerHistory.sameCards(gesture?.map(c=>c.id),loading.historyFrame?.ids)) {
           saveOfferFrame(loading.historyFrame,id,receipt);
         }
+        if(saved){
+          const linked=matchReview.value.active?.offers?.some(offer=>offer.receipt===receipt);
+          traceAugment(linked?'history':'partial-history',Date.now(),{id});
+        }
         display.clear(input.at);loading.visionMissed=false;loading.offerWasOnScreen=false;loadingDirty=true;
-      }catch{visionStatus('conflict');return {ok:true};}
+      }catch{traceAugment('discard',Date.now(),{id,reason:failure});visionStatus(saved?'detected':'conflict');return {ok:true};}
     }
     const status=saved?'detected':offerTracker.pending?'confirming':display.current?.held?'held-offer':
       display.cards?'offers':display.current?'partial-offer':detected.cards?'reading-offers':

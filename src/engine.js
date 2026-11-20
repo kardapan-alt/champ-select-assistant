@@ -2,7 +2,7 @@
 // Czyste funkcje, bez Electrona i sieci, żeby dało się je testować.
 
 const { detectSituations, situationView, reasonFor } = require('./situational');
-const { liveSituations, mergeSituations } = require('./live-build');
+const { liveSituations, mergeSituations, offensiveBuild } = require('./live-build');
 const { itemAvailable, itemFitsResource, itemsCompatible, redundantSpellblade, purchaseItem } = require('./itemrules');
 const { canonicalAlias, usesMana, resourceFor } = require('./champion-identity');
 const runeContext = require('../data/rune-context.json').champions;
@@ -114,13 +114,15 @@ const DAMAGE_WEIGHT = { tank: 0.5, support: 0.6 };
 function teamProfile(infos) {
   const p = {
     ad: 0, ap: 0, adWeighted: 0, apWeighted: 0, frontline: 0, engage: 0, tanks: 0, heal: 0,
-    dive: 0, burst: 0, cc: 0, marksmen: 0, count: infos.length,
+    dive: 0, burst: 0, cc: 0, marksmen: 0, count: infos.length, offensiveBuilds:{ap:[],ad:[]},
   };
   for (const c of infos) {
-    const w = DAMAGE_WEIGHT[c.class] || 1;
-    if (c.dmg === 'ad') { p.ad += 1; p.adWeighted += w; }
-    else if (c.dmg === 'ap') { p.ap += 1; p.apWeighted += w; }
-    else { p.ad += 0.5; p.ap += 0.5; p.adWeighted += w / 2; p.apWeighted += w / 2; }
+    const w = c.offensiveBuild ? 1 : DAMAGE_WEIGHT[c.class] || 1;
+    const baseMagic = c.dmg === 'ad' ? 0 : c.dmg === 'ap' ? 1 : 0.5;
+    // Items indicate a build direction. Abilities can still deal their native damage type.
+    const magic = c.offensiveBuild ? 0.25 * baseMagic + 0.75 * Number(c.offensiveBuild === 'ap') : baseMagic;
+    if (c.offensiveBuild) p.offensiveBuilds[c.offensiveBuild].push(c.alias);
+    p.ad += 1 - magic; p.ap += magic; p.adWeighted += (1 - magic) * w; p.apWeighted += magic * w;
     const t = c.traits || [];
     if (t.includes('frontline') || t.includes('tank')) p.frontline += 1;
     if (t.includes('engage')) p.engage += 1;
@@ -135,6 +137,16 @@ function teamProfile(infos) {
   p.apShare = total ? p.apWeighted / total : 0.5;
   p.adShare = total ? p.adWeighted / total : 0.5;
   return p;
+}
+
+function buildEnemyProfile(state, game, data) {
+  const infos = state.enemies.flatMap(player => {
+    const alias = game.championsById.get(player.championId)?.alias;
+    if (!alias) return [];
+    const live = state.liveEnemies?.find(e => e.championId === player.championId && (!e.alias || canonicalAlias(e.alias) === canonicalAlias(alias)));
+    return [{...champInfo(alias, game, data), offensiveBuild:offensiveBuild(live?.items, game)}];
+  });
+  return teamProfile(infos);
 }
 
 // Zamienia skład wroga na wagi zagrożeń, na które odpowiadają tagi itemów.
@@ -789,6 +801,28 @@ function startingItems(ctx, data) {
 
 const FIXED_CORE = 2; // spokojny draft: 2 itemy bazowe; mocne zagrożenie: pierwszy item + wcześniejsza odpowiedź
 
+function tankDefense(enemy, game, tank) {
+  if (!tank || enemy.count < 3) return null;
+  const magic = enemy.apShare > enemy.adShare;
+  const share = magic ? enemy.apShare : enemy.adShare;
+  const attackers = magic ? enemy.ap : enemy.ad;
+  // Three casters may look close to 50/50 while the tank/support still has no public purchases.
+  if (share < 0.58 && !(share > 0.5 && attackers >= 3 && attackers > enemy.count / 2)) return null;
+  const buyers = enemy.offensiveBuilds[magic ? 'ap' : 'ad'];
+  return {
+    desired:share >= 0.72 ? 2 : 1,
+    reason:(magic ? 'MR przeciw przewadze obrażeń magicznych' : 'Pancerz przeciw przewadze obrażeń fizycznych') +
+      (buyers.length ? ` (zakupy ${magic ? 'AP' : 'AD'}: ${buyers.join(', ')})` : ' w składzie wroga'),
+    rating(id) {
+      const categories = game.items.get(id)?.categories || [];
+      const armor = categories.includes('Armor'), mr = categories.includes('SpellBlock') || categories.includes('MagicResist');
+      if (mr && armor) return 0.5;
+      if (!mr && !armor) return 0;
+      return magic === mr ? 1 : -1;
+    },
+  };
+}
+
 // Adaptacyjny build: każdy item dostaje punkty za to, jak odpowiada na zagrożenia w składzie wroga.
 // Po wybraniu itemu dane zagrożenie słabnie, więc przy skrajnym składzie (np. 4 AP) wejdzie kilka itemów na MR,
 // a przy zbalansowanym tylko jeden.
@@ -796,8 +830,7 @@ function buildFor(alias, state, game, data) {
   const ctx = matchContext(alias, state, game, data);
   let champ = ctx.champ;
   const aliasOf = (id) => game.championsById.get(id)?.alias;
-  const enemyInfos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
-  const enemy = teamProfile(enemyInfos);
+  const enemy = buildEnemyProfile(state, game, data);
   const augmentation = state.mode === 'mayhem' ? mayhem.adaptation(state.mayhem, champ, {
     enemy,game,core:defaultTemplate(champ,data).items,
   }) : null;
@@ -808,6 +841,7 @@ function buildFor(alias, state, game, data) {
   }
   const tpl = defaultTemplate(champ, data);
   const threats = threatWeights(enemy);
+  const defense = tankDefense(enemy, game, itemPoolKey(champ) === 'tank');
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
   const owned = state.liveInventory?.owned || augmentation?.owned || [];
@@ -878,6 +912,11 @@ function buildFor(alias, state, game, data) {
   // Zachowujemy pierwszy zakup definiujący championa. Mocne zagrożenia mogą
   // przesunąć drugi i trzeci przedmiot rdzenia, również przy danych OP.GG.
   let fixed = core.filter(id => compatible(id, pinIds)).slice(0, Math.min(fullBuild - pins.length, augmentation?.active || (purchased.length && live.length) ? 0 : urgent.length ? 1 : FIXED_CORE));
+  if (defense) {
+    // One defining first purchase is enough before answering a lopsided team.
+    // Already-owned and manually pinned main items stay in their actual slots.
+    fixed = purchased.length ? [] : fixed.slice(0, 1).filter(id => defense.rating(id) >= 0);
+  }
   // Reakcja na zakupy wroga nie może wyprzeć całego rdzenia już wybranego
   // stylu gry. Dwa gotowe itemy krytyczne oznaczają inwestycję w kryty;
   // zachowujemy IE w wolnym miejscu, bez nadpisywania zakupów i przypięć.
@@ -952,7 +991,19 @@ function buildFor(alias, state, game, data) {
   // nie powinny wypierać całego rdzenia. Jawna konwersja nadal go przebudowuje.
   const foundations = new Set(core);
   const coreScore = it => augmentation?.active && !augmentation.transformsBuild && foundations.has(it.id) ? 4 : 0;
-  const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0) + augmentScore(it.id) + coreScore(it);
+  let coverage = 0, oppositeItems = 0;
+  const countProtection = id => {
+    const value = defense?.rating(id) || 0;
+    coverage += Math.max(0, value);
+    if (value < 0) oppositeItems++;
+  };
+  [...pinIds, ...fixed].forEach(countProtection);
+  const resistanceScore = id => {
+    if (!defense) return 0;
+    const value = defense.rating(id), need = Math.max(0, defense.desired - coverage);
+    return value >= 0 ? value * 8 * need : -(3 + 3 * need + 2 * oppositeItems);
+  };
+  const scoreOf = (it) => Object.entries(it.tags).reduce((sum, [tag, v]) => sum + v * (left[tag] || 0), 0) + augmentScore(it.id) + coreScore(it) + resistanceScore(it.id);
   const chosen = [];
   const inspectId = state.inspectItem;
   let lastCompetition = null;
@@ -973,8 +1024,12 @@ function buildFor(alias, state, game, data) {
     const mainTag = specific ? specific[0] : contributions[0] && contributions[0][1] > 0 ? contributions[0][0] : 'late';
     const appliedBonus = augmentScore(best.id);
     const bonus = appliedBonus >= 1 ? augmentation?.bonuses.get(best.id) : null;
-    const priority = appliedBonus >= 3 || urgent.some((s) => s.myItem === best.id);
-    chosen.push({ ...best, priority, augmented:!!bonus, situational: mainTag.startsWith('s:'), why: bonus ? [...new Set(bonus.reasons)].slice(0,2).join('; ') : best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : reasonOf(mainTag) });
+    const defensivePriority = resistanceScore(best.id) > 0;
+    const priority = defensivePriority || appliedBonus >= 3 || urgent.some((s) => s.myItem === best.id);
+    const why = bonus ? [...new Set(bonus.reasons)].slice(0,2).join('; ') : best.popular && mainTag === 'late' ? 'popularny w tym patchu' : best.core && mainTag === 'late' ? 'rdzeń championa' : reasonOf(mainTag);
+    const purchaseReason = defensivePriority ? (specific ? reasonOf(mainTag) : defense.reason) : why;
+    chosen.push({ ...best, priority, augmented:!!bonus && !defensivePriority, situational: defensivePriority || mainTag.startsWith('s:'), why:purchaseReason });
+    countProtection(best.id);
     satisfyAugment(best.id);
     // Każdy item częściowo zaspokaja zagrożenie: przy skrajnym składzie zostaje miejsce na kolejny item tego typu.
     for (const [tag, v] of Object.entries(best.tags)) {
@@ -1159,9 +1214,7 @@ function itemSetFor(build, alias, state, game, data) {
 }
 
 function enemyProfile(state, game, data) {
-  const aliasOf = (id) => game.championsById.get(id)?.alias;
-  const infos = state.enemies.filter((e) => e.championId).map((e) => champInfo(aliasOf(e.championId), game, data)).filter((c) => c.alias);
-  return describeEnemy(teamProfile(infos));
+  return describeEnemy(buildEnemyProfile(state, game, data));
 }
 
 // Ustawia Flasha na tym samym klawiszu, na którym gracz trzyma go obecnie.

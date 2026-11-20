@@ -9,6 +9,7 @@ const EFFECTS = {
   itemhaste: 'Krótsze cooldowny przedmiotów', mana: 'Skalowanie z many', healing: 'Leczenie i tarcze',
   burn: 'Obrażenia w czasie', spellblade: 'Wzmocnione ataki po umiejętności',
   adaptive:'Naturalne skalowanie postaci', spell:'Cykl podstawowych czarów', resists:'Odporności na obrażenia',
+  armor:'Dodatkowy pancerz', magicresist:'Dodatkowa odporność na magię',
   healthhit:'Ataki skalujące się z HP', cc:'Kontrola tłumu i haste', healresists:'Leczenie skalowane odpornościami',
   sustain:'Podtrzymanie życia w walce', defensivecrit:'Krytyczna obrona', bigcrit:'Silne pojedyncze kryty',
   tickle:'On-hit po konwersji AD', healthlethality:'HP zamieniane w lethality', ultimate:'Efekty ultimate',
@@ -112,7 +113,8 @@ function adaptation(selection, champion, context = {}) {
     ? baseItems : support ? [6617,3107] : tank ? [3068,2502,3065] : ap ? [3089,4645,3135] : adc ? [3031,3036,3072] : durable ? [3071,6692,3161] : [6692,3142,3814];
   const tankHaste = enemy.apShare>=.55 ? [3065,2504,3190] : [2502,3110,3190];
   const spellItems = support ? [6617,3107,6620] : tank ? tankHaste : ap ? [4628,8010,6655] : adc ? [6675,3508,3004] : [3071,3161,6692];
-  const healthItems = support ? [3107,3190,6617] : tank || durable && !ap ? [3084,2502,3083,3748] : ap ? [4633,3116] : [3071,3181];
+  const tankHealth = enemy.apShare >= 0.55 ? 2504 : enemy.adShare >= 0.55 ? 2502 : 6665;
+  const healthItems = support ? [3107,3190,6617] : tank ? [3084,tankHealth,3083] : durable && !ap ? [3084,2502,3083,3748] : ap ? [4633,3116] : [3071,3181];
   const fitsResource = id => itemFitsResource(id,context.game,champion.alias);
   let family;
   const add = (ids, amount, why, direct = amount >= 26) => ids.filter(id=>!excluded.has(id) && fitsResource(id)).forEach((id, index) => {
@@ -167,6 +169,10 @@ function adaptation(selection, champion, context = {}) {
       if (effect === 'adaptive') add(nativeItems,5,why + ': skalowanie championa');
       if (effect === 'spell' || effect === 'cc') add(spellItems,7,why + ': cykl umiejętności');
       if (effect === 'resists') add(defensiveItems,7,why + ': efektywna wytrzymałość');
+      if (effect === 'armor' || effect === 'magicresist') {
+        const stat = effect === 'armor' ? 'Armor' : 'SpellBlock';
+        add(defensiveItems.filter(id => context.game?.items.get(id)?.categories?.includes(stat)), 7, why + ': ' + EFFECTS[effect]);
+      }
       if (effect === 'healthhit' && !healthConversion) add(tank || durable && !ap ? [3748,3084] : ap || support ? healthItems : [3748,3153],8,why + ': ataki od HP');
       if (effect === 'healresists') { if(support || durable || (champion.traits||[]).includes('heal')) add(support ? [3190,3222] : durable ? [3065,3190,2502] : [3102,3157],10,why + ': odporności wzmacniające leczenie'); }
       if (effect === 'sustain') add(support ? [6617,3107] : tank ? [3065,2502] : ap ? [4633] : durable ? [6610,6333,3065] : adc ? [3072,3153] : [6692,6333],7,why + ': podtrzymanie życia');

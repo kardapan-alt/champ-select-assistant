@@ -1,10 +1,10 @@
 {
-  "patch": "16.22",
-  "reviewed": "2026-11-15",
+  "patch": "16.23",
+  "reviewed": "2026-11-20",
   "sources": {
-    "KIWI": "https://raw.communitydragon.org/16.22/game/maps/modespecificdata/kiwi.bin.json",
-    "KIWI_JADE": "https://raw.communitydragon.org/16.22/game/maps/modespecificdata/kiwi_jade.bin.json",
-    "strings": "https://raw.communitydragon.org/16.22/game/en_us/data/menu/en_us/lol.stringtable.json"
+    "KIWI": "https://raw.communitydragon.org/16.23/game/maps/modespecificdata/kiwi.bin.json",
+    "KIWI_JADE": "https://raw.communitydragon.org/16.23/game/maps/modespecificdata/kiwi_jade.bin.json",
+    "strings": "https://raw.communitydragon.org/16.23/game/en_us/data/menu/en_us/lol.stringtable.json"
   },
   "augments": {
     "ARAM_ImTheJuggernaut": {
@@ -225,9 +225,9 @@
     },
     "ARAM_OkBoomerang": {
       "definition": "Maps/ModeSpecificData/Augments/ARAM_OkBoomerang",
-      "description": "Cherry_OkBoomerang_Summary",
+      "description": "Kiwi_OkBoomerang_Summary",
       "source": "KIWI",
-      "sha256": "8f1b8d1290167ea505f8d251b67b3cca7087f420d51ee5b6a54bf81e813fc20c"
+      "sha256": "f252dbde56d56f4f0fa8d8953e93f4ea8f7659ab417958a9cd6775ab48617a0e"
     },
     "ARAM_OmniSoul": {
       "definition": "Maps/ModeSpecificData/Augments/ARAM_OmniSoul",
@@ -1030,7 +1030,7 @@
     "SharkTempest": {
       "definition": "Maps/ModeSpecificData/Augments/SharkTempest",
       "description": "Kiwi_Augment_SharkTempest_Summary",
-      "source": "KIWI",
+      "source": "KIWI_JADE",
       "sha256": "228711fb6cbbb836f647f9181452556f747190520044bd1f17555b026150d9c3"
     },
     "BrushPower": {
@@ -1295,7 +1295,8 @@
       "definition": "Maps/ModeSpecificData/Augments/SurgeField",
       "description": "Augment_SurgeField_Summary",
       "source": "KIWI",
-      "sha256": "f8b1d6d25f087597eba09f403057e4a820031b657a871e6f4540a783b145712e"
+      "sha256": "f8b1d6d25f087597eba09f403057e4a820031b657a871e6f4540a783b145712e",
+      "patch": "16.22"
     },
     "Overkill": {
       "definition": "Maps/ModeSpecificData/Augments/Overkill",
@@ -1312,7 +1313,7 @@
     "PatOnTheBack": {
       "definition": "Maps/ModeSpecificData/Augments/PatOnTheBack",
       "description": "Augment_PatOnTheBack_Summary",
-      "source": "KIWI",
+      "source": "KIWI_JADE",
       "sha256": "697d4bc9b1948d1c5849af4dac9f011004517f6a996462e3da14a0be7e6ce136"
     },
     "WardingWeapon": {
@@ -1608,6 +1609,30 @@
       "description": "Kiwi_GoH_PentakillAug_Generic_Description",
       "source": "KIWI",
       "sha256": "44e25adb2f7c7902af8079b12c33b1c6318606b1c8996ce4fe9a57f7bff783d0"
+    },
+    "ARAM_SlimeTime": {
+      "definition": "Maps/ModeSpecificData/Augments/ARAM_SlimeTime",
+      "description": "Kiwi_ARAM_SlimeTime_Summary",
+      "source": "KIWI",
+      "sha256": "124470007d2a4b1f2b0ce04034d68e1c19c23bf214514ec9002c2981c906cac3"
+    },
+    "SteadfastPresence": {
+      "definition": "Maps/ModeSpecificData/Augments/SteadfastPresence",
+      "description": "SteadfastPresence_Description",
+      "source": "KIWI",
+      "sha256": "060f45c2f08863feada3305dc8a6a5d9f5a682438443b33fad07b9a3545bebad"
+    },
+    "MysticGuard": {
+      "definition": "Maps/ModeSpecificData/Augments/MysticGuard",
+      "description": "MysticGuard_Description",
+      "source": "KIWI",
+      "sha256": "65ce78303a456754004b359f093257b60b02a2235340fc68b7b1d2045a6de835"
+    },
+    "Fortified": {
+      "definition": "Maps/ModeSpecificData/Augments/Fortified",
+      "description": "Fortified_Description",
+      "source": "KIWI",
+      "sha256": "4f319ed5cabb643af5e03159795350551b063380e2f4430aab81e85767b95774"
     },
     "Upgrade_ZzRotPortal": {
       "definition": "Maps/ModeSpecificData/Augments/Upgrade_ZzRotPortal",
