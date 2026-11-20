@@ -178,10 +178,13 @@ function enemyBar(e) {
 
 const whyTile = (i) => itemTile(i, `${i.pinControl ? `<button class="item-pin ${i.pinned ? 'on' : ''}" data-pin-item="${i.id}" data-slot="${i.slot}" aria-label="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}" title="${i.pinned ? 'Odepnij' : 'Przypnij'} ${esc(i.name)}">${i.pinned ? '●' : '○'}</button>` : ''}${i.priority ? '<span class="priority-label">Wcześniej</span>' : ''}<div class="why">${esc(i.why)}</div>${i.skip || ''}`, i.situational ? 'situ' : '');
 // Kolejność buildu: numer na rogu ikony (buty jako drugi item, jak w zestawie do sklepu).
-const buildTiles = (b) => {
+function orderedBuildItems(b) {
   const [first, ...rest] = b.items;
+  return ['quest', 'none'].includes(b.inventory?.bootsSlot) ? b.items : [first, b.boots, ...rest].filter(Boolean);
+}
+const buildTiles = (b) => {
   const outside = b.inventory?.bootsSlot === 'quest';
-  const ordered = outside || b.inventory?.bootsSlot === 'none' ? b.items : [first, b.boots, ...rest].filter(Boolean);
+  const ordered = orderedBuildItems(b);
   const main = ordered.map((it, i) => whyTile({ ...it, pinControl: !!it.id && !it.owned, slot: it.id === b.boots.id ? 'boots' : it.slot ?? b.items.findIndex(x => x.id === it.id), step: outside && i > 0 ? i + 2 : i + 1, skip: b.matchSkips?.options.some(choice=>choice.id===it.id) ? skipButton(b.matchSkips,it,false,true) : '' })).join('');
   const reserved = b.reservedSlot ? `<div class="item reserved-item"><div class="reserved-icon">◈</div><div class="item-name">${esc(b.reservedSlot)}</div><div class="why">Zostaje w ekwipunku</div></div>` : '';
   const side = b.quest?.slotItem;
@@ -247,15 +250,17 @@ function liveShopPanel(b,compact=false) {
 
 function buildPanel(b, readonly = false, auto = null) {
   const aram = isAramView(b.mode);
+  const practice = b.mode === 'practice';
   return `<div class="panel build-panel">
     <div class="build-heading"><h3>Build · ${esc(b.name)}${b.estimated ? ' (szacunkowy, champion spoza danych)' : ''}${b.provisional ? ' · wstępny' : ''}</h3>
       <div class="build-heading-tools">${!labActive ? '<button data-build-report>Zgłoś dziwny build</button>' : ''}${dataFreshnessBadge()}</div></div>
     ${mayhemChoiceView(b.mayhem)}
     ${readoutPanel(b)}
     ${liveShopPanel(b)}
-    ${b.provisional ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
+    ${practice && !b.shop && !labActive ? '<p class="note">Po wejściu na mapę „Kup teraz” uwzględni Twoje złoto i ekwipunek.</p>' : ''}
+    ${b.provisional && !practice ? '<div class="note" style="margin:-4px 0 10px">Wstępny build: zmieni się, gdy przeciwnicy wybiorą championów. Do sklepu wyślij go po zablokowaniu wszystkich.</div>' : ''}
     ${aram && !b.enemy.count && !readonly ? '<div class="note" style="margin:-4px 0 10px">ARAM: w wyborze postaci nie widać przeciwników, więc build jest pod Twojego championa. Na ekranie ładowania dopasuje się do składu wroga i wyśle do sklepu jeszcze raz.</div>' : ''}
-    <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : b.baseSource ? esc(`Baza: ${b.baseSource.mode==='aram'?'ARAM':'Summoner’s Rift'} · OP.GG ${b.baseSource.patch}, zapis ${b.baseSource.fetched}.${b.mode==='mayhem'?' Punkt wyjścia przed augmentami.':''}`) : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || 'Sloty sytuacyjne dobrane pod skład wroga.')}</div>
+    <div class="muted build-context" style="margin:-4px 0 10px">${b.fromStats ? 'Baza: OP.GG.' : b.baseSource ? esc(`Baza: ${b.baseSource.mode==='aram'?'ARAM':'Summoner’s Rift'} · OP.GG ${b.baseSource.patch}, zapis ${b.baseSource.fetched}.${b.mode==='mayhem'?' Punkt wyjścia przed augmentami.':''}`) : 'Baza: wbudowane dane.'} ${esc(b.quest?.summary || (practice && !b.enemy?.count ? '' : 'Sloty sytuacyjne dobrane pod skład wroga.'))}</div>
     <div class="build-row build-primary"><h4>${b.purchaseGoal?.id?'Plan przedmiotów · przypięty cel w Kup teraz':'Kolejność zakupów'}${b.quest ? ' · plan po queście' : ''}</h4>${buildTiles(b)}</div>
     ${purchaseControls(b)}
     ${matchSkipsPanel(b)}
@@ -263,7 +268,7 @@ function buildPanel(b, readonly = false, auto = null) {
     ${mayhemPanel(b)}
     <div class="build-essentials"><div><span class="muted">Umiejętności</span><div class="skills">${skillKeys(b.skills)}</div></div><div><span class="muted">Czary</span><div class="spells-line">${b.spells.map((s) => img(s.icon, 'spell', s.name)).join('')}<span>${b.spells.map((s) => esc(s.name)).join(' + ')}</span></div></div></div>
     ${disclosure('build-details', 'Dlaczego te zakupy? · własne wybory', `${buildExplanation(b)}${b.enemy && b.enemy.count ? `<div class="build-row"><h4>Szacowany profil obrażeń wroga</h4>${enemyBar(b.enemy)}</div>` : ''}${b.notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}${b.alternatives.length ? `<div class="build-row"><h4>Alternatywy</h4><div class="items">${b.alternatives.map(whyTile).join('')}</div></div>` : ''}${b.spellsWhy ? `<div class="note">${esc(b.spellsWhy)}</div>` : ''}`)}
-    ${readonly && !labActive && b.mode !== 'mayhem' ? '<div class="shop-hint">W sklepie szukaj zestawu <b>CS Assist</b> · Zestawy przedmiotów</div>' : ''}
+    ${readonly && !labActive && b.mode !== 'mayhem' && !practice ? '<div class="shop-hint">W sklepie szukaj zestawu <b>CS Assist</b> · Zestawy przedmiotów</div>' : ''}
     ${readonly && !labActive && b.mode === 'mayhem' ? `<div class="actions"><button data-itemset="${esc(b.alias)}">Zapisz zestaw w kliencie LoL</button><span class="note">Kolejne zakupy sprawdzaj ${esc(compactViewHint(lastState?.compactShortcutLabel))}.</span></div>` : ''}
     ${readonly ? '' : `<div class="actions" style="margin-top:12px;align-items:center">
       <button class="primary" data-itemset="${esc(b.alias)}">${auto && auto.done ? 'Wyślij ponownie' : 'Wyślij build do sklepu w grze'}</button>
@@ -445,6 +450,10 @@ function adviceDetails(list) {
 }
 
 function loadingScreen(s) {
+  if (s.mode === 'practice') {
+    const build = s.final?.build || s.build;
+    return build ? buildPanel(build, true) : practiceWaiting(s);
+  }
   const tab = loadingTab;
   const aram = isAramView(s.mode);
   const tabs = `<div class="seg loading-tabs" role="tablist" aria-label="Widok meczu">
@@ -514,6 +523,9 @@ function render(s) {
   const [label, live] = STATUS[s.status] || ['', false];
   $status.textContent = s.status === 'error' ? `${label}: ${s.message}` : label;
   if (s.mode === 'mayhem') $status.textContent = s.status === 'champselect' ? 'Mayhem · wybór postaci' : 'ARAM: Mayhem';
+  if (s.mode === 'practice' && (s.status === 'champselect' || s.status === 'loading-screen')) {
+    $status.textContent = s.status === 'champselect' ? 'Practice Tool · wybór postaci' : 'Practice Tool';
+  }
   $status.className = 'status' + (live ? ' live' : '');
 
   if(s.status==='unsupported'){
@@ -522,7 +534,7 @@ function render(s) {
   }
   if(compactMode){patch($app,compactScreen(s));return;}
 
-  if (s.status === 'loading-screen') {
+  if (s.status === 'loading-screen' || (s.mode === 'practice' && s.status === 'champselect')) {
     patch($app, loadingScreen(s));
     return;
   }

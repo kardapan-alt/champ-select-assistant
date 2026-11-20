@@ -9,6 +9,20 @@ const game = buildGameData(require('../data/catalog.json'));
 const data = require('../data/champions.json');
 const player = (alias,isMe=false) => ({isMe,championId:game.championsByAlias.get(alias).id,position:'',puuid:'PRIVATE-PUUID',gameName:'PRIVATE-NICK',tagLine:'PRIVATE-TAG'});
 
+test('zgłoszenie z treningu solo odtwarza tryb, build i ekwipunek bez przypisanej roli',()=>{
+  const me=player('Yasuo',true);
+  const liveInventory=inventoryOf([{itemID:1036,slot:0}],game,'Yasuo','practice');
+  const state={mode:'practice',me,allies:[me],enemies:[],liveInventory,liveEnemies:[]};
+  const build=engine.buildFor('Yasuo',state,game,data);
+  const report=readReport(JSON.stringify(createReport(state,build,game,{gold:400})));
+  assert.equal(report.scenario.mode,'practice');
+  assert.equal(report.scenario.role,'');
+  const replay=draftlab.preview(report.scenario,game,data);
+  assert.equal(replay.build.mode,'practice');
+  assert.deepEqual(replay.build.items.map(i=>i.id),build.items.map(i=>i.id));
+  assert.deepEqual(report.scenario.context.inventory.map(i=>i.itemID),[1036]);
+});
+
 test('raport Zeda zachowuje źródła decyzji, ekwipunek i augment bez tożsamości kont', () => {
   const me = player('Zed',true), enemy=player('Xayah');
   const liveInventory=inventoryOf([{itemID:1036,slot:0,count:1}],game,'Zed','mayhem');

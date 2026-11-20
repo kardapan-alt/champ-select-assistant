@@ -1,7 +1,7 @@
-## Wersja 0.6.43
+## Wersja 0.6.44
 
-**Ctrl+Z otwiera kompaktowy widok asystenta.** Naciśnij skrót ponownie, gdy okno jest aktywne, aby je schować. Po aktualizacji dotychczasowe Ctrl+X automatycznie zmieni się na Ctrl+Z. Jeśli masz ustawiony inny skrót lub skróty są wyłączone, aplikacja zachowa Twój wybór.
+**Practice Tool na Summoner’s Rift.** Po wejściu na trening asystent pokazuje build Twojej postaci. Możesz go sprawdzić także w grze solo, bez dodawania bota.
 
-Gdy asystent ma zarejestrowany globalny Ctrl+Z, przejmuje standardowe „Cofnij” także w innych programach. Skrót możesz zmienić lub wyłączyć w menu ikony asystenta obok zegara Windows.
+**„Kup teraz” korzysta ze złota i ekwipunku z gry.** Dodaj złoto w narzędziu treningowym lub kup komponent w sklepie. Panel przeliczy, na co Cię stać i ile brakuje do ukończenia przedmiotu. Build i podpowiedź zakupową możesz podejrzeć również pod Ctrl+Z.
 
-Wersja z instalatora pobiera wydanie w tle. Gdy aktualizacja będzie gotowa, po meczu wybierz „Uruchom ponownie”. Wersja portable udostępnia odsyłacz do pobrania.
+Wersja z instalatora pobiera aktualizację w tle. Po meczu wybierz „Uruchom ponownie”, gdy asystent zgłosi gotowość aktualizacji.

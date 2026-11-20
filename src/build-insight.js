@@ -9,7 +9,7 @@ function readoutFor(build,context){
   return {
     inventory:{status:manual?'manual':status,at:liveAt||null,goldKnown:Number.isFinite(context.gold)&&context.gold>=0,
       unknown:(inventory?.items||[]).filter(i=>i.kind==='unknown').length},
-    enemies:{status:Array.isArray(enemies)?'live':enemiesAt?'stale':'waiting',at:enemiesAt||null},
+    enemies:{status:Array.isArray(enemies)?'live':enemiesAt?'stale':'waiting',at:enemiesAt||null,count:Array.isArray(enemies)?enemies.length:null},
     ...(screen?{screen:{enabled:screen.enabled,mode:screen.config?.mode,status:screen.status,error:screen.error||null,at:screenAt||null,
       count:build.mayhem.hints.length,unknown:build.mayhem.unknown.length},
       headliner:{name:build.mayhem.headliner?.name||null,...build.mayhem.headlinerDetection}}:{})

@@ -1,5 +1,5 @@
 function replayCheckCard(c) {
-  const mode={classic:'SR',aram:'ARAM',mayhem:'Mayhem'}[c.mode] || '';
+  const mode={classic:'SR',aram:'ARAM',mayhem:'Mayhem',practice:'Practice Tool'}[c.mode] || '';
   const when = c.date ? new Date(c.date).toLocaleDateString('pl-PL')+' · '+reviewTime(c.time) : 'Zapisany raport';
   const label = {changed:'Zmiana',same:'Ta sama kolejność',unavailable:'Brak porównania'}[c.status];
   const order = list => list.map(item=>esc(item.name)).join(' → ');

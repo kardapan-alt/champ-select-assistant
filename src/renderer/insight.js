@@ -10,6 +10,10 @@ function readoutRows(b){
   for(const [key,label] of [['inventory','Ekwipunek i złoto'],['enemies','Zakupy wrogów']]){
     const source=r[key],fresh=freshRead(source),manual=source.status==='manual';
     const missingGold=key==='inventory'&&!source.goldKnown;
+    if (b.mode === 'practice' && key === 'enemies' && fresh && source.count === 0) {
+      rows.push({key,label,text:'Trening bez przeciwników',tone:'muted'});
+      continue;
+    }
     const text=manual?'Ustawiane ręcznie':fresh?`${missingGold?'Brak odczytu złota':'Aktualne'} · ${readAge(source.at)}`
       :source.at?`Przerwa · ostatnio ${readAge(source.at)}`:'Czekam na dane gry';
     rows.push({key,label,text:text+(source.unknown?` · ${source.unknown} poza katalogiem`:''),tone:manual?'muted':fresh&&!source.unknown&&!missingGold?'good':'readout-warning'});

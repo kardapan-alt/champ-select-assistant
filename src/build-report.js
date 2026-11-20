@@ -6,6 +6,7 @@ const { normalizeExpectation } = require('./build-expectation');
 
 const FORMAT = 'champ-select-assistant/build-report';
 const roles = ['top', 'jungle', 'middle', 'bottom', 'utility'];
+const modes = new Set(['classic','aram','mayhem','practice']);
 const position = value => roles.includes(value) ? value : ({ mid:'middle', adc:'bottom', bot:'bottom', support:'utility' }[value] || '');
 const id = value => Number.isSafeInteger(value) && value > 0 ? value : null;
 const ids = (list, max) => Array.isArray(list) ? list.slice(0,max).filter(id) : [];
@@ -43,7 +44,7 @@ function scenarioFrom(state, build, game) {
 }
 
 function createReport(state, build, game, {version, patch, gold}) {
-  if (!build || !state || !['classic','aram','mayhem'].includes(state.mode)) throw Error('Brak aktywnego buildu.');
+  if (!build || !state || !modes.has(state.mode)) throw Error('Brak aktywnego buildu.');
   return {
     format:FORMAT, schema:1, version:limited(version,30), patch:limited(patch,40) || null,
     scenario:scenarioFrom(state,build,game),
@@ -58,7 +59,7 @@ function createReport(state, build, game, {version, patch, gold}) {
 function readReport(text) {
   if (typeof text !== 'string' || Buffer.byteLength(text) > 128*1024) throw Error('Zgłoszenie jest za duże.');
   const r = JSON.parse(text.replace(/^\uFEFF/,''));
-  if (r?.format !== FORMAT || r.schema !== 1 || typeof r.scenario?.alias !== 'string' || !r.scenario.alias || !['classic','aram','mayhem'].includes(r.scenario?.mode)
+  if (r?.format !== FORMAT || r.schema !== 1 || typeof r.scenario?.alias !== 'string' || !r.scenario.alias || !modes.has(r.scenario?.mode)
     || !Array.isArray(r.scenario.allies) || !Array.isArray(r.scenario.enemies) || r.scenario.allies.length>4 || r.scenario.enemies.length>5
     || ![...r.scenario.allies,...r.scenario.enemies].every(a=>typeof a === 'string') || ![...roles,''].includes(r.scenario.role)
     || !Array.isArray(r.observed?.plan) || r.observed.plan.length > 8 || !r.observed.plan.every(i=>i && id(i.id) && typeof i.name === 'string'))

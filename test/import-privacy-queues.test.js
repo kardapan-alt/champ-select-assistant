@@ -93,3 +93,13 @@ test('wyłącznie rozpoznane kolejki, mapy i reguły uruchamiają rekomendacje',
   for(const id of [450,720,721]) assert.equal(modeFromFlow(flow(id,'ARAM',12)),'aram');
   for(const [id,mode] of [[2400,'KIWI'],[2450,'KIWI_JADE']]) assert.equal(modeFromFlow(flow(id,mode,12)),'mayhem');
 });
+
+test('Practice Tool wymaga identyfikatora treningu, trybu gry i mapy Summoner’s Rift',()=>{
+  const flow=(id,gameMode,mapId)=>({gameData:{queue:{id,gameMode,mapId}}});
+  assert.equal(modeFromFlow(flow(3140,'PRACTICETOOL',11)),'practice');
+  assert.equal(modeFromFlow({map:{id:11},gameData:{queue:{id:3140,gameMode:'PRACTICETOOL'}}}),'practice');
+  for(const scenario of [flow(3140,'CLASSIC',11),flow(420,'PRACTICETOOL',11),flow(7777,'PRACTICETOOL',11),
+    flow(3140,'PRACTICETOOL',12),flow(3140,'PRACTICETOOL',undefined)]){
+    assert.equal(modeFromFlow(scenario),'unsupported',JSON.stringify(scenario));
+  }
+});

@@ -80,7 +80,7 @@ class LiveClient {
     const result=ownSnapshot(snapshot,me,alias,pool);
     if (result.status!=='live') return result;
     const {active,players,stats,own}=result;
-    const mode = options.mode || (pool === 'CLASSIC' ? 'classic' : pool === 'ARAM' ? 'aram' : 'mayhem');
+    const mode = options.mode || ({ CLASSIC:'classic', ARAM:'aram', PRACTICETOOL:'practice' }[pool] || 'mayhem');
     const inventory = inventoryOf(own.items,game,alias,mode,options.sideBoots);
     if (!inventory) return { status:'invalid' };
     const gold = Number.isFinite(active.currentGold) && active.currentGold >= 0 ? Math.floor(active.currentGold) : null;
@@ -118,7 +118,7 @@ function teamScores(players, team, expected = [], game) {
 }
 
 function enemyInventories(players, own, expected, game, mode) {
-  if (!['ORDER','CHAOS'].includes(own.team) || !Array.isArray(expected) || !expected.length) return null;
+  if (!['ORDER','CHAOS'].includes(own.team) || !Array.isArray(expected) || (!expected.length && mode !== 'practice')) return null;
   const otherTeam = own.team === 'ORDER' ? 'CHAOS' : 'ORDER';
   const opponents = players.filter(p=>p.team === otherTeam);
   if (opponents.length !== expected.length) return null;

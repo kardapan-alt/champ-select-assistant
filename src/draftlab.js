@@ -34,7 +34,7 @@ function inspectionCatalog(game) {
 
 function preview(input, game, data, {buildOnly=false,inspectItem=null} = {}) {
   if (!input || !game.championsByAlias.has(input.alias)) throw new Error('Wybierz swojego championa z listy.');
-  if ((!ROLES.includes(input.role) && !(input.context && input.role === '')) || !['classic', 'aram', 'mayhem'].includes(input.mode)) throw new Error('Wybierz prawidłową rolę i tryb.');
+  if ((!ROLES.includes(input.role) && !(input.context && input.role === '')) || !['classic', 'aram', 'mayhem','practice'].includes(input.mode)) throw new Error('Wybierz prawidłową rolę i tryb.');
   const validateTeam = (value, limit) => {
     if (!Array.isArray(value) || value.length > limit) throw new Error('Nieprawidłowa liczba championów.');
     const team = value.map(x => String(x || ''));

@@ -40,7 +40,7 @@ function roleQuestsEnabled(flow) {
 }
 
 function roleQuestFor(state) {
-  if (['aram', 'mayhem'].includes(state?.mode) || state?.roleQuestsEnabled === false) return null;
+  if (['aram', 'mayhem', 'practice'].includes(state?.mode) || state?.roleQuestsEnabled === false) return null;
   const assigned = state?.me?.position;
   return QUESTS[assigned === 'support' ? 'utility' : assigned] || null;
 }

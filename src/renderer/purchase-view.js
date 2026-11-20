@@ -75,8 +75,23 @@ function showDataStatus(){
   dialog.querySelector('[data-close-data]').onclick=()=>dialog.close();dialog.showModal();
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-data-status]'))showDataStatus();});
+function practiceWaiting(s) {
+  const title = s.status === 'champselect' ? 'Wybierz postać' : 'Czekam na Twoją postać';
+  return `<section class="panel"><h2>${title}</h2><p class="muted">Build pojawi się po odczytaniu postaci. Złoto i zakupy odczytam na mapie treningowej.</p></section>`;
+}
+function compactBuildPlan(b) {
+  return `<section class="compact-build"><h3>Kolejność zakupów</h3><ol aria-label="Kolejność zakupów">${orderedBuildItems(b).map(item =>
+    `<li>${img(item.icon, 'compact-build-icon')}<span>${esc(item.name)}</span>${item.owned ? '<span class="good" aria-label="W ekwipunku" title="W ekwipunku">✓</span>' : ''}</li>`
+  ).join('')}</ol></section>`;
+}
 function compactScreen(s){
   const b=s.final?.build||s.build;
+  if (s.mode === 'practice') {
+    if (!b) return practiceWaiting(s);
+    return `<section class="compact-content"><h2>${esc(b.name)}</h2>${readoutPanel(b)}
+      ${b.shop ? liveShopPanel(b,true) : '<p class="muted">„Kup teraz” pojawi się po odczycie złota i ekwipunku na mapie.</p>'}
+      ${compactBuildPlan(b)}${dataFreshnessBadge()} <button data-build-report>Zgłoś dziwny build</button></section>`;
+  }
   if(!b)return `<section class="compact-empty"><h2>${s.status==='loading'?'Łączenie z klientem…':'Czekam na Twoją grę'}</h2><p>Zakup i najważniejsza porada pojawią się po odczycie postaci.</p>${s.recentMatch?recentMatchCard(s.recentMatch):''}${dataFreshnessBadge()}</section>`;
   const fresh=freshRead(b.readout?.inventory),alt=fresh?b.shop?.comparison?.find(o=>o.target.id===b.purchaseGoal?.suggestion?.id)||b.shop?.comparison?.find(o=>o.kind!=='plan'):null;
   const tip=b.mayhem?.headliner?.warning||b.situations?.find(x=>x.inBuild)?.answer||b.situations?.[0]?.answer||b.mayhem?.hints?.[0]?.summary||b.shop?.target?.why||b.notes?.[0];

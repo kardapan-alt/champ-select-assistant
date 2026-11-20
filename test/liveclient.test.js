@@ -21,6 +21,23 @@ function fixture(items=[]) {
 const read=responses=>new LiveClient(async p=>{assert.equal(p,'/liveclientdata/allgamedata');return responses;})
   .inventory(me,'Ahri','KIWI',game,{enemies:[{gameName:'Wróg',tagLine:'EUNE',championId:103}]});
 
+test('trening bez wrogów jest potwierdzony dopiero gdy oba składy są zgodne',async()=>{
+  const snapshot=fixture();
+  const opponent=snapshot.allPlayers.shift();
+  snapshot.gameData.gameMode='PRACTICETOOL';
+  const client=new LiveClient(async()=>snapshot);
+  const sample=(enemies)=>client.inventory(me,'Ahri','PRACTICETOOL',game,{mode:'practice',enemies});
+  assert.deepEqual((await sample([])).enemies,[]);
+  assert.equal((await sample(undefined)).enemies,null);
+  snapshot.allPlayers.push(opponent);
+  const unconfirmed=await sample([]);
+  assert.equal(unconfirmed.enemies,null);
+  assert.equal(unconfirmed.gold,1234);
+  assert.equal((await sample([{anonymous:true,championId:103}])).enemies[0].items[0].id,3031);
+  snapshot.gameData.gameMode='CLASSIC';
+  assert.equal((await sample([])).status,'mismatch');
+});
+
 test('tablica meczu rozróżnia drużyny i nie ujawnia kont anonimowych przeciwników', async()=>{
   const f=fixture();
   f.allPlayers[0].scores={kills:3,deaths:2,assists:1,creepScore:20};

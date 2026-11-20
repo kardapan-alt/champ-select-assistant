@@ -20,7 +20,6 @@ const toDataRole = (pos) => (pos === 'utility' ? 'support' : pos);
 
 // ---------- stan wyboru postaci ----------
 
-// mode: 'aram' (Howling Abyss: losowe championy, ławka, brak linii) albo 'classic'.
 // extra: listy z klienta, niezależne od akcji w sesji: pickable (kogo możesz teraz wybrać) i disabled (zbanowani).
 function readSession(session, mode = 'classic', extra = {}) {
   const actions = (session.actions || []).flat();
@@ -80,8 +79,9 @@ function readSession(session, mode = 'classic', extra = {}) {
   const banPhase = phase === 'PLANNING' || banActions.some((a) => a.isInProgress && !a.completed);
   const myBanTurn = banActions.some((a) => a.actorCellId === me && a.isInProgress && !a.completed);
 
-  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, pickable, phase, allLocked, banPhase, myBanTurn, mode: mode === 'mayhem' ? 'mayhem' : aram ? 'aram' : 'classic', bench,
-    roleQuestsEnabled: aram ? false : extra.roleQuestsEnabled };
+  return { me: allies.find((a) => a.isMe) || null, allies, enemies, bans, pickable, phase, allLocked, banPhase, myBanTurn,
+    mode: mode === 'practice' || mode === 'mayhem' ? mode : aram ? 'aram' : 'classic', bench,
+    roleQuestsEnabled: aram || mode === 'practice' ? false : extra.roleQuestsEnabled };
 }
 
 // ---------- informacje o championach ----------
@@ -787,7 +787,10 @@ function buildFor(alias, state, game, data) {
   const threats = threatWeights(enemy);
   const quest = roleQuestFor(state);
   const bootsInQuest = quest?.extraSlot === 'boots';
-  const reservedSlots = !isAram(state.mode) && ctx.position === 'support' ? 1 : 0;
+  const hasSupportSlot = state.mode === 'practice'
+    ? state.liveInventory?.items?.some(item => SUPPORT_ITEMS.has(item.id))
+    : !isAram(state.mode) && ctx.position === 'support';
+  const reservedSlots = hasSupportSlot ? 1 : 0;
   const owned = state.liveInventory?.owned || augmentation?.owned || [];
   const ownedBoots = state.liveInventory?.ownedBoots || augmentation?.ownedBoots;
   const skipped = new Set(augmentation ? state.skippedItems || [] : []);

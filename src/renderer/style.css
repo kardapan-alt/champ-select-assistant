@@ -34,6 +34,11 @@
 .compact-content h2 small { font-size:11px; color:var(--muted); font-weight:400; }
 .compact-content .readout { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .compact-content .live-shop { padding:10px; margin-bottom:10px; }
+.compact-build { margin:10px 0; }
+.compact-build h3 { margin:0 0 6px; font-size:12px; }
+.compact-build ol { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:18px; row-gap:4px; margin:0; padding-left:18px; font-size:12px; }
+.compact-build li { overflow-wrap:anywhere; }
+.compact-build-icon { width:20px; height:20px; display:inline-block; vertical-align:middle; margin-right:5px; border-radius:3px; }
 .compact-alternative,.compact-tip { border:1px solid var(--line-2); border-radius:8px; padding:8px 10px; margin-bottom:10px; font-size:12px; }
 .compact-alternative p,.compact-tip p { margin:4px 0; }
 .compact-alternative button { padding:4px 8px; font-size:11px; }

@@ -11,6 +11,7 @@ function modeFromFlow(flow) {
   const mode = String(queue.gameMode || '').toUpperCase();
   const mapId = flow.map?.id ?? queue.mapId;
   const map = Number(mapId);
+  if (id === 3140 && mode === 'PRACTICETOOL' && map === 11) return 'practice';
   if (mayhemQueues.has(id) && (mode === 'KIWI' || mode === 'KIWI_JADE') && (mapId == null || map === 12)) return 'mayhem';
   if ((aramQueues.has(id) || id === 0) && mode === 'ARAM' && map === 12) return 'aram';
   if ((classicQueues.has(id) || id === 0) && mode === 'CLASSIC' && map === 11) return 'classic';

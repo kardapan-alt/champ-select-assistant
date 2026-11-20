@@ -22,7 +22,7 @@ function previewBuildReport(draft,source='before') {
     dialog = document.createElement('dialog'); dialog.id = 'build-report-dialog'; document.body.appendChild(dialog);
   }
   dialog.innerHTML = `<div class="panel-head"><h2>Zgłoś dziwny build</h2><button data-close>Zamknij</button></div>
-    <p><b>${esc(report.scenario.alias)}</b> · ${esc({classic:'Summoner’s Rift',aram:'ARAM',mayhem:'ARAM Mayhem'}[report.scenario.mode])} · patch ${esc(report.patch || 'nieznany')}</p>
+    <p><b>${esc(report.scenario.alias)}</b> · ${esc({classic:'Summoner’s Rift',aram:'ARAM',mayhem:'ARAM Mayhem',practice:'Practice Tool'}[report.scenario.mode])} · patch ${esc(report.patch || 'nieznany')}</p>
     ${draft.currentReport ? `<label>Plan do zgłoszenia <select data-report-source>
       <option value="before"${source==='before'?' selected':''}>Przed pominięciem · ${esc(skippedName)}</option>
       <option value="current"${source==='current'?' selected':''}>Obecny build</option></select></label>` : ''}

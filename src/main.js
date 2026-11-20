@@ -144,7 +144,10 @@ function detectMode(flow) {
   currentQueueId = queueId;
   currentMayhemPool = pool;
   currentRoleQuests = roleQuests;
-  if (changed) recomputeData();
+  if (changed) {
+    recomputeData();
+    if (game && !stats.meta && (nextMode === 'classic' || nextMode === 'aram')) loadMeta();
+  }
   return currentMode;
 }
 let provider = null;
@@ -154,7 +157,7 @@ let running = 0;
 let refreshTimer = null;
 
 function recomputeData() {
-  data = currentMode !== 'mayhem' && settings.stats && game ? mergeStats(baseData, stats, game) : baseData;
+  data = !['mayhem','practice'].includes(currentMode) && settings.stats && game ? mergeStats(baseData, stats, game) : baseData;
 }
 
 // Po nadejściu nowych statystyk przelicz widok (z małym opóźnieniem, żeby nie migał przy serii odpowiedzi).
@@ -211,7 +214,7 @@ function initStats() {
 }
 
 function loadMeta() {
-  if (!settings.stats || !game) return;
+  if (!settings.stats || !game || currentMode === 'practice') return;
   provider.meta(game).then((meta) => {
     if (meta) { stats.meta = meta; scheduleRefresh(); }
   }).catch(() => {});
@@ -466,7 +469,7 @@ async function syncLiveInventory() {
   target.nextLivePoll = Date.now()+2000;
   const alias = game.championsById.get(me.championId)?.alias;
   let result;
-  const pool = currentMode === 'mayhem' ? state.mayhemPool : currentMode === 'aram' ? 'ARAM' : 'CLASSIC';
+  const pool = currentMode === 'mayhem' ? state.mayhemPool : {practice:'PRACTICETOOL', aram:'ARAM', classic:'CLASSIC'}[currentMode];
   try { result = await liveClient.inventory(me,alias,pool,game,{ mode:currentMode, enemies:target.enemies, allies:settings.stats ? target.allies : undefined, training:Number(currentQueueId)===420,
     sideBoots:currentRoleQuests && ['bottom','adc'].includes(me.position) }); }
   catch { result = { status:'waiting' }; }
@@ -477,7 +480,7 @@ async function syncLiveInventory() {
   ]);
   const sameSession = () => loading === target && (currentMode !== 'mayhem' || mayhemSession.value?.key === state.mayhemKey);
   if (!sameSession() || phase !== 'InProgress') return;
-  if (!flow?.gameData) return;
+  if (!flow?.gameData || modeFromFlow(flow) !== currentMode) return;
   if (target.gameId && String(flow.gameData.gameId) !== String(target.gameId)) { loading=null; return; }
   await choiceWrites(async () => {
     if (!sameSession()) return;
@@ -500,12 +503,16 @@ async function syncLiveInventory() {
 }
 
 function fetchPlayerStats(target) {
-  if (!settings.stats) return;
+  if (!settings.stats || currentMode === 'practice') return;
   return refreshPlayerStats(target, p => provider.summoner({gameName:p.gameName, tagLine:p.tagLine, region:target.region}),
     () => loading === target && settings.stats, () => { loadingDirty = true; });
 }
 
 function buildLoadingView() {
+  const me = loading.allies.find((p) => p.isMe);
+  if (currentMode === 'practice') {
+    return {status:'loading-screen', mode:currentMode, final:me?.championId ? finalWithEnemies(me) : null, allies:[], enemies:[]};
+  }
   const cardOf = (p) => playerCard(p, settings.stats && !p.anonymous ? loading.summaries[playerKey(p)]||null:null, game,Date.now(),currentMode);
   const scores = settings.stats && loading.liveStatus === 'live' && Date.now() - loading.liveAt < 6000 ? loading.liveSnapshot?.scoreboard : null;
   const card = (p, side) => ({
@@ -515,7 +522,6 @@ function buildLoadingView() {
     pending: settings.stats && loading.summaries[playerKey(p)] === undefined && !!p.gameName&&!!p.tagLine,
     statsDisabled:!settings.stats,
   });
-  const me = loading.allies.find((p) => p.isMe);
   const aram = isAram(currentMode);
   let plan = null;
   if (!aram) try { plan = lanePlan(me, loading.enemies, cardOf, game, data); } catch (err) { log(`plan linii: ${err.message}`); }
@@ -676,7 +682,7 @@ function finalWithEnemies(me,lane) {
     build.readout=readoutFor(build,insightContext);
     loading.buildChanges ||= new BuildChanges();
     build.lastChange=loading.buildChanges.observe(build,insightContext);
-    if(liveStatus==='live'||(liveStatus==='manual' && loading.liveStatus==='live' && Date.now()-(loading.liveAt||0)<6000))matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
+    if(currentMode!=='practice' && (liveStatus==='live'||(liveStatus==='manual' && loading.liveStatus==='live' && Date.now()-(loading.liveAt||0)<6000)))matchReview?.observe({key:`${loading.gameId||loading.sessionId}:${alias}:${currentMode}`,
       alias,name:game.championsById.get(me.championId)?.name||alias,mode:currentMode,snapshot:loading.liveSnapshot,build,
       compareAugment:id=>augmentImpact(id,withChoices(alias,s),build,goal.id,game,data),
       replayReport:()=>createReport(withChoices(alias,s),build,game,{
@@ -694,14 +700,21 @@ function buildView(session, gameId) {
   lastSelectState = state;
   const me = state.me;
   const myAlias = me && me.championId ? game.championsById.get(me.championId)?.alias : null;
+  const view = { status:'champselect', mode:state.mode, myChampion:null, build:null };
+  if (myAlias) {
+    view.myChampion = { ...champView(me.championId, me.skinId), locked:me.locked, provisional:!state.allLocked, runes:runesFor(myAlias, state) };
+    view.build = { ...buildFor(myAlias, state), provisional:!state.allLocked };
+  }
+  if (view.build && state.allLocked) lastFinal = { myChampion:view.myChampion, build:view.build };
+  else if (!state.allLocked) lastFinal = null;
+  if (currentMode === 'practice') return view;
   const aram = isAram(state.mode);
   // Na ARAM-ie nie ma wyboru z całej puli: zamiast sugestii ranking championów z ławki.
   const picks = aram ? { list: [], blind: false, laneOpponent: null } : engine.suggestPicks(state, game, data);
   const pickPool = draftPickPool(state);
   requestNeeded(state, picks);
-  const view = {
-    status: 'champselect',
-    mode: state.mode,
+  return {
+    ...view,
     botPlan: botLanePlan(state, currentQueueId, game, data),
     pickPool,
     laneVariants: laneVariantOptions(state,currentQueueId,game,data),
@@ -730,20 +743,9 @@ function buildView(session, gameId) {
     statsEnabled: settings.stats,
     autoRunes: autoRunesView(),
     autoItemSet: autoItemSetView(),
-    myChampion: null,
-    build: null,
+    _state: { me: me && { spell1Id: me.spell1Id, spell2Id: me.spell2Id } },
     dataFile,
   };
-  if (myAlias) {
-    view.myChampion = { ...champView(me.championId, me.skinId), locked: me.locked, provisional: !state.allLocked, runes: runesFor(myAlias, state) };
-    // Build od razu po wybraniu championa; dopóki nie wszyscy zablokowali, jest wstępny i zmienia się z każdym pickiem wroga.
-    view.build = { ...buildFor(myAlias, state), provisional: !state.allLocked };
-  }
-  // Ostatni build z champ selecta zostaje do wglądu na ekranie ładowania i w trakcie gry.
-  if (view.build && state.allLocked) lastFinal = { myChampion: view.myChampion, build: view.build };
-  else if (!state.allLocked) lastFinal = null;
-  view._state = { me: me && { spell1Id: me.spell1Id, spell2Id: me.spell2Id } };
-  return view;
 }
 
 // ---------- akcje wywoływane z interfejsu (tylko na kliknięcie użytkownika) ----------
@@ -897,6 +899,7 @@ async function runAutoItemSet(alias, state, key) {
   if (target === autoItemSet && lastState?.status === 'champselect') send({ ...lastState, autoItemSet: autoItemSetView() });
 }
 function autoExportItemSet() {
+  if (currentMode === 'practice') return;
   const s = lastSelectState;
   if (!settings.autoItemSet || !s || !s.allLocked || !s.me || !s.me.championId) return;
   const alias = game.championsById.get(s.me.championId)?.alias;
@@ -933,6 +936,7 @@ ipcMain.handle('set-training-goal',wrap(async input => {
 }));
 
 async function verifyActionMode(requiredPhase) {
+  if (currentMode === 'practice') throw Error('W Practice Tool asystent pokazuje build i zakupy.');
   const [phase, flow] = await Promise.all([lcu.get('/lol-gameflow/v1/gameflow-phase'), lcu.get('/lol-gameflow/v1/session')]);
   const validPhase = requiredPhase ? phase === requiredPhase : phase === 'ChampSelect' || LOADING_PHASES.includes(phase);
   if (!validPhase || currentMode === 'unsupported' || currentMode !== modeFromFlow(flow)) throw Error('Poczekaj na potwierdzenie obsługiwanej kolejki.');
